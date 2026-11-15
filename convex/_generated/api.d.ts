@@ -30,6 +30,7 @@ import type * as templates_splitCode from "../templates/splitCode.js";
 import type * as templates_types from "../templates/types.js";
 import type * as whop from "../whop.js";
 import type * as whopAuth from "../whopAuth.js";
+import type * as whopCreator from "../whopCreator.js";
 
 import type {
   ApiFromModules,
@@ -60,6 +61,7 @@ declare const fullApi: ApiFromModules<{
   "templates/types": typeof templates_types;
   whop: typeof whop;
   whopAuth: typeof whopAuth;
+  whopCreator: typeof whopCreator;
 }>;
 
 /**
