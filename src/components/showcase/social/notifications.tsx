@@ -1,54 +1,67 @@
 import { router, type Href } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Txt } from '@/components/signal/txt';
 import { Palette, Space } from '@/constants/signal';
-import { notes, push } from '@/mocks/showcase/social';
-import { Enter } from '@/motion';
+import type { FeedNotification, Streamer } from '@/mocks/showcase/feed';
 
-import { Avatar, Screen, Section, TextAction, showcase } from './kit';
-import { PushBanner } from './push-banner';
+import { notificationCopy } from './copy';
+import { SampleNote } from './feed';
+import { InAppBanner } from './in-app-banner';
+import { Avatar, Screen, TextAction, showcase } from './kit';
 
-const groups = ['Today', 'Earlier'] as const;
+export function NotificationsScreen({ streamers, items, sample }: { streamers: Streamer[]; items: FeedNotification[]; sample?: boolean }) {
+  const byId = (id: string) => streamers.find((s) => s.id === id)!;
+  const [banner, setBanner] = useState<FeedNotification | null>(items[0] ?? null);
+  const open = (n: FeedNotification) => router.push({ pathname: '/showcase/creator', params: { id: n.streamerId } } as unknown as Href);
+  const bannerStreamer = banner ? byId(banner.streamerId) : null;
 
-export function NotificationsScreen() {
   return (
-    <Screen title="Notifications" right={<TextAction title="Settings" muted onPress={() => router.push('/showcase/notification-settings' as Href)} />}>
-      <Enter style={[showcase.gutter, styles.push]}>
-        <PushBanner {...push} />
-      </Enter>
-      {groups.map((g) => (
-        <Section key={g} title={g}>
-          <View style={showcase.list}>
-            {notes
-              .filter((n) => n.group === g)
-              .map((n) => (
-                <View key={n.id} style={[showcase.row, styles.item]}>
-                  <Avatar initials={n.initials} size={40} />
+    <View style={styles.flex}>
+      <Screen title="Notifications" right={<TextAction title="Settings" muted onPress={() => router.push('/showcase/notification-settings' as Href)} />}>
+        {items.length === 0 ? (
+          <Txt variant="body" color={Palette.paperMuted} style={[showcase.gutter, styles.none]}>
+            No notifications yet.
+          </Txt>
+        ) : (
+          <View style={[showcase.gutter, showcase.list, styles.list]}>
+            {items.map((n) => {
+              const s = byId(n.streamerId);
+              const copy = notificationCopy(n, s);
+              return (
+                <Pressable key={n.id} accessibilityRole="button" style={[showcase.row, styles.item]} onPress={() => open(n)}>
+                  <Avatar initials={s.initials} size={40} />
                   <View style={showcase.flex}>
-                    <Txt variant="bodyStrong">{n.title}</Txt>
-                    <Txt variant="small" color={Palette.paperMuted}>
-                      {n.body} · {n.when}
+                    <Txt variant="bodyStrong" numberOfLines={1}>
+                      {copy.title}
                     </Txt>
-                    {n.action ? (
-                      <View style={styles.action}>
-                        <TextAction title={n.action} />
-                      </View>
-                    ) : null}
+                    <Txt variant="small" color={Palette.paperMuted} numberOfLines={1}>
+                      {copy.body} · {n.when}
+                    </Txt>
                   </View>
-                  {n.unread ? <View style={styles.unread} /> : null}
-                </View>
-              ))}
+                </Pressable>
+              );
+            })}
           </View>
-        </Section>
-      ))}
-    </Screen>
+        )}
+        {sample ? <SampleNote /> : null}
+      </Screen>
+      {banner && bannerStreamer ? (
+        <InAppBanner
+          initials={bannerStreamer.initials}
+          {...notificationCopy(banner, bannerStreamer)}
+          onPress={() => open(banner)}
+          onDone={() => setBanner(null)}
+        />
+      ) : null}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  push: { marginTop: Space.s },
+  flex: { flex: 1 },
+  none: { marginTop: Space.xxxl, textAlign: 'center' },
+  list: { marginTop: Space.l },
   item: { alignItems: 'flex-start' },
-  action: { alignSelf: 'flex-start', marginTop: Space.s },
-  unread: { width: 8, height: 8, borderRadius: 4, backgroundColor: Palette.paper, marginTop: Space.s },
 });

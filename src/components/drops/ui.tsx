@@ -60,7 +60,7 @@ export function ModeTag({ mode }: { mode: BountyMode }) {
 export function BountyLine({ bounty }: { bounty: BountyView }) {
   return (
     <View style={styles.bounty}>
-      <Txt variant="title" color={Palette.ember}>
+      <Txt variant="title" color={Palette.paper}>
         {money(bounty.totalCents)}
       </Txt>
       <Txt variant="small" color={Palette.paperMuted} style={styles.flex}>
@@ -75,7 +75,7 @@ export function DropCard({ drop, children }: { drop: DropSummaryView; children?:
     <View style={styles.card}>
       <View style={styles.cardHead}>
         <View style={styles.avatar}>
-          <Txt variant="bodyStrong" color={Palette.onAccent}>
+          <Txt variant="bodyStrong" color={Palette.ink}>
             {drop.creatorName.replace('@', '').slice(0, 1).toUpperCase()}
           </Txt>
         </View>
@@ -90,9 +90,6 @@ export function DropCard({ drop, children }: { drop: DropSummaryView; children?:
       <Txt variant="display">{drop.title}</Txt>
       <BountyLine bounty={drop.bounty} />
       <View style={styles.pieces}>
-        {(['hacker', 'witness', 'detective'] as Role[]).map((r) => (
-          <View key={r} style={[styles.piece, { borderColor: RoleColors[r] }]} />
-        ))}
         <Txt variant="small" color={Palette.paperMuted} style={styles.flex}>
           3 pieces, split across your squad. {Tagline}
         </Txt>
@@ -140,7 +137,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: Palette.ember,
+    backgroundColor: Palette.paper,
     alignItems: 'center',
     justifyContent: 'center',
   },
