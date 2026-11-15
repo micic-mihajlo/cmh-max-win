@@ -1,6 +1,6 @@
 import { BountyResultScreen } from '@/components/drops/bounty-result';
 import { RACE_REVEAL_MS, type DossierView, type DropView, type LeaderboardRow, type LeaderboardView, type SquadAwardView } from '@/lib/contract';
-import { CreatorSetupScreen } from '@/components/drops/creator-setup';
+import { CreatorSetupScreen, POTS } from '@/components/drops/creator-setup';
 import { DropEntryScreen } from '@/components/drops/drop-entry';
 import { JoinCodeScreen } from '@/components/drops/join-code';
 import { LeaderboardScreen } from '@/components/drops/leaderboard';
@@ -118,7 +118,21 @@ const bounty = drop().bounty;
 const nova = { title: 'The Aurora Seed', totalCents: 30000, winnerSlots: 3 };
 
 export const DropStates: MockState[] = [
-  { id: '10-creator-card', ref: 'beat 2', section: 'Drops', title: 'Creator · prefilled drop card', render: () => <CreatorSetupScreen drop={nova} /> },
+  { id: '10-creator-card', ref: 'beat 2', section: 'Drops', title: 'Creator · prefilled drop card', render: () => <CreatorSetupScreen drop={nova} pot={POTS[0]} onPot={() => {}} /> },
+  {
+    id: '10-creator-pot-error',
+    ref: 'beat 2',
+    section: 'Drops',
+    title: 'Creator · $9 picked, server refused it',
+    render: () => (
+      <CreatorSetupScreen
+        drop={{ ...nova, totalCents: 900 }}
+        pot={POTS[3]}
+        onPot={() => {}}
+        error="That bounty is more than your Whop balance can cover."
+      />
+    ),
+  },
   {
     id: '10-creator-live',
     ref: 'beat 2',

@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 
 import { Screen } from '@/components/signal/backdrop';
@@ -8,7 +8,7 @@ import { FontFamily, Palette, Radius, Space } from '@/constants/signal';
 import { Enter, PressScale, Seal, Stagger } from '@/motion';
 import type { HostView } from '@/lib/contract';
 
-import { money, short } from './ui';
+import { Brass, money, short } from './ui';
 
 export const MIN_TO_DEAL = 4;
 const CHIP_LIMIT = 12;
@@ -21,9 +21,7 @@ export function HostScreen({ view, hostName, dealing, onDeal }: { view: HostView
     <Screen
       footer={
         <View style={styles.footer}>
-          <Txt variant="bodyStrong" style={styles.flex}>
-            {`${money(view.bounty.totalCents)} · first ${view.bounty.winnerSlots} squads`}
-          </Txt>
+          <Pot view={view} style={styles.flex} />
           <PressScale disabled={!canDeal} onPress={onDeal} haptic="tap" style={[styles.deal, !canDeal && styles.dealOff]}>
             <Txt variant="button" color={canDeal ? Palette.onAccent : Palette.disabledText}>
               {dealing ? 'Dealing…' : 'Deal squads'}
@@ -87,7 +85,7 @@ function HostBoard({ view }: { view: HostView }) {
         <Txt variant="display" style={styles.flex}>
           {view.solves.length ? 'Race' : 'Squads'}
         </Txt>
-        <Txt variant="bodyStrong">{`${money(view.bounty.totalCents)} · first ${view.bounty.winnerSlots} squads`}</Txt>
+        <Pot view={view} style={styles.potRight} />
       </View>
       <View style={styles.bars}>
         {Array.from({ length: view.bounty.winnerSlots }, (_, i) => (
@@ -133,7 +131,21 @@ function HostBoard({ view }: { view: HostView }) {
   );
 }
 
+function Pot({ view, style }: { view: HostView; style?: StyleProp<ViewStyle> }) {
+  return (
+    <View style={style}>
+      <Txt variant="bodyStrong">{`${money(view.bounty.totalCents)} · first ${view.bounty.winnerSlots} squads`}</Txt>
+      {view.bounty.mode === 'concept' ? (
+        <Txt variant="label" color={Brass}>
+          Concept · no real money moves
+        </Txt>
+      ) : null}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  potRight: { alignItems: 'flex-end' },
   boardHead: { flexDirection: 'row', alignItems: 'baseline', gap: Space.m },
   bars: { flexDirection: 'row', gap: Space.s },
   bar: { flex: 1, height: 10, borderRadius: Radius.pill, backgroundColor: Palette.hairline, overflow: 'hidden' },
