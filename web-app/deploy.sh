@@ -7,7 +7,7 @@ root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
 
 cp app.json app.json.bak
-trap 'mv -f app.json.bak app.json' EXIT
+trap 'mv -f "$root/app.json.bak" "$root/app.json"' EXIT
 node -e '
 const fs = require("fs");
 const config = JSON.parse(fs.readFileSync("app.json", "utf8"));
@@ -34,4 +34,5 @@ cp web-app/expo.html dist/expo.html
 
 cd dist
 vercel link --yes --project signal-app
+rm -f .env.local
 vercel deploy --prod --yes
