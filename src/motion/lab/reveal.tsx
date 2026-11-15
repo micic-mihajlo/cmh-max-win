@@ -18,7 +18,7 @@ export default function LabReveal() {
   const buy = () => {
     setPack('checkout');
     setTimeout(() => setPack('verifying'), 900);
-    setTimeout(() => setPack('owned'), 2700);
+    setTimeout(() => setPack('owned'), 4900);
   };
 
   return (

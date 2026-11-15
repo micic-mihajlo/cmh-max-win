@@ -35,7 +35,7 @@ export function LockInRing({ seats, play = true, size = 232, caption = 'agree', 
 
   return (
     <View
-      style={{ width: size, height: size + 18 }}
+      style={{ width: size, height: size + LABEL, marginTop: LABEL }}
       accessible
       accessibilityLabel={`${count} of ${seats.length} agree`}>
       <View
@@ -59,8 +59,11 @@ export function LockInRing({ seats, play = true, size = 232, caption = 'agree', 
         const angle = -Math.PI / 2 + (i * 2 * Math.PI) / seats.length;
         const cx = size / 2 + radius * Math.cos(angle);
         const cy = size / 2 + radius * Math.sin(angle);
+        const above = cy < size / 2 - 1;
         return (
-          <View key={s.key} style={[styles.seat, { left: cx - 45, top: cy - seal / 2 }]}>
+          <View
+            key={s.key}
+            style={[styles.seat, above && styles.seatAbove, { left: cx - 45, top: cy - seal / 2 - (above ? LABEL + 4 : 0) }]}>
             <Seal
               locked={s.locked}
               color={s.color}
@@ -82,6 +85,8 @@ export function LockInRing({ seats, play = true, size = 232, caption = 'agree', 
   );
 }
 
+const LABEL = 18;
+
 const styles = StyleSheet.create({
   track: { position: 'absolute', borderWidth: 1, borderColor: Palette.hairline },
   center: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
@@ -91,6 +96,7 @@ const styles = StyleSheet.create({
   of: { fontSize: 20, lineHeight: 34, color: Palette.muted, fontVariant: ['tabular-nums'] },
   caption: { fontSize: 12, letterSpacing: 1.2, textTransform: 'uppercase', color: Palette.muted, fontWeight: '600' },
   seat: { position: 'absolute', width: 90, alignItems: 'center', gap: 4 },
-  name: { fontSize: 13, color: Palette.muted, maxWidth: 90 },
+  seatAbove: { flexDirection: 'column-reverse' },
+  name: { fontSize: 13, lineHeight: LABEL, color: Palette.muted, maxWidth: 90 },
   me: { color: Palette.paper, fontWeight: '600' },
 });

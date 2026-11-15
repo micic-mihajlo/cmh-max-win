@@ -146,8 +146,8 @@ export default function LabCase() {
           onPress={() => setLocked(1)}
           accessibilityRole="button"
           accessibilityState={{ disabled: !canLock }}
-          style={[styles.primary, { opacity: canLock ? 1 : 0.4, transitionProperty: 'opacity', transitionDuration: 200 }]}>
-          <Text style={styles.primaryText}>{burned ? 'Change the theory to try again' : 'I agree with this theory'}</Text>
+          style={[styles.primary, !canLock && styles.primaryOff, { transitionProperty: ['backgroundColor', 'borderColor'], transitionDuration: 200 }]}>
+          <Text style={[styles.primaryText, !canLock && styles.primaryTextOff]}>{burned ? 'Change the theory to try again' : 'I agree with this theory'}</Text>
         </PressScale>
         <Text style={[ui.callout, { textAlign: 'center' }]}>Lab: the mock server accepts {labSuspects.find((s) => s.id === LAB_MOCK_ANSWER)!.name}.</Text>
       </ScrollView>
@@ -172,6 +172,8 @@ const styles = StyleSheet.create({
   ruledOut: { opacity: 0.5 },
   agreement: { alignItems: 'center', gap: 8 },
   outcome: { minHeight: 140, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center' },
-  primary: { height: 56, borderRadius: 14, backgroundColor: Palette.ember, alignItems: 'center', justifyContent: 'center' },
+  primary: { height: 56, borderRadius: 14, borderWidth: 1, borderColor: Palette.ember, backgroundColor: Palette.ember, alignItems: 'center', justifyContent: 'center' },
+  primaryOff: { backgroundColor: Palette.panel, borderColor: Palette.hairline },
+  primaryTextOff: { color: Palette.faint },
   primaryText: { fontSize: 17, fontWeight: '600', color: Palette.ink },
 });

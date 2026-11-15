@@ -48,8 +48,8 @@ export default function LabLobby() {
         onPress={() => router.push('/lab/case')}
         accessibilityRole="button"
         accessibilityState={{ disabled: !ready }}
-        style={[styles.primary, { opacity: ready ? 1 : 0.4, transitionProperty: 'opacity', transitionDuration: 200 }]}>
-        <Text style={styles.primaryText}>Start case</Text>
+        style={[styles.primary, !ready && styles.primaryOff, { transitionProperty: ['backgroundColor', 'borderColor'], transitionDuration: 200 }]}>
+        <Text style={[styles.primaryText, !ready && styles.primaryTextOff]}>Start case</Text>
       </PressScale>
     </View>
   );
@@ -59,6 +59,8 @@ const styles = StyleSheet.create({
   seats: { marginTop: 28, gap: 12 },
   seat: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderRadius: 14, backgroundColor: Palette.panel, borderWidth: 1, borderColor: Palette.hairline },
   next: { textAlign: 'center', marginBottom: 12 },
-  primary: { height: 56, borderRadius: 14, backgroundColor: Palette.ember, alignItems: 'center', justifyContent: 'center' },
+  primary: { height: 56, borderRadius: 14, borderWidth: 1, borderColor: Palette.ember, backgroundColor: Palette.ember, alignItems: 'center', justifyContent: 'center' },
+  primaryOff: { backgroundColor: Palette.panel, borderColor: Palette.hairline },
+  primaryTextOff: { color: Palette.faint },
   primaryText: { fontSize: 17, fontWeight: '600', color: Palette.ink },
 });

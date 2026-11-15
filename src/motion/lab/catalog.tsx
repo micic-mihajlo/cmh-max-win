@@ -57,7 +57,7 @@ export default function MotionCatalog() {
   const buy = () => {
     setPack('checkout');
     setTimeout(() => setPack('verifying'), 900);
-    setTimeout(() => setPack('owned'), 2700);
+    setTimeout(() => setPack('owned'), 4900);
   };
 
   const seats = labCrew.map((m, i) => ({
