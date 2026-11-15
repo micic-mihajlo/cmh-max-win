@@ -10,11 +10,11 @@ import { LobbyScreen } from '@/components/screens/lobby';
 import { OutcomeStage } from '@/components/screens/outcome-stage';
 import { RevealScreen, type RevealPage } from '@/components/screens/reveal';
 import { Atmosphere } from '@/components/signal/backdrop';
-import { lockedIds } from '@/components/signal/room';
+import { joinNames, lockedIds } from '@/components/signal/room';
 import type { SheetNotice } from '@/components/signal/theory-sheet';
 import { useToast } from '@/components/signal/use-toast';
 import { suspectById } from '@/constants/case01';
-import { Palette } from '@/constants/signal';
+import { Palette, RoleMeta } from '@/constants/signal';
 import {
   useClaimRole,
   useConnection,
@@ -28,8 +28,9 @@ import {
   useSetTheory,
   useStartCase,
 } from '@/hooks/use-signal';
-import type { RoomView, SuspectId } from '@/lib/contract';
+import type { Role, RoomView, SuspectId } from '@/lib/contract';
 import { toSignalError } from '@/lib/signal-error';
+import { Haptic } from '@/motion';
 
 type Menu = 'menu' | 'lobby' | 'confirm-restart' | 'confirm-leave' | null;
 
@@ -61,9 +62,17 @@ function LiveRoom({ room }: { room: RoomView }) {
   const restart = useRestart(code);
   const leave = useLeaveRoom(code);
 
-  const fail = (e: unknown) => {
+  const latest = useRef(room);
+  useEffect(() => {
+    latest.current = room;
+  }, [room]);
+
+  const fail = (e: unknown, role?: Role) => {
     const err = toSignalError(e)?.code;
-    if (err === 'ROLE_TAKEN') return show({ text: 'Someone just took that role. Pick another.', tone: 'warn' });
+    if (err === 'ROLE_TAKEN') {
+      const taker = role ? latest.current.members.find((m) => !m.isMe && m.roles.includes(role)) : undefined;
+      return show({ text: taker && role ? `${taker.name} just took the ${RoleMeta[role].label}.` : 'Someone just took that role. Pick another.', tone: 'warn' });
+    }
     if (err === 'ROLES_NOT_FILLED') return show({ text: 'Someone left their role. Wait for all three.', tone: 'warn' });
     if (err === 'WRONG_STATUS') return show({ text: 'That moment passed. Here’s where things are.' });
     show({ text: 'That didn’t go through. Try again.', tone: 'warn' });
@@ -103,7 +112,7 @@ function LiveRoom({ room }: { room: RoomView }) {
         toast={toast ?? undefined}
         menu={menu === 'lobby' ? true : menu === 'confirm-leave' ? 'confirm-leave' : undefined}
         on={{
-          onClaim: (role) => claimRole(role).catch(fail),
+          onClaim: (role) => claimRole(role).catch((e) => fail(e, role)),
           onStart: () => startCase().catch(fail),
           onShare: menuActions.onShare,
           onMenu: () => setMenu('lobby'),
@@ -165,15 +174,29 @@ function Playing({
   const [seenNudge, setSeenNudge] = useState<number | null>(null);
 
   const prev = useRef(room);
+  const lastFelt = useRef(0);
   useEffect(() => {
     const before = prev.current;
     prev.current = room;
+    const feel = () => {
+      const now = Date.now();
+      if (now - lastFelt.current < 2000) return false;
+      lastFelt.current = now;
+      Haptic.tap();
+      return true;
+    };
     if (room.theory.revision > before.theory.revision && room.theory.lastEditedBy && room.theory.lastEditedBy.memberId !== room.me?.memberId) {
       const who = room.theory.lastEditedBy.name;
       const pick = room.theory.culprit ? suspectById(room.theory.culprit).first : 'nobody';
       const cleared = lockedIds(before).size > 0;
       show({ text: `${who} changed it to ${pick}${cleared ? ' · lock-ins cleared' : ''}` });
+      feel();
       setNotice(undefined);
+    } else if (room.theory.revision === before.theory.revision) {
+      const was = lockedIds(before);
+      const now = lockedIds(room);
+      const agreed = room.members.filter((m) => !m.isMe && now.has(m.memberId) && !was.has(m.memberId)).map((m) => m.name);
+      if (agreed.length > 0 && feel()) show({ text: `${joinNames(agreed)} agreed`, tone: 'good' });
     }
     for (const m of room.members) {
       const was = before.members.find((b) => b.memberId === m.memberId);
