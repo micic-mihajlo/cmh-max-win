@@ -71,6 +71,7 @@ export default defineSchema({
     creatorName: v.string(),
     caseId: v.literal('aurora01'),
     squadSize,
+    strictSquadSize: v.optional(v.boolean()), // demo controls: every squad is exactly squadSize, leftovers unmatched
     startsAt: v.number(),
     status: v.union(v.literal('scheduled'), v.literal('live'), v.literal('ended')),
     bounty: v.object({ totalCents: v.number(), currency: v.literal('usd'), winnerSlots: v.number() }),

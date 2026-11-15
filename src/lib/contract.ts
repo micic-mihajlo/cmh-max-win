@@ -112,7 +112,8 @@ export type SignalErrorCode =
   | 'DROP_NOT_FOUND'
   | 'DROP_CLOSED' // entries close at the start time; a late joiner gets this
   | 'NOT_ENTERED'
-  | 'COOLDOWN'; // drops: a lock-in during the 20s after a wrong check
+  | 'COOLDOWN' // drops: a lock-in during the 20s after a wrong check
+  | 'DEMO_CONTROLS_OFF'; // demo:* mutations on a deployment without SIGNAL_DEMO_CONTROLS=on
 
 export type SignalError = { code: SignalErrorCode; message: string };
 

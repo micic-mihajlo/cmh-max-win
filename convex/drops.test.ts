@@ -322,3 +322,66 @@ describe('entry', () => {
     expect(await t.query(api.drops.listDrops, {})).toHaveLength(1);
   });
 });
+
+describe('squad seats are not reclaimable', () => {
+  test('a stranger with the code is refused and never sees the evidence or the award; members still rejoin', async () => {
+    const { t, squads } = await started(3, { winnerSlots: 1 });
+    const [{ code, members }] = squads;
+    expect(await errorCode(t.mutation(api.signal.joinRoom, { deviceToken: 'stranger', code, name: 'S' }))).toBe(
+      'CASE_STARTED',
+    );
+    for (const role of ['hacker', 'witness', 'detective'] as const) {
+      expect(await errorCode(t.mutation(api.signal.reclaimRole, { deviceToken: 'stranger', code, role }))).toBe(
+        'CASE_STARTED',
+      );
+    }
+    expect((await t.query(api.signal.room, { deviceToken: 'stranger', code }))?.reclaimableRoles).toEqual([]);
+    await toPlaying(t, code, members);
+    const revision = await lockAllBut(t, code, members, 'jun');
+    await t.mutation(api.signal.lockIn, { deviceToken: members.at(-1)!, code, revision });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    const leaked = JSON.stringify({
+      evidence: await t.query(api.signal.myEvidence, { deviceToken: 'stranger', code }),
+      dossier: await t.query(api.signal.myDossier, { deviceToken: 'stranger', code }),
+      award: await t.query(api.drops.myAward, { deviceToken: 'stranger', code }),
+      reveal: await t.query(api.signal.reveal, { deviceToken: 'stranger', code }),
+    });
+    expect(leaked).toBe(JSON.stringify({ evidence: null, dossier: null, award: null, reveal: null }));
+    for (const text of Object.values(PIECE_TEXT)) expect(leaked).not.toContain(text);
+    expect(await t.mutation(api.signal.joinRoom, { deviceToken: members[0], code, name: 'again' })).toMatchObject({
+      status: 'rejoined',
+    });
+    expect((await t.query(api.drops.myAward, { deviceToken: members[0], code }))?.status).toBe('ready');
+  });
+});
+
+describe('demo controls', () => {
+  test('both refuse unless SIGNAL_DEMO_CONTROLS is on', async () => {
+    const t = newTest();
+    for (const value of [undefined, 'off', 'true']) {
+      if (value === undefined) vi.unstubAllEnvs();
+      else vi.stubEnv('SIGNAL_DEMO_CONTROLS', value);
+      expect(await errorCode(t.mutation(api.demo.openDrop, { squadSize: 2 }))).toBe('DEMO_CONTROLS_OFF');
+      expect(await errorCode(t.mutation(api.demo.startNow, { dropId: 'd1' }))).toBe('DEMO_CONTROLS_OFF');
+    }
+    expect(await t.run((ctx) => ctx.db.query('drops').collect())).toEqual([]);
+    vi.unstubAllEnvs();
+  });
+
+  test('when on, a forced squad size makes squads of exactly that size', async () => {
+    vi.stubEnv('SIGNAL_DEMO_CONTROLS', 'on');
+    const t = newTest();
+    for (const size of [2, 3] as const) {
+      const { dropId } = await t.mutation(api.demo.openDrop, { squadSize: size, startInSeconds: 300 });
+      for (const token of tokens(7)) {
+        await t.mutation(api.drops.enterDrop, { deviceToken: `${size}-${token}`, dropId, name: token });
+      }
+      await t.mutation(api.demo.startNow, { dropId });
+      const board = await t.query(api.drops.leaderboard, { deviceToken: 'x', dropId });
+      expect(board?.rows.map((r) => r.memberNames.length)).toEqual(size === 2 ? [2, 2, 2] : [3, 3]);
+      const last = await t.query(api.drops.drop, { deviceToken: `${size}-p7`, dropId });
+      expect(last?.me).toMatchObject({ unmatched: true, squad: null });
+    }
+    vi.unstubAllEnvs();
+  });
+});

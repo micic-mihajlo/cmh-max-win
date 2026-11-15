@@ -11,6 +11,7 @@
 import type * as aurora from "../aurora.js";
 import type * as bounty from "../bounty.js";
 import type * as case01 from "../case01.js";
+import type * as demo from "../demo.js";
 import type * as drops from "../drops.js";
 import type * as http from "../http.js";
 import type * as pings from "../pings.js";
@@ -28,6 +29,7 @@ declare const fullApi: ApiFromModules<{
   aurora: typeof aurora;
   bounty: typeof bounty;
   case01: typeof case01;
+  demo: typeof demo;
   drops: typeof drops;
   http: typeof http;
   pings: typeof pings;

@@ -174,7 +174,9 @@ export const leaveDrop = mutation({
 async function formSquads(ctx: MutationCtx, drop: Doc<'drops'>) {
   if (drop.status !== 'scheduled') return;
   const entries = await entriesOf(ctx, drop.dropId);
-  const sizes = splitSizes(entries.length, drop.squadSize);
+  const sizes = drop.strictSquadSize
+    ? (Array(Math.floor(entries.length / drop.squadSize)).fill(drop.squadSize) as SquadSize[])
+    : splitSizes(entries.length, drop.squadSize);
   if (!sizes.length) {
     await Promise.all(entries.map((e) => ctx.db.patch(e._id, { unmatched: true })));
     await ctx.db.patch(drop._id, { status: 'ended' });
@@ -213,6 +215,7 @@ async function formSquads(ctx: MutationCtx, drop: Doc<'drops'>) {
       await ctx.db.patch(entry._id, { squadRoomId: roomId });
     }
   }
+  await Promise.all(entries.slice(next).map((e) => ctx.db.patch(e._id, { unmatched: true })));
   await ctx.db.patch(drop._id, { status: 'live' });
 }
 
@@ -234,7 +237,7 @@ const createArgs = {
   bounty: v.object({ totalCents: v.number(), currency: v.optional(v.literal('usd')), winnerSlots: v.number() }),
 };
 
-async function insertDrop(
+export async function insertDrop(
   ctx: MutationCtx,
   args: {
     dropId: string;
@@ -243,6 +246,7 @@ async function insertDrop(
     squadSize: SquadSize;
     startsAt: number;
     bounty: { totalCents: number; winnerSlots: number };
+    strictSquadSize?: boolean;
   },
 ) {
   const { totalCents, winnerSlots } = args.bounty;
@@ -256,6 +260,7 @@ async function insertDrop(
     creatorName: args.creatorName,
     caseId: 'aurora01',
     squadSize: args.squadSize,
+    ...(args.strictSquadSize ? { strictSquadSize: true } : {}),
     startsAt: args.startsAt,
     status: 'scheduled',
     bounty: { totalCents, currency: 'usd', winnerSlots },
@@ -333,16 +338,18 @@ export const seedDemo = internalMutation({
 });
 
 // Demo control: start a drop right now. Internal, so only a server-side call (`npx convex run`) can trigger it.
+export async function startDropNow(ctx: MutationCtx, dropId: string) {
+  const drop = await requireDrop(ctx, dropId);
+  if (drop.status !== 'scheduled') fail('WRONG_STATUS', 'The drop already started.');
+  if (drop.startJobId) await ctx.scheduler.cancel(drop.startJobId);
+  const startsAt = Date.now();
+  await ctx.db.patch(drop._id, { startsAt });
+  await formSquads(ctx, { ...drop, startsAt });
+}
+
 export const startNow = internalMutation({
   args: { dropId: v.string() },
-  handler: async (ctx, { dropId }) => {
-    const drop = await requireDrop(ctx, dropId);
-    if (drop.status !== 'scheduled') fail('WRONG_STATUS', 'The drop already started.');
-    if (drop.startJobId) await ctx.scheduler.cancel(drop.startJobId);
-    const startsAt = Date.now();
-    await ctx.db.patch(drop._id, { startsAt });
-    await formSquads(ctx, { ...drop, startsAt });
-  },
+  handler: async (ctx, { dropId }) => startDropNow(ctx, dropId),
 });
 
 export const leaderboard = query({
