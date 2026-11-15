@@ -1,18 +1,19 @@
 import { Easing } from 'react-native-reanimated';
 
-// Physics springs, shared with the CMHM-14 mockup's THEME.spring so the HTML preview and the app
-// can't drift. They're interruptible: a new target picks up the current velocity.
+// Short springs (DIRECTION.md: Emil's rules, under 300ms). Written as perceived duration +
+// damping ratio, so the number you read is roughly how long it takes to settle. They stay
+// interruptible: a new target picks up the current velocity instead of restarting.
 export const Spring = {
-  // Press release: critically damped, so a pressed control never overshoots past rest.
-  release: { damping: 42, stiffness: 440, mass: 1 },
-  // Seal stamp (claim, ready, lock-in, owned): stiff, one small settle. ~600ms.
-  stamp: { damping: 22, stiffness: 400, mass: 1 },
-  // Things that travel or arrive: suspect → slot, invite cells, nudge, checking. ~540ms.
-  flight: { damping: 26, stiffness: 260, mass: 1 },
-  // Paper: the dossier card, its lines, reveal credits. Slower and softer. ~655ms.
-  file: { damping: 20, stiffness: 170, mass: 1 },
-  // Sheets and the reconnecting banner. ~470ms.
-  sheet: { damping: 30, stiffness: 300, mass: 1 },
+  // Press release: critically damped, never overshoots past rest.
+  release: { duration: 160, dampingRatio: 1 },
+  // Seal stamp (claim, ready, lock-in, owned): quick, one small settle.
+  stamp: { duration: 240, dampingRatio: 0.72 },
+  // Things that travel or arrive: suspect → slot, invite tiles, nudge, checking.
+  flight: { duration: 280, dampingRatio: 0.9 },
+  // The calm reveal: dossier lines, reveal credits. No overshoot.
+  file: { duration: 300, dampingRatio: 1 },
+  // Sheets and the reconnecting banner.
+  sheet: { duration: 280, dampingRatio: 0.9 },
 } as const;
 
 export type SpringToken = (typeof Spring)[keyof typeof Spring];
@@ -28,9 +29,10 @@ export const Duration = {
   press: 100,
   fade: 150,
   clear: 200,
-  swap: 220,
-  bleed: 320,
+  swap: 200,
+  bleed: 240,
   exit: 160,
-  stagger: 60,
+  stagger: 50,
+  // A deliberate hold, not an animation: the same beat on all three phones.
   checkingHold: 1200,
 } as const;

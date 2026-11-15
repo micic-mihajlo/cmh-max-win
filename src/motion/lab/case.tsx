@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View, type HostInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Fonts } from '@/constants/theme';
 import type { SuspectId } from '@/lib/contract';
 import { LAB_MOCK_ANSWER, labCrew, labNudge, labSuspects } from '@/mocks/motion-fixtures';
 import {
@@ -12,7 +13,6 @@ import {
   LockInRing,
   measureRect,
   NudgeEntrance,
-  Palette,
   PressScale,
   RoleColor,
   RoleInitial,
@@ -22,7 +22,7 @@ import {
   type Rect,
 } from '@/motion';
 
-import { ui } from './ui';
+import { C, ui } from './ui';
 
 const dossier = [
   { time: '21:30', text: 'Lab fixture line. Evidence text comes from the server.' },
@@ -97,7 +97,7 @@ export default function LabCase() {
           <View style={styles.sentence}>
             <FlipFrom from={from} flipKey={culprit ?? 'none'} style={{ minWidth: 96 }}>
               <View style={[styles.slotChip, !culprit && styles.slotEmpty]}>
-                <Text style={[ui.title2, !culprit && { color: Palette.faint }]}>
+                <Text style={[ui.title2, !culprit && { color: C.faint }]}>
                   {culprit ? labSuspects.find((s) => s.id === culprit)!.name : '_____'}
                 </Text>
               </View>
@@ -158,23 +158,23 @@ export default function LabCase() {
 
 const styles = StyleSheet.create({
   dossier: { borderLeftWidth: 4, borderLeftColor: RoleColor.detective, gap: 10 },
-  paperTitle: { fontFamily: 'ui-serif', fontSize: 22, lineHeight: 28, color: Palette.ink },
+  paperTitle: { fontFamily: Fonts.serif, fontSize: 22, lineHeight: 28, color: C.ink },
   line: { flexDirection: 'row', gap: 12 },
   time: { width: 48, fontSize: 15, lineHeight: 24, fontWeight: '500', color: '#51504F', fontVariant: ['tabular-nums'] },
   lineText: { flex: 1, fontSize: 16, lineHeight: 24, color: '#3B3A3B' },
   private: { marginTop: 4, fontSize: 13, color: '#676563' },
   sentence: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', minHeight: 52 },
-  slotChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, backgroundColor: Palette.panel, borderWidth: 1, borderColor: Palette.brass },
-  slotEmpty: { borderColor: Palette.hairline, borderStyle: 'dashed' },
+  slotChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, backgroundColor: C.card, borderWidth: 1, borderColor: C.ink },
+  slotEmpty: { borderColor: C.hairline, borderStyle: 'dashed' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   cell: { width: '48%', flexGrow: 1 },
-  suspect: { borderRadius: 14, padding: 14, backgroundColor: Palette.panel, borderWidth: 1, borderColor: Palette.hairline, gap: 2 },
-  picked: { borderColor: Palette.brass },
+  suspect: { borderRadius: 14, padding: 14, backgroundColor: C.card, borderWidth: 1, borderColor: C.hairline, gap: 2 },
+  picked: { borderColor: C.ink },
   ruledOut: { opacity: 0.5 },
   agreement: { alignItems: 'center', gap: 8 },
   outcome: { minHeight: 140, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center' },
-  primary: { height: 56, borderRadius: 14, borderWidth: 1, borderColor: Palette.ember, backgroundColor: Palette.ember, alignItems: 'center', justifyContent: 'center' },
-  primaryOff: { backgroundColor: Palette.panel, borderColor: Palette.hairline },
-  primaryTextOff: { color: Palette.faint },
-  primaryText: { fontSize: 17, fontWeight: '600', color: Palette.ink },
+  primary: { height: 56, borderRadius: 14, borderWidth: 1, borderColor: C.accent, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center' },
+  primaryOff: { backgroundColor: C.card, borderColor: C.hairline },
+  primaryTextOff: { color: C.faint },
+  primaryText: { fontSize: 17, fontWeight: '600', color: C.onAccent },
 });

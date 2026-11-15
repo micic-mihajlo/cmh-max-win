@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Palette } from './palette';
+import { useMotionColors } from './palette';
 import { useReduced } from './reduced';
 import { Duration, Ease, Spring } from './tokens';
 
@@ -19,6 +19,7 @@ type Props = {
 export function StatusBanner({ visible, children, showAfterMs = 0, tone = 'neutral' }: Props) {
   const insets = useSafeAreaInsets();
   const reduced = useReduced();
+  const colors = useMotionColors();
   const shown = useSharedValue(0);
 
   useEffect(() => {
@@ -44,9 +45,9 @@ export function StatusBanner({ visible, children, showAfterMs = 0, tone = 'neutr
       accessibilityElementsHidden={!visible}
       importantForAccessibility={visible ? 'yes' : 'no-hide-descendants'}
       style={[styles.wrap, { top: insets.top + 6 }, animated]}>
-      <View style={styles.pill}>
-        <View style={[styles.dot, { backgroundColor: tone === 'away' ? Palette.muted : Palette.ember }]} />
-        {typeof children === 'string' ? <Text style={styles.text}>{children}</Text> : children}
+      <View style={[styles.pill, { backgroundColor: colors.card, borderColor: colors.hairline }]}>
+        <View style={[styles.dot, { backgroundColor: tone === 'away' ? colors.faint : colors.accent }]} />
+        {typeof children === 'string' ? <Text style={[styles.text, { color: colors.ink }]}>{children}</Text> : children}
       </View>
     </Animated.View>
   );
@@ -61,10 +62,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: 999,
-    backgroundColor: Palette.panel,
     borderWidth: 1,
-    borderColor: Palette.hairline,
   },
   dot: { width: 6, height: 6, borderRadius: 3 },
-  text: { fontSize: 15, color: Palette.paper },
+  text: { fontSize: 15 },
 });

@@ -6,9 +6,18 @@ export { InviteCode } from './invite-code';
 export { LockInRing, type RingSeat } from './lock-in-ring';
 export { NudgeEntrance } from './nudge-entrance';
 export { PackButton } from './pack-button';
-export { Palette, RoleColor, RoleInitial, RoleLabel } from './palette';
+export {
+  MidnightColors,
+  MotionColorsProvider,
+  PaperColors,
+  RoleColor,
+  RoleInitial,
+  RoleLabel,
+  useMotionColors,
+  type MotionColors,
+} from './palette';
 export { PressScale } from './press-scale';
 export { ReducedMotionOverride, useReduced } from './reduced';
 export { Seal } from './seal';
 export { StatusBanner } from './status-banner';
-export { Duration, Ease, Spring } from './tokens';
+export { Duration, Ease, Spring, type SpringToken } from './tokens';

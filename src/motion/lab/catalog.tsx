@@ -13,7 +13,6 @@ import {
   measureRect,
   NudgeEntrance,
   PackButton,
-  Palette,
   PressScale,
   ReducedMotionOverride,
   RoleColor,
@@ -27,7 +26,7 @@ import {
   type Rect,
 } from '@/motion';
 
-import { Chip, Row, Section, ui } from './ui';
+import { C, Chip, Row, Section, ui } from './ui';
 
 export default function MotionCatalog() {
   const insets = useSafeAreaInsets();
@@ -75,20 +74,19 @@ export default function MotionCatalog() {
     <ReducedMotionOverride value={reduced ? true : null}>
       <View style={ui.screen}>
         <ScrollView contentContainerStyle={{ paddingTop: insets.top + 16, paddingBottom: insets.bottom + 48, paddingHorizontal: 20 }}>
-          <Text style={ui.label}>SIGNAL · motion lab</Text>
-          <Text style={[ui.title, { marginTop: 6 }]}>Micro-interactions</Text>
+                    <Text style={ui.title}>Motion lab</Text>
           <Text style={[ui.note, { marginTop: 6, marginBottom: 18 }]}>
-            Fixture data only. Every primitive lives in src/motion and takes play / onDone props.
+            Fixture data. Primitives live in src/motion.
           </Text>
           <View style={styles.reduceRow}>
             <Text style={ui.body}>Reduce motion</Text>
-            <Switch value={reduced} onValueChange={setReduced} trackColor={{ true: Palette.ember }} />
+            <Switch value={reduced} onValueChange={setReduced} trackColor={{ true: C.accent }} />
           </View>
           <PressScale onPress={() => router.push('/lab/flow')} accessibilityRole="button" style={styles.flowButton}>
             <Text style={styles.flowText}>Play the full flow →</Text>
           </PressScale>
 
-          <Section title="1 · Press" note="Scale 0.97 on touch-down (100ms ease-out), spring back on release. No haptic: too frequent.">
+          <Section title="1 · Press" note="0.97 on touch-down, 160ms spring back.">
             <PressScale onPress={() => {}} accessibilityRole="button" style={styles.primary}>
               <Text style={styles.primaryText}>I agree with this theory</Text>
             </PressScale>
@@ -98,7 +96,7 @@ export default function MotionCatalog() {
             </Row>
           </Section>
 
-          <Section title="2 · Seal stamp" note="1.35× and −8° to rest on a stiff spring, ink-bleed ring on landing, light haptic on your own seal.">
+          <Section title="2 · Seal stamp" note="A quick stamp: 240ms, one settle, then the ink ring.">
             <View style={styles.center}>
               <Seal locked={sealLocked} color={RoleColor.detective} initial="D" size={88} haptic />
             </View>
@@ -107,7 +105,7 @@ export default function MotionCatalog() {
             </Row>
           </Section>
 
-          <Section title="3 · Lock-in ring" note="Three seals on one ring. The count ticks up as each lands; an edit clears all three in 200ms.">
+          <Section title="3 · Lock-in ring" note="The count ticks as each seal lands. An edit clears all three.">
             <View style={styles.center}>
               <LockInRing seats={seats} />
             </View>
@@ -118,7 +116,7 @@ export default function MotionCatalog() {
             </Row>
           </Section>
 
-          <Section title="4 · Checking → nudge" note="Checking… holds ≥1.2s on every phone, then the nudge rises in with one warning haptic.">
+          <Section title="4 · Checking → nudge" note="Held 1.2s on every phone, then the nudge.">
             <View style={styles.checkStage}>
               {checkKey == null ? (
                 <Text style={ui.callout}>3 of 3 agree on Theo.</Text>
@@ -140,11 +138,11 @@ export default function MotionCatalog() {
             </Row>
           </Section>
 
-          <Section title="5 · Suspect → theory slot" note="Your pick flies from the card you tapped into the sentence. Someone else's edit cross-fades in place.">
+          <Section title="5 · Suspect → theory slot" note="Your pick flies from the card you tapped. A friend's edit swaps in place.">
             <View style={styles.sentence}>
               <FlipFrom from={from} flipKey={culprit ?? 'none'} style={styles.slot}>
                 <View style={[styles.slotChip, !culprit && styles.slotEmpty]}>
-                  <Text style={[ui.title2, !culprit && { color: Palette.faint }]}>
+                  <Text style={[ui.title2, !culprit && { color: C.faint }]}>
                     {culprit ? labSuspects.find((s) => s.id === culprit)!.name : '_____'}
                   </Text>
                 </View>
@@ -178,7 +176,7 @@ export default function MotionCatalog() {
             </Row>
           </Section>
 
-          <Section title="6 · Invite code" note="Letters deal in left to right, 50ms apart, so the eye reads the code in order.">
+          <Section title="6 · Invite code" note="Tiles deal in left to right, 45ms apart.">
             <InviteCode key={inviteKey} code={LAB_ROOM_CODE} />
             <Row>
               <Chip label="Replay" onPress={() => setInviteKey((k) => k + 1)} />
@@ -186,9 +184,9 @@ export default function MotionCatalog() {
             </Row>
           </Section>
 
-          <Section title="7 · Reveal credits" note="One card per player, 90ms apart, each with its role edge. Rare moment, so it gets the slower settle.">
+          <Section title="7 · Reveal credits" note="One card per player, a calm 300ms settle.">
             <View key={revealKey} style={{ gap: 10 }}>
-              <Stagger stagger={90} from={24} spring={Spring.file}>
+              <Stagger stagger={60} from={16} spring={Spring.file}>
                 {labReveal.credits.map((c) => (
                   <View key={c.role} style={[ui.paper, styles.credit, { borderLeftColor: RoleColor[c.role] }]}>
                     <Text style={[ui.label, { color: '#51504F' }]}>{RoleLabel[c.role]} · {c.memberName}</Text>
@@ -202,14 +200,14 @@ export default function MotionCatalog() {
             </Row>
           </Section>
 
-          <Section title="8 · Whop season pack" note="locked → checkout → verifying → owned on one surface. Owned is sealed with the lock-in stamp.">
+          <Section title="8 · Whop season pack" note="One surface, four states. Owned gets the stamp.">
             <PackButton state={pack} onBuy={buy} price="$4.99" sandbox />
             <Row>
               <Chip label="Reset" onPress={() => setPack('locked')} />
             </Row>
           </Section>
 
-          <Section title="9 · System banners" note="Reconnecting waits 1s and stepped-away 3s before showing, so a blip never flashes.">
+          <Section title="9 · System banners" note="Delayed 1s / 3s so a blip never flashes.">
             <Row>
               <Chip label={reconnecting ? 'Reconnect' : 'Drop connection'} onPress={() => setReconnecting((v) => !v)} />
               <Chip label={steppedAway ? 'Ravi is back' : 'Ravi steps away'} onPress={() => setSteppedAway((v) => !v)} />
@@ -229,21 +227,21 @@ export default function MotionCatalog() {
 
 const styles = StyleSheet.create({
   reduceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
-  flowButton: { height: 52, borderRadius: 14, borderWidth: 1, borderColor: Palette.ember, alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
-  flowText: { fontSize: 17, fontWeight: '600', color: Palette.ember },
-  primary: { height: 56, borderRadius: 14, backgroundColor: Palette.ember, alignItems: 'center', justifyContent: 'center' },
-  primaryText: { fontSize: 17, fontWeight: '600', color: Palette.ink },
+  flowButton: { height: 52, borderRadius: 14, borderWidth: 1, borderColor: C.accent, alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
+  flowText: { fontSize: 17, fontWeight: '600', color: C.accent },
+  primary: { height: 56, borderRadius: 14, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center' },
+  primaryText: { fontSize: 17, fontWeight: '600', color: C.onAccent },
   center: { alignItems: 'center', paddingVertical: 8 },
   checkStage: { minHeight: 150, alignItems: 'center', justifyContent: 'center' },
   nudge: { borderLeftWidth: 4, borderLeftColor: RoleColor.witness },
   sentence: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', minHeight: 56 },
   slot: { minWidth: 96 },
-  slotChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, backgroundColor: Palette.panel, borderWidth: 1, borderColor: Palette.brass },
-  slotEmpty: { borderColor: Palette.hairline, borderStyle: 'dashed' },
+  slotChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, backgroundColor: C.card, borderWidth: 1, borderColor: C.ink },
+  slotEmpty: { borderColor: C.hairline, borderStyle: 'dashed' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   cell: { width: '48%', flexGrow: 1 },
-  suspect: { borderRadius: 14, padding: 14, backgroundColor: Palette.panel, borderWidth: 1, borderColor: Palette.hairline, gap: 2 },
-  suspectPicked: { borderColor: Palette.brass },
+  suspect: { borderRadius: 14, padding: 14, backgroundColor: C.card, borderWidth: 1, borderColor: C.hairline, gap: 2 },
+  suspectPicked: { borderColor: C.ink },
   credit: { borderLeftWidth: 4 },
   creditLine: { fontSize: 17, lineHeight: 24, color: '#3B3A3B' },
 });
