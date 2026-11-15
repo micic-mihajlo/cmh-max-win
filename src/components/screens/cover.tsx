@@ -8,6 +8,7 @@ import { CodeCells } from '@/components/signal/code-cells';
 import { Button, Label } from '@/components/signal/primitives';
 import { useMotionReduced } from '@/components/signal/settings';
 import { Txt } from '@/components/signal/txt';
+import { Wordmark } from '@/components/wordmark';
 import { Palette, Radius, RoleMeta, Space } from '@/constants/signal';
 import { Case01 } from '@/constants/case01';
 import type { ActiveRoomView, Role, SignalErrorCode } from '@/lib/contract';
@@ -95,6 +96,7 @@ export function CoverScreen({
           <Button title="Host a drop" variant="ghost" disabled={creating} onPress={on.onHostDrop} />
         </View>
       }>
+      <Wordmark />
       {banner}
       <View style={styles.hero}>
         <Txt variant="caption" color={Palette.paperMuted}>{`Case ${Case01.number}`}</Txt>
