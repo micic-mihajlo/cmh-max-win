@@ -42,6 +42,8 @@ import {
 } from './types';
 
 const modules = import.meta.glob('../**/*.ts');
+// The per-player-secret templates; quick-quiz has its own suite in quickQuiz.test.ts.
+const SECRET_TEMPLATES = [auroraTemplate, splitCodeTemplate];
 const SEEDS = Array.from({ length: 40 }, (_, i) => `drop-${i}:${i % 5}`);
 const team = (n: number): Team => Array.from({ length: n }, (_, i) => ({ playerId: `p${i + 1}`, name: ['Kit', 'Lou', 'Max', 'Ada'][i] }));
 
@@ -58,8 +60,8 @@ async function errorCode(fn: () => unknown) {
 const leakySplitCode: AnyTemplate = {
   ...splitCodeTemplate,
   id: 'leaky-split-code',
-  deal(t, seed, config) {
-    const { state } = splitCodeTemplate.deal(t, seed, config);
+  deal(t, seed, config, ctx) {
+    const { state } = splitCodeTemplate.deal(t, seed, config, ctx);
     const rigged: SplitCodeState = { ...state, holders: state.holders.map(() => t[0].playerId) };
     return { state: rigged, views: Object.fromEntries(t.map((p) => [p.playerId, splitCodeTemplate.privateView(rigged, p.playerId)])) };
   },
@@ -78,7 +80,7 @@ function play(session: Session, steps: [string, { type: string; [k: string]: unk
 
 describe('registry', () => {
   test('lists both templates with unique ids', () => {
-    expect(listTemplates().map((t) => t.id)).toEqual(['mystery-aurora', 'split-passphrase']);
+    expect(listTemplates().map((t) => t.id)).toEqual(['quick-quiz', 'split-passphrase', 'mystery-aurora']);
     expect(new Set(TEMPLATES.map((t) => t.id)).size).toBe(TEMPLATES.length);
     expect(findTemplate('mystery-aurora')).toBe(auroraTemplate);
     expect(findTemplate('nope')).toBeNull();
@@ -162,7 +164,7 @@ function secrets(templateId: string, session: Session): Record<string, string[]>
 }
 
 describe('private views never leak', () => {
-  for (const template of TEMPLATES) {
+  for (const template of SECRET_TEMPLATES) {
     test(`${template.id}: no player's view or the shared view carries another player's pieces`, () => {
       for (const size of squadSizes(template)) {
         for (const seed of SEEDS) {
@@ -204,7 +206,7 @@ describe('private views never leak', () => {
 });
 
 describe('determinism', () => {
-  for (const template of TEMPLATES) {
+  for (const template of SECRET_TEMPLATES) {
     test(`${template.id}: same seed, same deal; check() is pure and repeatable`, () => {
       for (const seed of SEEDS) {
         const a = startSession(template.id, team(2), seed);
@@ -404,8 +406,9 @@ describe('mixer formation', () => {
 
   test('templates declare their formations; mystery-aurora is dealt-only', async () => {
     expect(listTemplates().map((t) => [t.id, t.formations])).toEqual([
-      ['mystery-aurora', ['dealt']],
+      ['quick-quiz', ['dealt']],
       ['split-passphrase', ['dealt', 'mixer']],
+      ['mystery-aurora', ['dealt']],
     ]);
     expect(await errorCode(() => requireFormation('mystery-aurora', 'mixer'))).toBe('FORMATION_UNSUPPORTED');
     expect(await errorCode(() => mixerTemplate('mystery-aurora'))).toBe('FORMATION_UNSUPPORTED');

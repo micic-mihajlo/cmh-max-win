@@ -17,7 +17,7 @@ export function CreatorSetupScreen({ drop, live, onOpen }: { drop: CreatorDrop; 
       footer={
         live ? null : (
           <PressScale onPress={onOpen} style={styles.cta}>
-            <Txt variant="button" color={Palette.onAccent}>
+            <Txt variant="button" color={Palette.ink}>
               Open drop
             </Txt>
           </PressScale>
@@ -26,7 +26,7 @@ export function CreatorSetupScreen({ drop, live, onOpen }: { drop: CreatorDrop; 
       <View style={styles.head}>
         <Txt variant="display">{live ? 'Your drop is live.' : 'Run a drop'}</Txt>
       </View>
-      <View style={[styles.card, live && styles.cardLive]}>
+      <View style={styles.card}>
         <View style={styles.row}>
           <View style={styles.art}>
             <Txt variant="title" color={Palette.paper}>
@@ -73,10 +73,9 @@ const styles = StyleSheet.create({
   center: { textAlign: 'center' },
   head: { gap: Space.s, marginTop: Space.s },
   card: { gap: Space.m, padding: Space.l, borderRadius: 16, backgroundColor: Palette.panel, borderWidth: 1.5, borderColor: Palette.hairline },
-  cardLive: { borderColor: Palette.ember },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   art: { width: 56, height: 56, borderRadius: Radius.m, backgroundColor: Palette.panelRaised, alignItems: 'center', justifyContent: 'center' },
   line: { flexDirection: 'row', alignItems: 'baseline', gap: Space.s, paddingTop: Space.s },
   count: { fontVariant: ['tabular-nums'] },
-  cta: { height: 54, borderRadius: 16, backgroundColor: Palette.ember, alignItems: 'center', justifyContent: 'center' },
+  cta: { height: 54, borderRadius: 16, backgroundColor: Palette.paper, alignItems: 'center', justifyContent: 'center' },
 });

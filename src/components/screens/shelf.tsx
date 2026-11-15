@@ -71,7 +71,7 @@ export function RealPackCard({ pack, onBuy }: { pack: SeasonPackView; onBuy?: ()
       {pack.state === 'locked' ? (
         <>
           <Pressable style={styles.buy} accessibilityRole="button" onPress={onBuy}>
-            <Txt variant="button" color={Palette.onAccent}>
+            <Txt variant="button" color={Palette.ink}>
               Get Season 01 · $4.99
             </Txt>
           </Pressable>
@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
     boxShadow: '0 1px 2px rgba(26,25,22,0.04), 0 8px 24px rgba(26,25,22,0.05)',
   },
   realTitle: { fontFamily: FontFamily.displayBold, fontSize: 22, lineHeight: 28, color: Palette.paper },
-  buy: { minHeight: 56, borderRadius: Radius.m, backgroundColor: Palette.ember, alignItems: 'center', justifyContent: 'center', marginTop: Space.s },
+  buy: { minHeight: 56, borderRadius: Radius.m, backgroundColor: Palette.paper, alignItems: 'center', justifyContent: 'center', marginTop: Space.s },
   owned: {
     minHeight: 56,
     borderRadius: Radius.m,

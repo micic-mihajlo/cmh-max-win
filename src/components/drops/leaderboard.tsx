@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Palette.hairline,
   },
-  rowMine: { borderWidth: 1, borderColor: Palette.paper, backgroundColor: Palette.accentSoft },
+  rowMine: {},
   rowOther: { opacity: 0.5 },
   rank: { width: 20, fontVariant: ['tabular-nums'] },
   card: {
