@@ -285,10 +285,10 @@ export type WhopAccountView = {
 // available is false when the deployment has no Whop OAuth app; hide sign-in then.
 export type WhopAccountState = { available: boolean; account: WhopAccountView | null };
 // unavailable: no Whop OAuth app configured · not_winner: this device holds no winning seat for that
-// code · cancelled: the person closed the sheet.
-export type WhopSignInResult = 'linked' | 'cancelled' | 'error' | 'unavailable' | 'not_winner';
+// code · no_profile: creator sign-in without a creator profile · cancelled: the person closed the sheet.
+export type WhopSignInResult = 'linked' | 'cancelled' | 'error' | 'unavailable' | 'not_winner' | 'no_profile';
 export type UseWhopAccount = () => WhopAccountState | undefined; // undefined while loading
-// From the win screen: code is the squad's room code (same as UseMyAward); returnPath is the app
+// From the win screen: code is the squad's or challenge team's room code (same as UseMyAward); returnPath is the app
 // route the sheet returns to (e.g. 'drop/abc/win'). Show the button only when useMyAward returns an award.
 export type UseLinkForClaim = (code: string | null, returnPath: string) => () => Promise<WhopSignInResult>;
 export type UseSignOutWhop = () => () => Promise<void>;
@@ -674,4 +674,6 @@ export type UseConfirmMixerTeam = (challengeId: string) => () => Promise<MixerTe
 export type UseSubmitMixerAnswer = (challengeId: string) => (answer: string) => Promise<MixerSubmitResult>; // TEAM_NOT_LOCKED, COOLDOWN
 
 export type UseChallengeRecap = (challengeId: string | null) => ChallengeRecapView | null | undefined; // null until ended
+
+export * from './contract-whop';
 

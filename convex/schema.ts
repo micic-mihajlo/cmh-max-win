@@ -177,7 +177,12 @@ export default defineSchema({
     createdAt: v.number(),
   }),
   // ---------- Creator console (CAP-31) ----------
-  creators: defineTable({ deviceToken: v.string(), displayName: v.string(), handle: v.string() })
+  creators: defineTable({
+    deviceToken: v.string(),
+    displayName: v.string(),
+    handle: v.string(),
+    whopCompanyId: v.optional(v.string()), // biz_…, set by whopCreator.connectWhopCompany after an admin check
+  })
     .index('by_token', ['deviceToken'])
     .index('by_handle', ['handle']),
   challenges: defineTable({

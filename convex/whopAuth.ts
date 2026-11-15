@@ -121,6 +121,13 @@ export const isWinningSeat = internalQuery({
       .query('rooms')
       .withIndex('by_code', (q) => q.eq('code', claimCode.trim().toUpperCase()))
       .unique();
+    if (room?.challengeId) {
+      const payout = await ctx.db
+        .query('payouts')
+        .withIndex('by_challenge_token', (q) => q.eq('challengeId', room.challengeId!).eq('deviceToken', deviceToken))
+        .first();
+      return payout !== null;
+    }
     if (!room?.dropId) return false;
     const [member, award] = await Promise.all([
       ctx.db
@@ -136,16 +143,30 @@ export const isWinningSeat = internalQuery({
   },
 });
 
-// Only a device holding a winning seat (claimCode is its squad's room code) may start sign-in.
+export const isCreator = internalQuery({
+  args: { deviceToken: v.string() },
+  handler: async (ctx, { deviceToken }) =>
+    (await ctx.db
+      .query('creators')
+      .withIndex('by_token', (q) => q.eq('deviceToken', deviceToken))
+      .first()) !== null,
+});
+
+// Two ways in: a device holding a winning seat (claimCode is its squad or team room code), or a creator
+// (no claimCode, the device has a creator profile). Nobody else gets Whop sign-in.
 export const startSignIn = action({
-  args: { deviceToken: v.string(), claimCode: v.string(), returnUrl: v.optional(v.string()) },
+  args: { deviceToken: v.string(), claimCode: v.optional(v.string()), returnUrl: v.optional(v.string()) },
   handler: async (
     ctx,
     { deviceToken, claimCode, returnUrl },
-  ): Promise<{ url: string; reason: null } | { url: null; reason: 'unavailable' | 'not_winner' }> => {
+  ): Promise<{ url: string; reason: null } | { url: null; reason: 'unavailable' | 'not_winner' | 'no_profile' }> => {
     const clientId = process.env.WHOP_OAUTH_CLIENT_ID;
     if (!clientId) return { url: null, reason: 'unavailable' };
-    if (!(await ctx.runQuery(internal.whopAuth.isWinningSeat, { deviceToken, claimCode }))) return { url: null, reason: 'not_winner' };
+    if (claimCode === undefined) {
+      if (!(await ctx.runQuery(internal.whopAuth.isCreator, { deviceToken }))) return { url: null, reason: 'no_profile' };
+    } else if (!(await ctx.runQuery(internal.whopAuth.isWinningSeat, { deviceToken, claimCode }))) {
+      return { url: null, reason: 'not_winner' };
+    }
     const state = randomString();
     const codeVerifier = randomString();
     const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(codeVerifier));
