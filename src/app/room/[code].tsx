@@ -210,6 +210,7 @@ function Playing({
     } catch (e) {
       const err = toSignalError(e)?.code;
       if (err === 'STALE_REVISION') setNotice({ tone: 'warn', title: 'The theory changed as you tapped.', text: 'Check it, then lock in again.' });
+      else if (err === 'COOLDOWN') setNotice({ tone: 'warn', title: 'Not yet.', text: 'Lock-in reopens a few seconds after a wrong check.' });
       else if (err === 'ALREADY_CHECKED') setNotice({ tone: 'warn', title: 'Already checked.', text: 'Change the theory to try again.' });
       else fail(e);
     } finally {

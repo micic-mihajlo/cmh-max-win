@@ -60,6 +60,7 @@ export function room({
     status,
     squadSize: members.length === 2 ? 2 : 3,
     drop,
+    cooldownUntil: null,
     caseId: 'case01',
     isHost: me ? people[me].isHost : false,
     me: mine ? { memberId: mine.memberId, role: mine.role, name: mine.name } : null,

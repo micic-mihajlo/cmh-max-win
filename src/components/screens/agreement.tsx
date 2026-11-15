@@ -15,7 +15,7 @@ export function AgreementScreen({ room, phase, onBack }: { room: RoomView; phase
   const nudge = room.lastNudge;
   const pick = (phase === 'wrong' || room.lastCheck?.result === 'wrong') && nudge ? nudge.wrongPick : room.theory.culprit;
   const guessed = pick ? suspectById(pick) : null;
-  const nudged = nudge ? room.members.find((m) => m.roles.includes(nudge.forRole)) : null;
+  const nudged = nudge ? room.members.find((m) => (nudge.holder ? m.memberId === nudge.holder.memberId : m.roles.includes(nudge.forRole))) : null;
   const forMe = !!nudged?.isMe;
   return (
     <Screen

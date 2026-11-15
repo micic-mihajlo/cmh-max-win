@@ -25,10 +25,12 @@ export const labNudge = (wrongPick: SuspectId, revision: number): NudgeView => (
   forRole: 'witness',
   text: 'Lab fixture: Lena, read the doorway line again. Who could have walked past at that time?',
   revision,
+  holder: null,
 });
 
 export const labReveal: RevealView = {
   culprit: LAB_MOCK_ANSWER,
+  headline: 'Priya took the seed.',
   timeline: [
     { time: '21:30', text: 'Lab fixture timeline, line one.' },
     { time: '21:40', text: 'Lab fixture timeline, line two.' },
