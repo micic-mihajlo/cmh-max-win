@@ -114,7 +114,7 @@ function LiveRoom({ room }: { room: RoomView }) {
   }
 
   if (room.status === 'intro') {
-    const allReady = room.members.length === 3 && room.members.every((m) => m.presence === 'ready');
+    const allReady = room.members.length === room.squadSize && room.members.every((m) => m.presence === 'ready');
     return <IntroScreen room={room} opening={allReady} onReady={() => setPresence('ready').catch(fail)} />;
   }
 
