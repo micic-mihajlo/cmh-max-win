@@ -1,4 +1,4 @@
-import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, useWindowDimensions, View, type StyleProp, type ViewStyle } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 
 import { Screen } from '@/components/signal/backdrop';
@@ -12,9 +12,11 @@ import { Brass, money, short } from './ui';
 
 export const MIN_TO_DEAL = 4;
 const NEWEST = 3;
+const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL;
 
 // The shared big screen before the deal: the code is the hero, the QR (code only) is secondary.
 export function HostScreen({ view, hostName, dealing, onDeal }: { view: HostView; hostName: string; dealing?: boolean; onDeal?: () => void }) {
+  const wide = useWindowDimensions().width >= 768;
   if (view.squads.length) return <HostBoard view={view} />;
   const canDeal = view.entrantCount >= MIN_TO_DEAL && !dealing;
   return (
@@ -48,9 +50,9 @@ export function HostScreen({ view, hostName, dealing, onDeal }: { view: HostView
         Open Signal → Join → type the code
       </Txt>
       <View style={styles.qrCard}>
-        <QRCode value={view.joinCode} size={96} color={Palette.paper} backgroundColor={Palette.card} />
+        <QRCode value={WEB_URL ? `${WEB_URL}/join/${view.joinCode}` : view.joinCode} size={wide ? 260 : 160} color={Palette.paper} backgroundColor={Palette.card} />
         <Txt variant="small" color={Palette.paperMuted}>
-          or scan in the app
+          Scan with your camera · Expo Go or browser
         </Txt>
       </View>
       <View style={styles.here}>
@@ -179,8 +181,8 @@ const styles = StyleSheet.create({
   },
   letter: { fontFamily: FontFamily.uiBold, fontSize: 48, lineHeight: 58, color: Palette.paper },
   qrCard: { alignSelf: 'center', alignItems: 'center', gap: Space.s, padding: Space.m, borderRadius: Radius.m, backgroundColor: Palette.card },
-  here: { gap: Space.m },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Space.s },
+  here: { gap: Space.m, alignItems: 'center' },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: Space.s },
   more: { backgroundColor: 'transparent' },
   chip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: Radius.pill, backgroundColor: Palette.accentSoft },
   footer: { flexDirection: 'row', alignItems: 'center', gap: Space.l },
