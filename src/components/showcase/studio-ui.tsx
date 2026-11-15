@@ -3,25 +3,25 @@ import type { ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { FontFamily, RoleMeta, Space } from '@/constants/signal';
+import { FontFamily, Palette, RoleMeta, Space } from '@/constants/signal';
 import { Txt } from '@/components/signal/txt';
 import { Enter, PressScale } from '@/motion';
 
 import type { BuilderRole } from './validate';
 
 export const G = {
-  bg: '#FAFAF7',
-  surface: '#FFFFFF',
-  ink: '#161513',
-  inkSoft: '#6B6860',
-  line: '#E8E6E0',
-  fill: '#F1F0EB',
-  onInk: '#FAFAF7',
-  ok: '#2F6B3A',
-  okWash: '#EAF1EA',
-  bad: '#B8381A',
-  badWash: '#F8E9E3',
-  role: { detective: '#F3EDE0', hacker: '#E7EDF4', witness: '#F4E6E1' } as Record<BuilderRole, string>,
+  bg: Palette.ink,
+  surface: Palette.card,
+  ink: Palette.paper,
+  inkSoft: Palette.paperMuted,
+  line: Palette.hairline,
+  fill: Palette.paperShade,
+  onInk: Palette.ink,
+  ok: Palette.ok,
+  okWash: '#E9F9E4',
+  bad: Palette.danger,
+  badWash: '#FFF0EE',
+  role: { detective: Palette.paperShade, hacker: Palette.paperShade, witness: Palette.paperShade } as Record<BuilderRole, string>,
 };
 
 export const docName = (label: string) => label.charAt(0) + label.slice(1).toLowerCase();
