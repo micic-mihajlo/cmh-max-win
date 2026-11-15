@@ -3,8 +3,9 @@ import { convexTest } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { api, internal } from './_generated/api';
-import type { Id } from './_generated/dataModel';
+import type { Doc, Id } from './_generated/dataModel';
 import { awardMode, awardModeWithBudget, createTransferRows } from './bounty';
+import { bountyView } from './drops';
 import schema from './schema';
 
 const modules = import.meta.glob('./**/*.ts');
@@ -130,6 +131,46 @@ describe('real payouts (SIGNAL_REAL_PAYOUTS)', () => {
       for (const r of await ctx.db.query('bountyPayouts').collect()) await ctx.db.patch(r._id, { status: 'failed' });
     });
     expect(await t.run((ctx) => awardModeWithBudget(ctx, {}, 999))).toBe('transfer');
+  });
+
+  test('retries_exhausted rows stay counted against the budget; definite refusals release theirs', async () => {
+    vi.stubEnv('SIGNAL_REAL_PAYOUTS', 'on');
+    vi.stubEnv('SIGNAL_REAL_PAYOUT_BUDGET_CENTS', '1000');
+    const t = convexTest(schema, modules);
+    const { awardId } = await seedAward(t);
+    await t.run((ctx) => createTransferRows(ctx, awardId));
+    const failAll = (failureCode: string) =>
+      t.run(async (ctx) => {
+        for (const r of await ctx.db.query('bountyPayouts').collect()) await ctx.db.patch(r._id, { status: 'failed', failureCode });
+      });
+    await failAll('retries_exhausted');
+    expect(await t.run((ctx) => awardModeWithBudget(ctx, {}, 999))).toBe('concept');
+    await failAll('kyc_required');
+    expect(await t.run((ctx) => awardModeWithBudget(ctx, {}, 999))).toBe('transfer');
+  });
+
+  test('a zero-cent award creates no transfer rows', async () => {
+    vi.stubEnv('SIGNAL_REAL_PAYOUTS', 'on');
+    expect(awardMode({}, 0)).toBe('concept');
+    const t = convexTest(schema, modules);
+    const { awardId } = await seedAward(t);
+    await t.run((ctx) => ctx.db.patch(awardId, { amountCents: 0, perPlayerCents: 0 }));
+    await link(t, 'dev-a', 'user_a');
+    await t.run((ctx) => createTransferRows(ctx, awardId));
+    await settle(t);
+    expect(await rows(t)).toEqual([]);
+    expect(transfers).toEqual([]);
+  });
+
+  test('the drop card mode follows the remaining budget', async () => {
+    vi.stubEnv('SIGNAL_REAL_PAYOUTS', 'on');
+    vi.stubEnv('SIGNAL_REAL_PAYOUT_BUDGET_CENTS', '1000');
+    const t = convexTest(schema, modules);
+    const drop = { conceptOnly: true, bounty: { totalCents: 1998, currency: 'usd' as const, winnerSlots: 2 } } as unknown as Doc<'drops'>;
+    expect((await t.run((ctx) => bountyView(ctx, drop))).mode).toBe('transfer');
+    const { awardId } = await seedAward(t);
+    await t.run((ctx) => createTransferRows(ctx, awardId));
+    expect((await t.run((ctx) => bountyView(ctx, drop))).mode).toBe('concept');
   });
 
   test('linked members are paid once each; the split adds up to the squad share', async () => {
