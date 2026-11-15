@@ -16,6 +16,8 @@ import type * as creatorIdentity from "../creatorIdentity.js";
 import type * as demo from "../demo.js";
 import type * as drops from "../drops.js";
 import type * as http from "../http.js";
+import type * as live from "../live.js";
+import type * as liveTemplates from "../liveTemplates.js";
 import type * as pings from "../pings.js";
 import type * as presence from "../presence.js";
 import type * as signal from "../signal.js";
@@ -43,6 +45,8 @@ declare const fullApi: ApiFromModules<{
   demo: typeof demo;
   drops: typeof drops;
   http: typeof http;
+  live: typeof live;
+  liveTemplates: typeof liveTemplates;
   pings: typeof pings;
   presence: typeof presence;
   signal: typeof signal;

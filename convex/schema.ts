@@ -260,6 +260,15 @@ export default defineSchema({
   })
     .index('by_challenge', ['challengeId', 'place', 'playerIndex'])
     .index('by_challenge_token', ['challengeId', 'deviceToken']),
+  // ---------- Live layer (CAP-40) ----------
+  // One per challenge, created on the first lock, start or host action. state is the template's (Template SDK v2).
+  liveSessions: defineTable({
+    challengeId: v.id('challenges'),
+    templateId: v.string(),
+    state: v.any(),
+    lockedAt: v.optional(v.number()),
+    lastActionAt: v.optional(v.record(v.string(), v.number())), // per host action, for its minimum interval
+  }).index('by_challenge', ['challengeId']),
   identities: defineTable({
     deviceToken: v.string(),
     whopUserId: v.string(),

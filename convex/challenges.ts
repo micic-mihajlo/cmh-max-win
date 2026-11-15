@@ -35,6 +35,7 @@ import type {
   CreatorProfileView,
   EligibilityView,
   HostConsoleView,
+  LiveErrorCode,
   MixerColor,
   MixerMeView,
   MixerStandingsView,
@@ -53,7 +54,7 @@ import type {
 type Ctx = QueryCtx;
 type Challenge = Doc<'challenges'>;
 
-function fail(code: SignalErrorCode, message: string, extra?: Record<string, unknown>): never {
+function fail(code: SignalErrorCode | LiveErrorCode, message: string, extra?: Record<string, unknown>): never {
   throw new ConvexError({ code, message, ...extra });
 }
 
@@ -194,12 +195,12 @@ function asChallengeId(ctx: Ctx, id: string) {
   return ctx.db.normalizeId('challenges', id);
 }
 
-async function getChallenge(ctx: Ctx, id: string) {
+export async function getChallenge(ctx: Ctx, id: string) {
   const cid = asChallengeId(ctx, id);
   return cid ? ctx.db.get(cid) : null;
 }
 
-async function requireOwned(ctx: Ctx, deviceToken: string, id: string) {
+export async function requireOwned(ctx: Ctx, deviceToken: string, id: string) {
   const c = await getChallenge(ctx, id);
   if (!c) fail('CHALLENGE_NOT_FOUND', 'No such challenge.');
   const me = await resolveIdentity(ctx, deviceToken);
@@ -207,7 +208,7 @@ async function requireOwned(ctx: Ctx, deviceToken: string, id: string) {
   return c;
 }
 
-async function findByCode(ctx: Ctx, code: string) {
+export async function findByCode(ctx: Ctx, code: string) {
   const matches = await ctx.db
     .query('challenges')
     .withIndex('by_joinCode', (q) => q.eq('joinCode', code.trim().toUpperCase()))
@@ -225,9 +226,9 @@ async function generateChallengeCode(ctx: MutationCtx) {
   }
 }
 
-const entriesOf = (ctx: Ctx, challengeId: Id<'challenges'>) =>
+export const entriesOf = (ctx: Ctx, challengeId: Id<'challenges'>) =>
   ctx.db.query('challengeEntries').withIndex('by_challenge', (q) => q.eq('challengeId', challengeId)).collect();
-const teamsOf = (ctx: Ctx, challengeId: Id<'challenges'>) =>
+export const teamsOf = (ctx: Ctx, challengeId: Id<'challenges'>) =>
   ctx.db.query('challengeTeams').withIndex('by_challenge', (q) => q.eq('challengeId', challengeId)).collect();
 const payoutsOf = (ctx: Ctx, challengeId: Id<'challenges'>) =>
   ctx.db.query('payouts').withIndex('by_challenge', (q) => q.eq('challengeId', challengeId)).collect();
@@ -237,7 +238,7 @@ const findEntry = (ctx: Ctx, challengeId: Id<'challenges'>, deviceToken: string)
     .withIndex('by_challenge_token', (q) => q.eq('challengeId', challengeId).eq('deviceToken', deviceToken))
     .unique();
 
-async function creatorOf(ctx: Ctx, deviceToken: string) {
+export async function creatorOf(ctx: Ctx, deviceToken: string) {
   const p = await ctx.db.query('creators').withIndex('by_token', (q) => q.eq('deviceToken', deviceToken)).first();
   return { displayName: p?.displayName ?? 'Host', handle: p ? '@' + p.handle : '' };
 }
@@ -284,7 +285,7 @@ async function teamViews(ctx: Ctx, c: Challenge, teams: Doc<'challengeTeams'>[],
   }));
 }
 
-async function finishersOf(ctx: Ctx, c: Challenge, teams: Doc<'challengeTeams'>[], entries: Doc<'challengeEntries'>[]) {
+export async function finishersOf(ctx: Ctx, c: Challenge, teams: Doc<'challengeTeams'>[], entries: Doc<'challengeEntries'>[]) {
   if (c.config.teamFormation === 'mixer') {
     const byId = new Map(entries.map((e) => [e._id, e]));
     return (await mixerTeamsOf(ctx, c._id))
@@ -625,6 +626,8 @@ export const enterChallenge = internalMutation({
     if (existing) return { challengeId: c._id as string };
     const open = c.status === 'published' || (c.status === 'live' && (c.config.startMode === 'window' || c.config.teamFormation === 'mixer'));
     if (!open || (c.config.endsAt !== null && Date.now() >= c.config.endsAt)) fail('CHALLENGE_CLOSED', 'Entry is closed.');
+    const session = await ctx.db.query('liveSessions').withIndex('by_challenge', (q) => q.eq('challengeId', c._id)).unique();
+    if (session?.lockedAt !== undefined && Date.now() >= session.lockedAt) fail('ENTRIES_LOCKED', 'Entries are locked.');
     const me = await resolveIdentity(ctx, deviceToken);
     if (c.config.requireWhopToJoin && !me.whopUserId) fail('WHOP_SIGN_IN_REQUIRED', 'Sign in with Whop to join this challenge.');
     const clean = name.trim().slice(0, 24);
@@ -721,12 +724,17 @@ export const dealTeams = mutation({
     if (c.status !== 'published' || c.config.startMode !== 'live' || c.config.teamFormation !== 'dealt') {
       fail('CHALLENGE_CLOSED', 'Only an open live-mode challenge with dealt teams can be dealt.');
     }
-    const waiting = (await entriesOf(ctx, c._id)).filter((e) => !e.teamId && !e.waitingNextRound).length;
-    const minimum = c.config.leftover === 'smaller_teams' ? Math.min(2, c.config.teamSize) : c.config.teamSize;
-    if (waiting < minimum) fail('NOT_ENOUGH_PLAYERS', 'Not enough players for a team yet.');
-    await formTeams(ctx, c, true);
+    await dealLive(ctx, c);
   },
 });
+
+// Live start mode, dealt teams: deal everyone waiting now, the leftover policy included.
+export async function dealLive(ctx: MutationCtx, c: Challenge) {
+  const waiting = (await entriesOf(ctx, c._id)).filter((e) => !e.teamId && !e.waitingNextRound).length;
+  const minimum = c.config.leftover === 'smaller_teams' ? Math.min(2, c.config.teamSize) : c.config.teamSize;
+  if (waiting < minimum) fail('NOT_ENOUGH_PLAYERS', 'Not enough players for a team yet.');
+  await formTeams(ctx, c, true);
+}
 
 export const endChallenge = mutation({
   args: { deviceToken: v.string(), challengeId: v.string() },
