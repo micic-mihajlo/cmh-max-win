@@ -679,5 +679,6 @@ export type UseSubmitMixerAnswer = (challengeId: string) => (answer: string) => 
 
 export type UseChallengeRecap = (challengeId: string | null) => ChallengeRecapView | null | undefined; // null until ended
 
+export * from './contract-growth';
 export * from './contract-whop';
 export * from './contract-live'; // live layer: host start, lock and actions, public live view (CAP-40)
