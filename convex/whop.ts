@@ -4,7 +4,8 @@ import { internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
 import { action, internalMutation, query } from './_generated/server';
 
-const API_VERSION_DATE = '2026-11-04-1';
+export const WHOP_API_VERSION_DATE = '2026-11-04-1';
+const API_VERSION_DATE = WHOP_API_VERSION_DATE;
 const packValidator = v.literal('season01');
 
 export type WhopPayment = {

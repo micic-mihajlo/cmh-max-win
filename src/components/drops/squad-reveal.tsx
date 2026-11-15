@@ -3,7 +3,9 @@ import { StyleSheet, View } from 'react-native';
 import { Screen } from '@/components/signal/backdrop';
 import { Txt } from '@/components/signal/txt';
 import { Palette, Radius, RoleColors, Space } from '@/constants/signal';
-import { Enter, PressScale, Stagger } from '@/motion';
+import { useEffect } from 'react';
+
+import { Enter, Haptic, PressScale, Stagger } from '@/motion';
 
 import { RACE_REVEAL_MS, type DossierView, type DropView, type MemberView } from '@/lib/contract';
 
@@ -25,6 +27,17 @@ export function SquadRevealScreen({
 }) {
   const squad = drop.me.squad;
   const ordered = [...members].sort((a, b) => Number(b.isMe) - Number(a.isMe));
+  const names = ordered.map((m) => m.name);
+  const hero = names.length > 1 ? `${names.slice(0, -1).join(', ')} & ${names[names.length - 1]}` : (names[0] ?? 'Your squad');
+  useEffect(() => {
+    if (!play) return;
+    const card = setTimeout(Haptic.success, 900);
+    const piece = setTimeout(Haptic.tap, 1400);
+    return () => {
+      clearTimeout(card);
+      clearTimeout(piece);
+    };
+  }, [play]);
   return (
     <Screen
       footer={
@@ -41,7 +54,12 @@ export function SquadRevealScreen({
       <Enter play={play} delay={900}>
         <View style={styles.card}>
           <View style={styles.cardHead}>
-            <Txt variant="title">{squad?.label ?? 'Your squad'}</Txt>
+            <Txt variant="title">{hero}</Txt>
+            {squad ? (
+              <Txt variant="caption" color={Palette.paperMuted}>
+                {squad.label}
+              </Txt>
+            ) : null}
           </View>
           <View style={styles.members}>
             <Stagger play={play} delay={900}>

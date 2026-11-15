@@ -1,17 +1,27 @@
-import { MINUTE, RateLimiter } from '@convex-dev/rate-limiter';
+import { HOUR, MINUTE, RateLimiter } from '@convex-dev/rate-limiter';
 import { ConvexError } from 'convex/values';
 
 import { components } from './_generated/api';
-import type { MutationCtx } from './_generated/server';
+import type { ActionCtx, MutationCtx } from './_generated/server';
 
 export const rateLimiter = new RateLimiter(components.rateLimiter, {
   hostDrop: { kind: 'fixed window', rate: 5, period: 10 * MINUTE },
+  // key: deviceToken. Joining by code, including mistyped codes.
+  challengeJoinDevice: { kind: 'token bucket', rate: 20, period: MINUTE, capacity: 10 },
+  // key: join code. Sharded so a crowd joining at once doesn't contend on one counter.
+  challengeJoin: { kind: 'token bucket', rate: 600, period: MINUTE, capacity: 300, shards: 6 },
+  // key: `${challengeId}:${deviceToken}`, one seat's game moves.
+  playerAction: { kind: 'token bucket', rate: 60, period: MINUTE, capacity: 20 },
+  // key: `${challengeId}:${deviceToken}`, the host console.
+  hostAction: { kind: 'token bucket', rate: 30, period: MINUTE, capacity: 10 },
+  // key: deviceToken. New drafts, by create or clone.
+  challengeCreate: { kind: 'fixed window', rate: 20, period: HOUR },
 });
 
 export type RateLimitName = keyof NonNullable<typeof rateLimiter.limits>;
 
 // Consumes one token for key, or throws RATE_LIMITED with retryAfterMs.
-export async function enforceRateLimit(ctx: MutationCtx, name: RateLimitName, key: string) {
+export async function enforceRateLimit(ctx: MutationCtx | ActionCtx, name: RateLimitName, key: string) {
   const { ok, retryAfter } = await rateLimiter.limit(ctx, name, { key });
   if (ok) return;
   const seconds = Math.ceil(retryAfter / 1000);

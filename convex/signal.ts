@@ -3,6 +3,7 @@ import type { Doc, Id } from './_generated/dataModel';
 import { internal } from './_generated/api';
 import { mutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
 import { AURORA_REVEAL, PIECES, nudgeText, ownNudgeText, pieceFor } from './aurora';
+import { awardModeWithBudget, createTransferRows } from './bounty';
 import { ANSWER, DOSSIERS, NUDGES, REVEAL, ROLES } from './case01';
 import { challengeIsPlayable, recordChallengeFinish } from './challenges';
 import { presence as presenceComponent } from './presence';
@@ -82,7 +83,7 @@ async function requireCaller(ctx: MutationCtx, code: string, deviceToken: string
 }
 
 function requireHost(room: Doc<'rooms'>, deviceToken: string) {
-  if (room.hostToken !== deviceToken) fail('NOT_HOST', 'Only the host can do that.');
+  if (!room.hostToken || room.hostToken !== deviceToken) fail('NOT_HOST', 'Only the host can do that.');
 }
 
 async function members(ctx: QueryCtx, roomId: Id<'rooms'>) {
@@ -113,7 +114,7 @@ function canReclaim(holder: Doc<'members'>, seats: SeatPresence) {
 }
 
 function reclaimable(room: Doc<'rooms'>, all: Doc<'members'>[], seats: SeatPresence, me: Doc<'members'> | null): Role[] {
-  if (room.status === 'lobby' || room.dropId || me) return [];
+  if (room.status === 'lobby' || room.dropId || room.challengeId || me) return [];
   return ROLES.filter((r) => all.some((m) => m.role === r && canReclaim(m, seats)));
 }
 
@@ -161,7 +162,7 @@ async function recordSolve(ctx: MutationCtx, room: Doc<'rooms'>, now: number) {
   if (place > drop.bounty.winnerSlots) return;
   const size = room.squadSize ?? MAX_MEMBERS;
   const { amountCents, perPlayerCents } = bountyShares(drop.bounty.totalCents, drop.bounty.winnerSlots, size);
-  const mode = !drop.conceptOnly && process.env.BOUNTY_MODE === 'sandbox' ? 'sandbox' : 'concept';
+  const mode = await awardModeWithBudget(ctx, drop, amountCents);
   const awardId = await ctx.db.insert('bountyAwards', {
     dropId: drop.dropId,
     roomId: room._id,
@@ -174,7 +175,8 @@ async function recordSolve(ctx: MutationCtx, room: Doc<'rooms'>, now: number) {
     claimUrl: null,
     label: '',
   });
-  await ctx.scheduler.runAfter(0, internal.bounty.payAward, { awardId, mode, perPlayerCents, redeemableCount: size });
+  if (mode === 'transfer') await createTransferRows(ctx, awardId);
+  else await ctx.scheduler.runAfter(0, internal.bounty.payAward, { awardId, mode, perPlayerCents, redeemableCount: size });
 }
 
 export const activeRoom = query({
@@ -386,7 +388,7 @@ export const reclaimRole = mutation({
   handler: async (ctx, { deviceToken, code, role }) => {
     const room = await requireRoom(ctx, code);
     const all = await members(ctx, room._id);
-    if (room.dropId) fail('CASE_STARTED', 'Drop squad seats cannot be reclaimed.');
+    if (room.dropId || room.challengeId) fail('CASE_STARTED', 'Squad and team seats cannot be reclaimed.');
     if (room.status === 'lobby') fail('WRONG_STATUS', 'Seats can only be reclaimed once the case has started.');
     if (all.some((m) => m.deviceToken === deviceToken)) fail('WRONG_STATUS', 'You are already in this room.');
     const holder = all.find((m) => m.role === role);
@@ -544,6 +546,12 @@ export const leaveRoom = mutation({
   handler: async (ctx, { deviceToken, code }) => {
     const { room, me } = await requireCaller(ctx, code, deviceToken);
     if (room.status === 'intro' || room.status === 'playing') fail('CASE_STARTED', 'You can leave once the case is over.');
+    // A squad that won keeps every seat: the award's split and each member's myAward hang off membership.
+    const award = await ctx.db
+      .query('bountyAwards')
+      .withIndex('by_room', (q) => q.eq('roomId', room._id))
+      .first();
+    if (award) return;
     await ctx.db.delete(me._id);
     await presenceComponent.removeRoomUser(ctx, room.code, me._id);
     const rest = await members(ctx, room._id);

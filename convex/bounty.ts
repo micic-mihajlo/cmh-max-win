@@ -1,8 +1,9 @@
 import { ConvexError, v } from 'convex/values';
 
 import { internal } from './_generated/api';
-import { internalAction, internalMutation } from './_generated/server';
-import { whopEnvironment, whopRequest } from './whop';
+import type { Doc, Id } from './_generated/dataModel';
+import { internalAction, internalMutation, type MutationCtx, type QueryCtx } from './_generated/server';
+import { WHOP_API_VERSION_DATE, whopApiBase, whopEnvironment, whopRequest } from './whop';
 
 type WhopClaimLink = {
   id: string;
@@ -104,11 +105,15 @@ export const CONCEPT_LABEL = 'Concept payout — no real money moves';
 export const payAward = internalAction({
   args: {
     awardId: v.id('bountyAwards'),
-    mode: v.union(v.literal('concept'), v.literal('sandbox')),
+    mode: v.union(v.literal('concept'), v.literal('sandbox'), v.literal('transfer')),
     perPlayerCents: v.number(),
     redeemableCount: v.number(),
   },
   handler: async (ctx, { awardId, mode, perPlayerCents, redeemableCount }) => {
+    if (mode === 'transfer') {
+      await ctx.runMutation(internal.bounty.startTransfers, { awardId });
+      return;
+    }
     if (mode !== 'sandbox') {
       await ctx.runMutation(internal.bounty.recordAward, { awardId, status: 'ready', claimUrl: null, label: CONCEPT_LABEL });
       return;
@@ -152,5 +157,193 @@ export const recordAward = internalMutation({
   },
   handler: async (ctx, { awardId, ...result }) => {
     await ctx.db.patch(awardId, result);
+  },
+});
+
+// ---------- Real payouts: Whop balance transfers (CMHM-11) ----------
+// SIGNAL_REAL_PAYOUTS=on (dev only) turns every drop award, hosted drops included, into one Whop balance
+// transfer per squad member to their linked whopUserId. Off (the default) keeps today's behaviour exactly.
+
+export const TRANSFER_LABEL = 'Paid by Whop transfer';
+const MAX_TRANSFER_ATTEMPTS = 4;
+
+// Real transfers are capped per award (SIGNAL_REAL_PAYOUT_CAP_CENTS, default $10): anyone can host a drop
+// with any pool, so an award above the cap stays concept.
+export function realPayoutCapCents(): number {
+  const cap = Number(process.env.SIGNAL_REAL_PAYOUT_CAP_CENTS);
+  return Number.isFinite(cap) && cap >= 0 && process.env.SIGNAL_REAL_PAYOUT_CAP_CENTS ? cap : 1000;
+}
+
+// Total cents all real transfers may ever commit (SIGNAL_REAL_PAYOUT_BUDGET_CENTS). Unset means 0: no real payouts.
+export function realPayoutBudgetCents(): number {
+  const budget = Number(process.env.SIGNAL_REAL_PAYOUT_BUDGET_CENTS);
+  return Number.isFinite(budget) && budget > 0 ? budget : 0;
+}
+
+export function awardMode(drop: Pick<Doc<'drops'>, 'conceptOnly'>, awardCents: number): 'concept' | 'sandbox' | 'transfer' {
+  if (process.env.SIGNAL_REAL_PAYOUTS === 'on') {
+    return awardCents > 0 && awardCents <= realPayoutCapCents() && awardCents <= realPayoutBudgetCents() ? 'transfer' : 'concept';
+  }
+  return !drop.conceptOnly && process.env.BOUNTY_MODE === 'sandbox' ? 'sandbox' : 'concept';
+}
+
+// The mode an award actually gets: a 'transfer' award that would push the cents already committed to real
+// transfers past the budget stays concept. Waiting, sending and sent rows count. A failed row releases its cents
+// only when Whop definitely refused it; retries_exhausted stays counted, since the last attempt may have landed.
+export async function awardModeWithBudget(ctx: Pick<QueryCtx, 'db'>, drop: Pick<Doc<'drops'>, 'conceptOnly'>, awardCents: number) {
+  const mode = awardMode(drop, awardCents);
+  if (mode !== 'transfer') return mode;
+  const committed = (await ctx.db.query('bountyPayouts').collect())
+    .filter((r) => r.status !== 'failed' || r.failureCode === 'retries_exhausted')
+    .reduce((sum, r) => sum + r.cents, 0);
+  return committed + awardCents <= realPayoutBudgetCents() ? 'transfer' : 'concept';
+}
+
+async function queueTransfer(ctx: MutationCtx, payoutId: Id<'bountyPayouts'>, whopUserId: string) {
+  await ctx.db.patch(payoutId, { status: 'sending', whopUserId, updatedAt: Date.now() });
+  await ctx.scheduler.runAfter(0, internal.bounty.sendTransfer, { payoutId });
+}
+
+export const startTransfers = internalMutation({
+  args: { awardId: v.id('bountyAwards') },
+  handler: (ctx, { awardId }) => createTransferRows(ctx, awardId),
+});
+
+// Snapshots the squad into payout rows. The lock-in that awards calls this in the same transaction that
+// inserts the award, so the rows reflect the squad at award time.
+export async function createTransferRows(ctx: MutationCtx, awardId: Id<'bountyAwards'>) {
+  const award = await ctx.db.get(awardId);
+  if (!award || award.mode !== 'transfer' || award.perPlayerCents <= 0) return;
+  const existing = await ctx.db
+    .query('bountyPayouts')
+    .withIndex('by_award', (q) => q.eq('awardId', awardId))
+    .first();
+  if (existing) return;
+  const members = await ctx.db
+    .query('members')
+    .withIndex('by_room', (q) => q.eq('roomId', award.roomId))
+    .collect();
+  for (const m of members) {
+    const payoutId = await ctx.db.insert('bountyPayouts', {
+      awardId,
+      memberId: m._id,
+      deviceToken: m.deviceToken,
+      cents: award.perPlayerCents,
+      status: 'sign_in_required',
+      idempotencyKey: awardId + ':' + m._id,
+      attempts: 0,
+      updatedAt: Date.now(),
+    });
+    const identity = await ctx.db
+      .query('identities')
+      .withIndex('by_token', (q) => q.eq('deviceToken', m.deviceToken))
+      .unique();
+    if (identity) await queueTransfer(ctx, payoutId, identity.whopUserId);
+  }
+  await ctx.db.patch(awardId, { status: 'ready', label: TRANSFER_LABEL });
+}
+
+// Called when a device links Whop: its waiting transfers go out to the account it just linked.
+export async function releaseTransfersFor(ctx: MutationCtx, deviceToken: string, whopUserId: string) {
+  const waiting = await ctx.db
+    .query('bountyPayouts')
+    .withIndex('by_token', (q) => q.eq('deviceToken', deviceToken).eq('status', 'sign_in_required'))
+    .collect();
+  for (const row of waiting) await queueTransfer(ctx, row._id, whopUserId);
+}
+
+export const transferForSend = internalMutation({
+  args: { payoutId: v.id('bountyPayouts') },
+  handler: async (ctx, { payoutId }) => {
+    const row = await ctx.db.get(payoutId);
+    if (!row || row.status !== 'sending' || !row.whopUserId) return null;
+    await ctx.db.patch(payoutId, { attempts: row.attempts + 1, updatedAt: Date.now() });
+    return { cents: row.cents, whopUserId: row.whopUserId, idempotencyKey: row.idempotencyKey, attempt: row.attempts + 1 };
+  },
+});
+
+export const recordTransfer = internalMutation({
+  args: {
+    payoutId: v.id('bountyPayouts'),
+    status: v.union(v.literal('sent'), v.literal('failed')),
+    transferId: v.optional(v.string()),
+    failureCode: v.optional(v.string()),
+    error: v.optional(v.string()),
+  },
+  handler: async (ctx, { payoutId, ...result }) => {
+    const row = await ctx.db.get(payoutId);
+    if (row?.status === 'sending') await ctx.db.patch(payoutId, { ...result, updatedAt: Date.now() });
+  },
+});
+
+export function transferFailureCode(status: number, body: string): string {
+  if (/verif/i.test(body)) return 'kyc_required';
+  try {
+    const parsed = JSON.parse(body) as { error?: { code?: string; type?: string } | string; code?: string };
+    const code = typeof parsed.error === 'object' ? (parsed.error.code ?? parsed.error.type) : parsed.code;
+    if (code) return code;
+  } catch {
+    // not JSON
+  }
+  return status === 402 ? 'insufficient_funds' : 'unknown';
+}
+
+export const sendTransfer = internalAction({
+  args: { payoutId: v.id('bountyPayouts') },
+  handler: async (ctx, { payoutId }) => {
+    const job = await ctx.runMutation(internal.bounty.transferForSend, { payoutId });
+    if (!job) return;
+    const retry = async () => {
+      if (job.attempt >= MAX_TRANSFER_ATTEMPTS) {
+        await ctx.runMutation(internal.bounty.recordTransfer, { payoutId, status: 'failed', failureCode: 'retries_exhausted' });
+      } else {
+        await ctx.scheduler.runAfter(2 ** job.attempt * 1000, internal.bounty.sendTransfer, { payoutId });
+      }
+    };
+    const apiKey = process.env.WHOP_API_KEY;
+    const origin = process.env.WHOP_ACCOUNT_ID;
+    if (!apiKey || !origin) {
+      await ctx.runMutation(internal.bounty.recordTransfer, { payoutId, status: 'failed', failureCode: 'whop_not_configured' });
+      return;
+    }
+    let response: Response;
+    try {
+      response = await fetch(whopApiBase() + '/transfers', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Api-Version-Date': WHOP_API_VERSION_DATE,
+          'Content-Type': 'application/json',
+          'Idempotency-Key': job.idempotencyKey,
+        },
+        body: JSON.stringify({
+          type: 'balance',
+          amount: job.cents / 100,
+          currency: 'usd',
+          origin_id: origin,
+          destination_id: job.whopUserId,
+          idempotence_key: job.idempotencyKey,
+        }),
+      });
+    } catch {
+      await retry();
+      return;
+    }
+    if (response.status === 429 || response.status >= 500) {
+      await retry();
+      return;
+    }
+    const body = await response.text();
+    if (!response.ok) {
+      await ctx.runMutation(internal.bounty.recordTransfer, {
+        payoutId,
+        status: 'failed',
+        failureCode: transferFailureCode(response.status, body),
+        error: `Whop returned ${response.status}: ${body.slice(0, 300)}`,
+      });
+      return;
+    }
+    const transfer = JSON.parse(body) as { id?: string };
+    await ctx.runMutation(internal.bounty.recordTransfer, { payoutId, status: 'sent', transferId: transfer.id });
   },
 });
