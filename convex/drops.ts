@@ -49,10 +49,14 @@ function hash(text: string) {
 
 // Pieces per seat, varied per squad but reproducible from (dropId, squadIndex). A duo gets one 2-piece seat
 // and one 1-piece seat; every seat's first role is its primary (seal and color).
-export function dealPieces(dropId: string, squadIndex: number, size: SquadSize): Role[][] {
+// 3 pieces per team. Trio: one each. Duo: a 2-piece phone and a 1-piece phone. Solo (challenges): all three. Four
+// (challenges): one each, and the fourth member holds a copy of the first piece, so every member holds one.
+export function dealPieces(dropId: string, squadIndex: number, size: number): Role[][] {
   const k = hash(`${dropId}:${squadIndex}`) % 3;
   const order = [...ROLES.slice(k), ...ROLES.slice(0, k)];
-  return size === 3 ? order.map((r) => [r]) : [[order[0], order[1]], [order[2]]];
+  if (size === 1) return [order];
+  if (size === 2) return [[order[0], order[1]], [order[2]]];
+  return [...order.map((r) => [r]), ...(size === 4 ? [[order[0]]] : [])];
 }
 
 async function findDropByCode(ctx: QueryCtx, code: string) {
@@ -154,7 +158,7 @@ async function dropView(ctx: QueryCtx, drop: Doc<'drops'>, deviceToken: string):
       me: {
         entered: !!mine,
         name: mine?.name ?? null,
-        squad: room ? { code: room.code, size: room.squadSize ?? 3, label: room.squadLabel ?? '' } : null,
+        squad: room ? { code: room.code, size: (room.squadSize ?? 3) as SquadSize, label: room.squadLabel ?? '' } : null,
         unmatched: mine?.unmatched ?? false,
       },
     };

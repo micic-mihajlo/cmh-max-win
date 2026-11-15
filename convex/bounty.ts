@@ -24,7 +24,7 @@ const claimLinkResult = v.object({
   expiresAt: v.union(v.string(), v.null()),
 });
 
-async function createSandboxClaimLink(args: { amountCents: number; redeemableCount: number; idempotencyKey: string }) {
+export async function createSandboxClaimLink(args: { amountCents: number; redeemableCount: number; idempotencyKey: string }) {
   if (whopEnvironment() !== 'sandbox') {
     throw new ConvexError({ code: 'BOUNTY_SANDBOX_ONLY', message: 'Bounty claim links only run against the Whop sandbox.' });
   }

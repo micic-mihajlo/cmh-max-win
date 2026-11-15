@@ -4,6 +4,7 @@ import { internal } from './_generated/api';
 import { mutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
 import { AURORA_REVEAL, PIECES, nudgeText, ownNudgeText, pieceFor } from './aurora';
 import { ANSWER, DOSSIERS, NUDGES, REVEAL, ROLES } from './case01';
+import { challengeIsPlayable, recordChallengeFinish } from './challenges';
 import { presence as presenceComponent } from './presence';
 import { presence, role, suspect } from './schema';
 import type {
@@ -15,6 +16,7 @@ import type {
   RevealView,
   RoomView,
   SignalErrorCode,
+  TeamSize,
 } from '../src/lib/contract';
 import { RACE_REVEAL_MS } from '../src/lib/contract';
 
@@ -219,7 +221,7 @@ export const room = query({
       code: room.code,
       status: room.status,
       caseId: room.caseId,
-      squadSize: room.squadSize ?? 3,
+      squadSize: (room.squadSize ?? 3) as TeamSize,
       drop: drop
         ? {
             dropId: drop.dropId,
@@ -453,6 +455,7 @@ export const lockIn = mutation({
   handler: async (ctx, { deviceToken, code, revision }): Promise<LockInResult> => {
     const { room, me } = await requireCaller(ctx, code, deviceToken);
     if (room.status !== 'playing') fail('WRONG_STATUS', 'Nothing to lock in right now.');
+    if (room.challengeId && !(await challengeIsPlayable(ctx, room.challengeId))) fail('CHALLENGE_CLOSED', 'This challenge is over.');
     if (revision !== room.theory.revision) fail('STALE_REVISION', 'The theory changed. Review it and lock in again.');
     if (revision === room.checkedRevision) fail('ALREADY_CHECKED', 'Already checked. Change the theory to try again.');
     if (room.cooldownUntil && Date.now() < room.cooldownUntil) fail('COOLDOWN', 'Wrong guesses cost time. Talk it through.');
@@ -483,6 +486,7 @@ export const lockIn = mutation({
         lastCheck: { seq, result: 'correct', at: now },
       });
       if (room.dropId) await recordSolve(ctx, room, now);
+      if (room.challengeId) await recordChallengeFinish(ctx, room, now);
       return { outcome: 'resolved' };
     }
     const attempts = room.attempts + 1;
