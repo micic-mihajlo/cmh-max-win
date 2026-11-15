@@ -24,6 +24,8 @@ export type PuzzleReport = {
   smallestSolvingSubset: string[] | null;
 };
 
+const doc = (label: string) => label.charAt(0) + label.slice(1).toLowerCase();
+
 const remainingAfter = (suspects: BuilderSuspect[], pieces: BuilderPiece[]) => {
   const placed = new Set(pieces.flatMap((p) => p.places));
   return suspects.filter((s) => !placed.has(s.id)).map((s) => s.id);
@@ -86,9 +88,9 @@ export function validatePuzzle({ suspects, pieces, answer }: PuzzleInput): Puzzl
         pieces.length === 0
           ? 'Add at least one piece.'
           : badPlaces.length
-            ? badPlaces.map((p) => `${p.docLabel} clears ${p.places.length}`).join(' · ')
+            ? badPlaces.map((p) => `${doc(p.docLabel)} clears ${p.places.length}`).join(' · ')
             : placesAnswer.length
-              ? `${placesAnswer.map((p) => p.docLabel).join(', ')} clears the answer`
+              ? `${placesAnswer.map((p) => doc(p.docLabel)).join(', ')} clears the answer`
               : `${pieces.length} pieces, ${pieces.length} suspects cleared`,
     },
     {
@@ -101,7 +103,7 @@ export function validatePuzzle({ suspects, pieces, answer }: PuzzleInput): Puzzl
       id: 'single',
       label: 'No single piece solves it',
       pass: !singleSolver,
-      detail: singleSolver ? `${singleSolver.docLabel} solves it alone` : 'Every piece alone leaves 2 or more',
+      detail: singleSolver ? `${doc(singleSolver.docLabel)} solves it alone` : 'Every piece alone leaves 2 or more',
     },
     {
       id: 'subset',
@@ -113,7 +115,7 @@ export function validatePuzzle({ suspects, pieces, answer }: PuzzleInput): Puzzl
       id: 'names',
       label: 'No piece names the answer',
       pass: namesAnswer.length === 0,
-      detail: namesAnswer.length ? `${namesAnswer.map((p) => p.docLabel).join(', ')} names ${name(answer)}` : 'Clean',
+      detail: namesAnswer.length ? `${namesAnswer.map((p) => doc(p.docLabel)).join(', ')} names ${name(answer)}` : 'Clean',
     },
   ];
 
