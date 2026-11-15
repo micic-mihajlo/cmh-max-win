@@ -96,7 +96,7 @@ export function LeaderboardScreen({
         ) : (
           <>
             <Txt variant="small" color={Palette.paperMuted} style={styles.center}>
-              {`You solved it in ${short(mine?.solveMs ?? 0)} with ${Math.max(0, (mine?.attempts ?? 1) - 1)} wrong pick${(mine?.attempts ?? 1) - 1 === 1 ? '' : 's'}. Jun took the seed.`}
+              {`You solved it in ${short(mine?.solveMs ?? 0)} with ${mine?.attempts ?? 0} wrong guess${mine?.attempts === 1 ? '' : 'es'}. Jun took the seed.`}
             </Txt>
             <Button title="See the reveal" variant="secondary" />
           </>

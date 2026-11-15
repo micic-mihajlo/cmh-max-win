@@ -54,13 +54,13 @@ const duo: SquadMemberView[] = [
   { memberId: 'm_lou', name: 'Lou', role: 'detective', roles: ['detective'], isMe: false },
 ];
 
-const row = (rank: number | null, n: number, status: LeaderboardRow['status'], solveMs: number | null, attempts = 1, isMine = false): LeaderboardRow => ({
+const row = (rank: number | null, n: number, status: LeaderboardRow['status'], solveMs: number | null, wrongGuesses = 0, isMine = false): LeaderboardRow => ({
   rank,
   squadLabel: `Squad ${n}`,
   memberNames: [],
   status,
   solveMs,
-  attempts,
+  attempts: wrongGuesses,
   isMine,
 });
 const solving = (from: number, count: number) => Array.from({ length: count }, (_, i) => row(null, from + i, 'solving', null));
@@ -72,12 +72,12 @@ const board = (rows: LeaderboardRow[], raceMs: number): LeaderboardView => ({
   rows,
 });
 
-const racingBoard = board([row(1, 7, 'winner', 41_000), row(2, 22, 'winner', 58_000), row(null, 14, 'solving', null, 1, true), ...solving(30, 68)], 72_000);
+const racingBoard = board([row(1, 7, 'winner', 41_000), row(2, 22, 'winner', 58_000), row(null, 14, 'solving', null, 0, true), ...solving(30, 68)], 72_000);
 const moneyBoard = board(
   [
     row(1, 7, 'winner', 41_000),
     row(2, 22, 'winner', 58_000),
-    row(3, 14, 'winner', 86_000, 1, true),
+    row(3, 14, 'winner', 86_000, 0, true),
     row(4, 3, 'solved', 91_000),
     row(5, 40, 'solved', 104_000),
     ...solving(50, 60),
@@ -90,7 +90,7 @@ const missedBoard = board(
     row(2, 22, 'winner', 58_000),
     row(3, 3, 'winner', 86_000),
     ...[4, 5, 6, 7, 8].map((rank) => row(rank, 40 + rank, 'solved', 90_000 + rank * 4_000)),
-    row(9, 14, 'solved', 123_000, 2, true),
+    row(9, 14, 'solved', 123_000, 1, true),
     ...solving(60, 40),
   ],
   130_000,
