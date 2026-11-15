@@ -1,6 +1,7 @@
 import { BountyResultScreen } from '@/components/drops/bounty-result';
-import { RACE_REVEAL_MS, type DossierView, type DropView, type LeaderboardRow, type LeaderboardView, type SquadAwardView } from '@/lib/contract';
+import { RACE_REVEAL_MS, type DossierView, type DropView, type LeaderboardRow, type LeaderboardView, type PassphrasePieceView, type SquadAwardView } from '@/lib/contract';
 import { CreatorSetupScreen, POTS } from '@/components/drops/creator-setup';
+import { PassphraseScreen } from '@/components/drops/passphrase';
 import { DropEntryScreen } from '@/components/drops/drop-entry';
 import { JoinCodeScreen } from '@/components/drops/join-code';
 import { LeaderboardScreen } from '@/components/drops/leaderboard';
@@ -121,7 +122,61 @@ const paid = (myPayout: SquadAwardView['myPayout']) =>
 const bounty = drop().bounty;
 const nova = { title: 'The Aurora Seed', totalCents: 30000, winnerSlots: 3 };
 
+const trioSlots = [
+  { name: 'Lou', position: 0, isMe: false },
+  { name: 'Kit', position: 1, isMe: true },
+  { name: 'Ana', position: 2, isMe: false },
+];
+const piece = (squad: Partial<PassphrasePieceView['squad']> = {}, over: Partial<PassphrasePieceView> = {}): PassphrasePieceView => ({
+  code: 'K7QX',
+  squadLabel: 'Squad 14',
+  squadSize: 3,
+  slotCount: 3,
+  word: 'glass-12',
+  position: 1,
+  clue: 'Your squad’s passphrase is every member’s word in slot order, 1 to 3. Yours goes in slot 2.',
+  teammates: trioSlots,
+  squad: { status: 'solving', proposal: null, attempts: 0, cooldownUntil: null, lastNudge: null, result: null, ...squad },
+  serverNow: loadedAt,
+  ...over,
+});
+const louProposal = { revision: 3, words: ['ember-47', 'glass-12', 'tide-03'], proposedBy: 'Lou', confirmedBy: ['Lou'], confirmedByMe: false };
+
 export const DropStates: MockState[] = [
+  { id: '17-pass-solving', ref: 'passphrase', section: 'Passphrase', title: 'Passphrase · your word, empty slots', render: () => <PassphraseScreen piece={piece()} /> },
+  {
+    id: '17-pass-first',
+    ref: 'passphrase',
+    section: 'Passphrase',
+    title: 'Passphrase · you go first',
+    render: () => <PassphraseScreen piece={piece({}, { word: 'ember-47', position: 0, teammates: [{ name: 'Kit', position: 0, isMe: true }, { name: 'Lou', position: 1, isMe: false }, { name: 'Ana', position: 2, isMe: false }] })} />,
+  },
+  {
+    id: '17-pass-duo',
+    ref: 'passphrase',
+    section: 'Passphrase',
+    title: 'Passphrase · duo',
+    render: () => <PassphraseScreen piece={piece({}, { squadSize: 2, slotCount: 2, teammates: [{ name: 'Lou', position: 0, isMe: false }, { name: 'Kit', position: 1, isMe: true }] })} />,
+  },
+  { id: '17-pass-confirm', ref: 'passphrase', section: 'Passphrase', title: 'Passphrase · Lou proposed, your confirm', render: () => <PassphraseScreen piece={piece({ status: 'confirming', proposal: louProposal })} /> },
+  {
+    id: '17-pass-waiting',
+    ref: 'passphrase',
+    section: 'Passphrase',
+    title: 'Passphrase · confirmed, waiting for Ana',
+    render: () => <PassphraseScreen piece={piece({ status: 'confirming', proposal: { ...louProposal, confirmedBy: ['Lou', 'Kit'], confirmedByMe: true } })} />,
+  },
+  {
+    id: '17-pass-wrong',
+    ref: 'passphrase',
+    section: 'Passphrase',
+    title: 'Passphrase · wrong, cooldown + nudge',
+    render: () => (
+      <PassphraseScreen
+        piece={piece({ status: 'cooldown', attempts: 1, cooldownUntil: loadedAt + 20_000, lastNudge: { text: 'Check Ana’s word.', holderName: 'Ana' } })}
+      />
+    ),
+  },
   { id: '10-creator-card', ref: 'beat 2', section: 'Drops', title: 'Creator · prefilled drop card', render: () => <CreatorSetupScreen drop={nova} pot={POTS[0]} onPot={() => {}} /> },
   {
     id: '10-creator-pot-error',
