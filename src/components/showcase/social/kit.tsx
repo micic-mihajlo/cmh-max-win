@@ -58,15 +58,14 @@ export function Screen({
   );
 }
 
-export function Avatar({ initials, size = 44, live, tone = 'soft' }: { initials: string; size?: number; live?: boolean; tone?: 'soft' | 'ink' | 'card' }) {
-  const bg = tone === 'ink' ? Palette.paper : tone === 'card' ? Palette.card : Palette.accentSoft;
-  const fg = tone === 'ink' ? Palette.ink : Palette.paper;
+const washes = ['#F3EDE0', '#E7EDF4', '#F4E6E1'];
+export const Wash = { neutral: '#F1F0EB', pick: (key: string) => washes[key.charCodeAt(0) % washes.length] };
+
+export function Avatar({ initials, size = 44, live }: { initials: string; size?: number; live?: boolean }) {
   return (
-    <View style={[styles.ring, { width: size + 8, height: size + 8, borderRadius: size, borderColor: live ? Palette.ember : 'transparent' }]}>
-      <View style={[styles.avatar, { width: size, height: size, borderRadius: size, backgroundColor: bg }]}>
-        <Txt style={{ fontFamily: FontFamily.displayBold, fontSize: size * 0.4, lineHeight: size * 0.5 }} color={fg}>
-          {initials}
-        </Txt>
+    <View style={[styles.ring, { width: size + 8, height: size + 8, borderRadius: size, borderColor: live ? Palette.danger : 'transparent' }]}>
+      <View style={[styles.avatar, { width: size, height: size, borderRadius: size, backgroundColor: Wash.pick(initials) }]}>
+        <Txt style={{ fontFamily: FontFamily.displayBold, fontSize: size * 0.4, lineHeight: size * 0.5 }}>{initials}</Txt>
       </View>
     </View>
   );
@@ -76,7 +75,7 @@ export function Section({ title, action, children, style }: { title: string; act
   return (
     <View style={[styles.section, style]}>
       <View style={styles.sectionHead}>
-        <Txt variant="name">{title}</Txt>
+        <Txt variant="bodyStrong">{title}</Txt>
         {action}
       </View>
       {children}
@@ -88,48 +87,31 @@ export function Card({ children, style }: { children: ReactNode; style?: StylePr
   return <View style={[styles.card, style]}>{children}</View>;
 }
 
-export function Pill({
-  title,
-  onPress,
-  tone = 'line',
-  style,
-}: {
-  title: string;
-  onPress?: () => void;
-  tone?: 'ember' | 'line' | 'ink' | 'soft';
-  style?: StyleProp<ViewStyle>;
-}) {
-  const bg = tone === 'ember' ? Palette.ember : tone === 'ink' ? Palette.paper : tone === 'soft' ? Palette.accentSoft : Palette.card;
-  const fg = tone === 'ink' ? Palette.ink : Palette.paper;
+export function TextAction({ title, onPress, muted }: { title: string; onPress?: () => void; muted?: boolean }) {
   return (
-    <PressScale accessibilityRole="button" onPress={onPress} haptic="tap" style={[styles.pill, { backgroundColor: bg, borderColor: tone === 'line' ? Palette.hairline : bg }, style]}>
-      <Txt variant="smallStrong" color={fg}>
+    <PressScale accessibilityRole="button" onPress={onPress} haptic="tap" hitSlop={12}>
+      <Txt variant="label" style={styles.textAction} color={muted ? Palette.paperMuted : Palette.paper}>
         {title}
       </Txt>
     </PressScale>
   );
 }
 
-export function BigButton({ title, onPress, tone = 'ember' }: { title: string; onPress?: () => void; tone?: 'ember' | 'ink' | 'line' }) {
-  const bg = tone === 'ember' ? Palette.ember : tone === 'ink' ? Palette.paper : Palette.card;
-  const fg = tone === 'ink' ? Palette.ink : Palette.paper;
+export function BigButton({ title, onPress, style }: { title: string; onPress?: () => void; style?: StyleProp<ViewStyle> }) {
   return (
-    <PressScale accessibilityRole="button" onPress={onPress} haptic="tap" style={[styles.big, { backgroundColor: bg, borderColor: tone === 'line' ? Palette.hairline : bg }]}>
-      <Txt variant="button" color={fg}>
+    <PressScale accessibilityRole="button" onPress={onPress} haptic="tap" style={[styles.big, style]}>
+      <Txt variant="button" color={Palette.ink}>
         {title}
       </Txt>
     </PressScale>
   );
-}
-
-export function Hairline({ style }: { style?: StyleProp<ViewStyle> }) {
-  return <View style={[styles.hairline, style]} />;
 }
 
 export const showcase = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: Space.m },
   flex: { flex: 1, minWidth: 0 },
   gutter: { paddingHorizontal: Space.xl },
+  list: { gap: Space.xl },
 });
 
 const styles = StyleSheet.create({
@@ -140,11 +122,10 @@ const styles = StyleSheet.create({
   barTitle: { flex: 1, textAlign: 'center' },
   barRight: { minWidth: 32, alignItems: 'flex-end' },
   ring: { borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
-  avatar: { alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: Palette.hairline },
-  section: { marginTop: Space.xxl, paddingHorizontal: Space.xl, gap: Space.m },
+  avatar: { alignItems: 'center', justifyContent: 'center' },
+  section: { marginTop: Space.xxl + Space.s, paddingHorizontal: Space.xl, gap: Space.l },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  card: { backgroundColor: Palette.card, borderRadius: Radius.m, borderWidth: 1, borderColor: Palette.hairline, padding: Space.l },
-  pill: { borderRadius: Radius.pill, borderWidth: 1, paddingHorizontal: Space.l, paddingVertical: Space.s, alignItems: 'center' },
-  big: { height: 56, borderRadius: Radius.m, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  hairline: { height: 1, backgroundColor: Palette.hairline },
+  card: { backgroundColor: Palette.card, borderRadius: Radius.l, padding: Space.xl },
+  textAction: { fontFamily: FontFamily.uiSemi },
+  big: { height: 52, borderRadius: 14, backgroundColor: Palette.paper, alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch' },
 });
