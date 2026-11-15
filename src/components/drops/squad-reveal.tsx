@@ -3,14 +3,27 @@ import { StyleSheet, View } from 'react-native';
 import { Screen } from '@/components/signal/backdrop';
 import { Label } from '@/components/signal/primitives';
 import { Txt } from '@/components/signal/txt';
-import { Palette, Radius, RoleColors, Space } from '@/constants/signal';
+import { Palette, Radius, RoleColors, RoleMeta, Space } from '@/constants/signal';
 import { Enter, PressScale, Stagger } from '@/motion';
 
-import { RACE_REVEAL_MS, type DropView, type SquadMemberView } from './contract';
-import { PieceCopy } from './ui';
+import { RACE_REVEAL_MS, type DossierView, type DropView, type MemberView } from '@/lib/contract';
+
+export type SquadMemberView = Pick<MemberView, 'memberId' | 'name' | 'role' | 'roles' | 'isMe'>;
 
 // The reveal is held for RACE_REVEAL_MS on every phone: squad card at 900 ms, piece at 1400 ms, CTA at the end.
-export function SquadRevealScreen({ drop, members, play = true }: { drop: DropView; members: SquadMemberView[]; play?: boolean }) {
+export function SquadRevealScreen({
+  drop,
+  members,
+  pieces,
+  play = true,
+  onOpen,
+}: {
+  drop: DropView;
+  members: SquadMemberView[];
+  pieces: DossierView[] | undefined;
+  play?: boolean;
+  onOpen?: () => void;
+}) {
   const squad = drop.me.squad;
   const me = members.find((m) => m.isMe);
   const ordered = [...members].sort((a, b) => Number(b.isMe) - Number(a.isMe));
@@ -23,7 +36,7 @@ export function SquadRevealScreen({ drop, members, play = true }: { drop: DropVi
             <Txt variant="small" color={Palette.paperMuted} style={styles.center}>
               Read it out to your squad.
             </Txt>
-            <PressScale style={styles.cta}>
+            <PressScale style={styles.cta} onPress={onOpen}>
               <Txt variant="button" color={Palette.ink}>
                 Open the case
               </Txt>
@@ -66,16 +79,16 @@ export function SquadRevealScreen({ drop, members, play = true }: { drop: DropVi
           </View>
         </View>
       </Enter>
-      {mine.map((r, i) => (
-        <Enter key={r} play={play} delay={1400 + i * 120}>
-          <View style={[styles.piece, { borderColor: RoleColors[r] }]}>
-            <Txt variant="label" color={RoleColors[r]}>
-              {PieceCopy[r].doc}
+      {(pieces ?? []).map((p, i) => (
+        <Enter key={p.role} play={play} delay={1400 + i * 120}>
+          <View style={[styles.piece, { borderColor: RoleColors[p.role] }]}>
+            <Txt variant="label" color={RoleColors[p.role]}>
+              {`${p.docLabel} · ${RoleMeta[p.role].label}`}
             </Txt>
             <Txt variant="small" color={Palette.paperMuted}>
-              {PieceCopy[r].source}
+              {p.title}
             </Txt>
-            <Txt variant="quote">{PieceCopy[r].text}</Txt>
+            <Txt variant="quote">{`“${p.lines.map((l) => l.text).join(' ')}”`}</Txt>
             <Txt variant="small" color={Palette.paperFaint}>
               Only you can see this. Read it out.
             </Txt>

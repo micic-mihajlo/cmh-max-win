@@ -7,7 +7,7 @@ import { Txt } from '@/components/signal/txt';
 import { Palette, Space } from '@/constants/signal';
 
 import { useServerClock } from './clock';
-import type { DropView } from './contract';
+import type { DropView } from '@/lib/contract';
 import { clock, DropCard, Stat } from './ui';
 
 export function DropEntryScreen({
@@ -15,11 +15,13 @@ export function DropEntryScreen({
   offset,
   error,
   joining,
+  on,
 }: {
   drop: DropView;
   offset: number | null;
   error?: 'DROP_CLOSED' | 'DROP_NOT_FOUND';
   joining?: boolean;
+  on?: { onJoin?: () => void; onWatch?: () => void };
 }) {
   const now = useServerClock(offset);
   const closed = error === 'DROP_CLOSED';
@@ -29,12 +31,12 @@ export function DropEntryScreen({
         closed ? (
           <>
             <Banner tone="warn" title="This drop already started." text="Squads formed without you. You can still watch the race." />
-            <Button title="Watch the leaderboard" variant="secondary" icon={<Icon name="list.number" />} />
+            <Button title="Watch the leaderboard" variant="secondary" onPress={on?.onWatch} icon={<Icon name="list.number" />} />
           </>
         ) : (
           <>
             <NextStep>{`You’ll play as ${drop.me.name ?? 'you'}. Squads form when the drop opens.`}</NextStep>
-            <Button title={joining ? 'Joining…' : 'Join the drop'} disabled={joining} />
+            <Button title={joining ? 'Joining…' : 'Join the drop'} disabled={joining} onPress={on?.onJoin} />
           </>
         )
       }>

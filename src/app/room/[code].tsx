@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Share, StyleSheet, View } from 'react-native';
 
@@ -249,7 +249,9 @@ function Resolved({ room }: { room: RoomView }) {
   const reveal = useReveal(room.code);
   const [page, setPage] = useState<RevealPage>('reconstruction');
   const [choice, setChoice] = useState<'report' | 'informant' | undefined>(undefined);
+  const { reveal: showReveal } = useLocalSearchParams<{ reveal?: string }>();
   if (!reveal) return <AgreementScreen room={room} phase="checking" />;
+  if (room.drop && !showReveal) return <Redirect href={{ pathname: '/drop/[id]/race', params: { id: room.drop.dropId } }} />;
   const crew = room.members.map((m) => m.name);
   return (
     <RevealScreen

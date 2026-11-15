@@ -1,16 +1,9 @@
 import { BountyResultScreen, type CreditedMember } from '@/components/drops/bounty-result';
-import {
-  RACE_REVEAL_MS,
-  type DropView,
-  type LeaderboardRow,
-  type LeaderboardView,
-  type SquadAwardView,
-  type SquadMemberView,
-} from '@/components/drops/contract';
+import { RACE_REVEAL_MS, type DossierView, type DropView, type LeaderboardRow, type LeaderboardView, type SquadAwardView } from '@/lib/contract';
 import { CreatorSetupScreen, type CreatorDraft } from '@/components/drops/creator-setup';
 import { DropEntryScreen } from '@/components/drops/drop-entry';
 import { LeaderboardScreen } from '@/components/drops/leaderboard';
-import { SquadRevealScreen } from '@/components/drops/squad-reveal';
+import { SquadRevealScreen, type SquadMemberView } from '@/components/drops/squad-reveal';
 import { WaitingRoomScreen } from '@/components/drops/waiting-room';
 
 import type { MockState } from './gallery';
@@ -44,6 +37,10 @@ function drop(over: Partial<DropView> = {}, me: Partial<DropView['me']> = {}): D
 const live = (size: 2 | 3) =>
   drop({ status: 'live', startsAt: startedAgo(0) }, { squad: { code: size === 3 ? 'SQ14' : 'SQ15', size, label: size === 3 ? 'Squad 14' : 'Squad 15' } });
 
+const piece = (role: DossierView['role'], docLabel: string, title: string, text: string): DossierView => ({ role, docLabel, title, lines: [{ text }] });
+const camera = piece('hacker', 'CAMERA LOG', 'Station systems', 'The dock camera shows Theo at the docking ring from 21:30 to 21:50. He never left.');
+const witness = piece('witness', 'WITNESS', 'Dr. Sam Reyes, medic', 'Priya played Go with me in the lounge from 21:30 to 21:50. Neither of us got up.');
+
 const trio: SquadMemberView[] = [
   { memberId: 'm_ravi', name: 'Ravi', role: 'hacker', roles: ['hacker'], isMe: true },
   { memberId: 'm_ivy', name: 'Ivy', role: 'witness', roles: ['witness'], isMe: false },
@@ -54,13 +51,13 @@ const duo: SquadMemberView[] = [
   { memberId: 'm_lou', name: 'Lou', role: 'detective', roles: ['detective'], isMe: false },
 ];
 
-const row = (rank: number | null, n: number, status: LeaderboardRow['status'], solveMs: number | null, attempts = 1, isMine = false): LeaderboardRow => ({
+const row = (rank: number | null, n: number, status: LeaderboardRow['status'], solveMs: number | null, wrongGuesses = 0, isMine = false): LeaderboardRow => ({
   rank,
   squadLabel: `Squad ${n}`,
   memberNames: [],
   status,
   solveMs,
-  attempts,
+  attempts: wrongGuesses,
   isMine,
 });
 const solving = (from: number, count: number) => Array.from({ length: count }, (_, i) => row(null, from + i, 'solving', null));
@@ -72,12 +69,12 @@ const board = (rows: LeaderboardRow[], raceMs: number): LeaderboardView => ({
   rows,
 });
 
-const racingBoard = board([row(1, 7, 'winner', 41_000), row(2, 22, 'winner', 58_000), row(null, 14, 'solving', null, 1, true), ...solving(30, 68)], 72_000);
+const racingBoard = board([row(1, 7, 'winner', 41_000), row(2, 22, 'winner', 58_000), row(null, 14, 'solving', null, 0, true), ...solving(30, 68)], 72_000);
 const moneyBoard = board(
   [
     row(1, 7, 'winner', 41_000),
     row(2, 22, 'winner', 58_000),
-    row(3, 14, 'winner', 86_000, 1, true),
+    row(3, 14, 'winner', 86_000, 0, true),
     row(4, 3, 'solved', 91_000),
     row(5, 40, 'solved', 104_000),
     ...solving(50, 60),
@@ -90,7 +87,7 @@ const missedBoard = board(
     row(2, 22, 'winner', 58_000),
     row(3, 3, 'winner', 86_000),
     ...[4, 5, 6, 7, 8].map((rank) => row(rank, 40 + rank, 'solved', 90_000 + rank * 4_000)),
-    row(9, 14, 'solved', 123_000, 2, true),
+    row(9, 14, 'solved', 123_000, 1, true),
     ...solving(60, 40),
   ],
   130_000,
@@ -172,14 +169,14 @@ export const DropStates: MockState[] = [
     ref: 'D4',
     section: 'Drops',
     title: 'Squad reveal · squad of 3 (2.4 s hold)',
-    render: () => <SquadRevealScreen drop={live(3)} members={trio} />,
+    render: () => <SquadRevealScreen drop={live(3)} members={trio} pieces={[camera]} />,
   },
   {
     id: '13-squad-duo',
     ref: 'D4',
     section: 'Drops',
     title: 'Squad reveal · squad of 2 (2 + 1 pieces)',
-    render: () => <SquadRevealScreen drop={live(2)} members={duo} />,
+    render: () => <SquadRevealScreen drop={live(2)} members={duo} pieces={[camera, witness]} />,
   },
   {
     id: '14-race',
@@ -191,7 +188,7 @@ export const DropStates: MockState[] = [
         offset={0}
         drop={live(3)}
         board={racingBoard}
-        racing={{ pick: 'Ines Vale', locked: 2, size: 3, nudge: 'Not Ines. Ask Jo to read the Scene Notes.', cooldownMs: 8_000 }}
+        racing={{ pick: 'Ines Vale', locked: 2, size: 3, nudge: 'Not Ines. Ask Jo to read the Scene Notes.', cooldownUntil: loadedAt + 8_000 }}
       />
     ),
   },

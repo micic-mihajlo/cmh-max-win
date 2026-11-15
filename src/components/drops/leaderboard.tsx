@@ -5,14 +5,13 @@ import { Button, Label } from '@/components/signal/primitives';
 import { Txt } from '@/components/signal/txt';
 import { Palette, Radius, RoleColors, Space } from '@/constants/signal';
 import { NudgeEntrance, Seal, Stagger } from '@/motion';
-import type { Role } from '@/lib/contract';
+import { RACE_REVEAL_MS, type DropView, type LeaderboardRow, type LeaderboardView, type Role } from '@/lib/contract';
 
 import { useServerClock } from './clock';
-import { RACE_REVEAL_MS, type DropView, type LeaderboardRow, type LeaderboardView } from './contract';
 import { short } from './ui';
 
 // RoomView-derived state for the bottom card while the squad is racing.
-export type RacingSquad = { pick: string | null; locked: number; size: number; nudge: string | null; cooldownMs: number | null };
+export type RacingSquad = { pick: string | null; locked: number; size: number; nudge: string | null; cooldownUntil: number | null };
 
 function Row({ row }: { row: LeaderboardRow }) {
   return (
@@ -37,15 +36,18 @@ export function LeaderboardScreen({
   offset,
   racing,
   roles,
+  on,
 }: {
   drop: DropView;
   board: LeaderboardView;
   offset: number | null;
   racing?: RacingSquad;
   roles?: Role[];
+  on?: { onCase?: () => void; onShare?: () => void; onReveal?: () => void };
 }) {
   const now = useServerClock(offset);
   const raceMs = now - (board.startsAt + RACE_REVEAL_MS);
+  const cooldown = racing?.cooldownUntil ? racing.cooldownUntil - now : 0;
   const taken = board.rows.filter((r) => r.status === 'winner').length;
   const mine = board.rows.find((r) => r.isMine);
   const solved = board.rows.filter((r) => r.rank !== null);
@@ -63,7 +65,7 @@ export function LeaderboardScreen({
   return (
     <Screen
       footer={
-        racing ? (
+        !mine ? null : racing ? (
           <View style={styles.card}>
             <View style={styles.cardHead}>
               <Label>Your squad’s pick</Label>
@@ -79,7 +81,7 @@ export function LeaderboardScreen({
                 </Txt>
               </NudgeEntrance>
             ) : null}
-            <Button title={racing.cooldownMs ? `Try again in ${short(racing.cooldownMs)}` : 'Lock in'} disabled={!!racing.cooldownMs} />
+            <Button title={cooldown > 0 ? `Try again in ${short(cooldown)}` : 'Back to the case'} disabled={cooldown > 0} onPress={on?.onCase} />
           </View>
         ) : inMoney ? (
           <>
@@ -91,14 +93,14 @@ export function LeaderboardScreen({
             <Txt variant="small" color={Palette.paperMuted} style={styles.center}>
               Jun took the seed. All three pieces counted.
             </Txt>
-            <Button title="See your share" />
+            <Button title="See your share" onPress={on?.onShare} />
           </>
         ) : (
           <>
             <Txt variant="small" color={Palette.paperMuted} style={styles.center}>
-              {`You solved it in ${short(mine?.solveMs ?? 0)} with ${Math.max(0, (mine?.attempts ?? 1) - 1)} wrong pick${(mine?.attempts ?? 1) - 1 === 1 ? '' : 's'}. Jun took the seed.`}
+              {`You solved it in ${short(mine?.solveMs ?? 0)} with ${mine?.attempts ?? 0} wrong guess${mine?.attempts === 1 ? '' : 'es'}. Jun took the seed.`}
             </Txt>
-            <Button title="See the reveal" variant="secondary" />
+            <Button title="See the reveal" variant="secondary" onPress={on?.onReveal} />
           </>
         )
       }>
