@@ -1,43 +1,43 @@
 import type { TextStyle } from 'react-native';
 
 export const Palette = {
-  ink: '#FAFAF7',
-  inkDeep: '#EFEDE7',
+  ink: '#F9F9F8',
+  inkDeep: '#F1F0EF',
   panel: '#FFFFFF',
   panelRaised: '#FFFFFF',
-  hairline: '#E8E6E0',
-  paper: '#161513',
-  paperShade: '#F1EFEA',
-  paperMuted: '#6B6860',
-  paperFaint: '#6B6860',
+  hairline: '#DAD9D6',
+  paper: '#21201C',
+  paperShade: '#F1F0EF',
+  paperMuted: '#63635E',
+  paperFaint: '#63635E',
   card: '#FFFFFF',
   onAccent: '#FFFFFF',
-  accentSoft: '#F3EDE0',
-  disabledText: '#A8A49B',
-  conceptBorder: '#C9C5BC',
-  inkOnPaper: '#161513',
-  inkOnPaperBody: '#161513',
-  inkOnPaperTime: '#6B6760',
-  inkOnPaperMuted: '#6B6760',
-  ember: '#E24C1A',
-  emberDeep: '#D97A2B',
-  danger: '#C4472F',
-  ok: '#3F7A45',
+  accentSoft: '#FFEAE4',
+  disabledText: '#1915014A',
+  conceptBorder: '#CFCECA',
+  inkOnPaper: '#21201C',
+  inkOnPaperBody: '#21201C',
+  inkOnPaperTime: '#63635E',
+  inkOnPaperMuted: '#63635E',
+  ember: '#FA4616',
+  emberDeep: '#EC3400',
+  danger: '#E1000D',
+  ok: '#008500',
 } as const;
 
 export const RoleColors = {
-  detective: '#161513',
-  hacker: '#161513',
-  witness: '#161513',
+  detective: '#21201C',
+  hacker: '#21201C',
+  witness: '#21201C',
 } as const;
 
 export const RoleInk = {
-  detective: '#161513',
-  hacker: '#161513',
-  witness: '#161513',
+  detective: '#21201C',
+  hacker: '#21201C',
+  witness: '#21201C',
 } as const;
 
-export const EmberInk = '#161513';
+export const EmberInk = '#21201C';
 
 export const RoleMeta = {
   detective: { label: 'Detective', color: RoleColors.detective, ink: RoleInk.detective, docLabel: 'SCENE NOTES', glyph: 'D' },
@@ -48,10 +48,10 @@ export const RoleMeta = {
 export const RoleOrder = ['detective', 'hacker', 'witness'] as const;
 
 export const FontFamily = {
-  display: 'Fraunces_600SemiBold',
-  displayBold: 'Fraunces_700Bold',
-  serif: 'Fraunces_400Regular',
-  serifItalic: 'Fraunces_400Regular_Italic',
+  display: 'Inter_600SemiBold',
+  displayBold: 'Inter_700Bold',
+  serif: 'Inter_400Regular',
+  serifItalic: 'Inter_400Regular_Italic',
   ui: 'Inter_400Regular',
   uiMedium: 'Inter_500Medium',
   uiSemi: 'Inter_600SemiBold',
@@ -59,14 +59,14 @@ export const FontFamily = {
 } as const;
 
 export const Space = { xs: 4, s: 8, m: 12, l: 16, xl: 24, xxl: 32, xxxl: 48 } as const;
-export const Radius = { s: 8, m: 16, l: 20, xl: 24, pill: 999 } as const;
+export const Radius = { s: 8, m: 16, l: 20, xl: 20, pill: 9999 } as const;
 
 export const Type = {
-  hero: { fontFamily: FontFamily.displayBold, fontSize: 64, lineHeight: 64, letterSpacing: -2 },
-  display: { fontFamily: FontFamily.displayBold, fontSize: 44, lineHeight: 48, letterSpacing: -1.1 },
-  title: { fontFamily: FontFamily.displayBold, fontSize: 32, lineHeight: 40, letterSpacing: -0.6 },
-  name: { fontFamily: FontFamily.display, fontSize: 20, lineHeight: 26 },
-  quote: { fontFamily: FontFamily.serif, fontSize: 24, lineHeight: 32, letterSpacing: -0.2 },
+  hero: { fontFamily: FontFamily.displayBold, fontSize: 64, lineHeight: 70, letterSpacing: -2.2 },
+  display: { fontFamily: FontFamily.displayBold, fontSize: 48, lineHeight: 54, letterSpacing: -1.5 },
+  title: { fontFamily: FontFamily.displayBold, fontSize: 32, lineHeight: 40, letterSpacing: -0.75 },
+  name: { fontFamily: FontFamily.display, fontSize: 20, lineHeight: 28 },
+  quote: { fontFamily: FontFamily.display, fontSize: 24, lineHeight: 30, letterSpacing: -0.3 },
   serif: { fontFamily: FontFamily.serif, fontSize: 20, lineHeight: 28 },
   body: { fontFamily: FontFamily.ui, fontSize: 17, lineHeight: 24 },
   bodyStrong: { fontFamily: FontFamily.uiSemi, fontSize: 17, lineHeight: 24 },
@@ -77,7 +77,7 @@ export const Type = {
   smallStrong: { fontFamily: FontFamily.uiSemi, fontSize: 15, lineHeight: 20 },
   label: { fontFamily: FontFamily.uiMedium, fontSize: 15, lineHeight: 20 },
   time: { fontFamily: FontFamily.uiMedium, fontSize: 15, lineHeight: 26, fontVariant: ['tabular-nums'] },
-  code: { fontFamily: FontFamily.uiBold, fontSize: 36, lineHeight: 44, fontVariant: ['tabular-nums'] },
+  code: { fontFamily: FontFamily.uiSemi, fontSize: 36, lineHeight: 44, fontVariant: ['tabular-nums'] },
   button: { fontFamily: FontFamily.uiSemi, fontSize: 17, lineHeight: 22 },
 } satisfies Record<string, TextStyle>;
 
