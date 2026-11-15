@@ -6,7 +6,8 @@ export type Role = 'detective' | 'hacker' | 'witness';
 export type SuspectId = 'theo' | 'priya' | 'ines' | 'jun';
 export type CaseId = 'case01';
 
-// Coarse presence. 'offline' is derived from lastSeen by the hooks, never set by a client.
+// Coarse presence. 'offline' comes from the server's presence component (no heartbeat in ~25s, or the app
+// went to the background), never from a client. While playing, 'ready' means "locked in the current revision".
 export type Presence = 'online' | 'reviewing' | 'ready' | 'offline';
 export type SettablePresence = Exclude<Presence, 'offline'>;
 
@@ -34,6 +35,7 @@ export type NudgeView = {
   wrongPick: SuspectId; // the culprit the crew guessed, never the answer
   forRole: Role;
   text: string;
+  revision: number; // the theory revision this nudge answered
 };
 
 export type RoomView = {
@@ -41,12 +43,21 @@ export type RoomView = {
   status: RoomStatus;
   caseId: CaseId;
   isHost: boolean;
-  me: { memberId: string; role: Role | null; name: string };
+  me: { memberId: string; role: Role | null; name: string } | null; // null = this device isn't a member (join / reclaim)
   members: MemberView[];
   theory: TheoryView;
   lockIns: { memberId: string; revision: number }[]; // only lock-ins for theory.revision
   attempts: number;
   lastNudge: NudgeView | null; // set after a wrong check, cleared on the next theory edit
+  // The revision the server last checked and found wrong. Lock-ins for it are rejected (ALREADY_CHECKED),
+  // so canLockIn = theory.culprit !== null && theory.revision !== checkedRevision && status === 'playing'.
+  checkedRevision: number | null;
+  // Monotonic count of answer checks. Play the seal/outcome animation once when lastCheck.seq goes past the
+  // last seq this phone has seen; on first load (or rejoin) record the current seq without playing it.
+  checkSeq: number;
+  lastCheck: { seq: number; result: 'wrong' | 'correct'; at: number } | null;
+  // Roles whose holder is offline. A device that isn't a member can take one over with useReclaimRole.
+  reclaimableRoles: Role[];
 };
 
 // Only ever the caller's own role; the server never sends another role's dossier.
@@ -81,9 +92,18 @@ export type SignalErrorCode =
   | 'ROLES_NOT_FILLED'
   | 'WRONG_STATUS'
   | 'STALE_REVISION'
+  | 'ALREADY_CHECKED'
   | 'CONFIRM_REQUIRED';
 
 export type SignalError = { code: SignalErrorCode; message: string };
+
+// joined: new member. rejoined: this device was already a member (same member, role, state).
+// reclaim: the case started or the room is full, but these offline seats can be taken over.
+export type JoinResult = {
+  code: string;
+  status: 'joined' | 'rejoined' | 'reclaim';
+  reclaimableRoles: Role[];
+};
 
 export type LockInResult =
   | { outcome: 'locked'; lockedCount: number } // waiting for the others
@@ -92,16 +112,21 @@ export type LockInResult =
 
 // Hook signatures. Queries return undefined while loading and null when there is nothing to show.
 export type UseActiveRoom = () => ActiveRoomView | undefined;
-export type UseRoom = (code: string | null) => RoomView | null | undefined;
+export type UseRoom = (code: string | null) => RoomView | null | undefined; // null = no such room; also keeps this device's presence alive
 export type UseMyDossier = (code: string | null) => DossierView | null | undefined;
 export type UseReveal = (code: string | null) => RevealView | null | undefined;
 
 export type UseCreateRoom = () => (args: { name: string }) => Promise<{ code: string }>;
-export type UseJoinRoom = () => (args: { code: string; name: string }) => Promise<{ code: string }>;
+export type UseJoinRoom = () => (args: { code: string; name: string }) => Promise<JoinResult>;
+// Claiming while holding another role switches to the new one if it's free; a taken role throws ROLE_TAKEN.
 export type UseClaimRole = (code: string) => (role: Role) => Promise<void>;
+// Rebinds the offline holder's member (role, lock-in, host flag) to this device. Throws ROLE_TAKEN if they're online.
+export type UseReclaimRole = (code: string) => (role: Role) => Promise<void>;
 export type UseStartCase = (code: string) => () => Promise<void>;
 export type UseSetPresence = (code: string) => (presence: SettablePresence) => Promise<void>;
 export type UseSetTheory = (code: string) => (culprit: SuspectId | null) => Promise<{ revision: number }>;
 export type UseLockIn = (code: string) => (revision: number) => Promise<LockInResult>;
 export type UseRestart = (code: string) => (args: { confirm: true }) => Promise<void>;
 export type UseLeaveRoom = (code: string) => () => Promise<void>;
+// This device's own socket, for the reconnecting banner (others' presence is in members[].presence).
+export type UseConnection = () => { connected: boolean; everConnected: boolean };
