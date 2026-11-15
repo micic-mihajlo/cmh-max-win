@@ -221,6 +221,56 @@ describe('theory and lock-in', () => {
   });
 });
 
+describe('myEvidence', () => {
+  test('a private room returns exactly [myDossier] for each player', async () => {
+    const { t, code } = await playing();
+    for (const deviceToken of ALL) {
+      const dossier = await t.query(api.signal.myDossier, { deviceToken, code });
+      expect(await t.query(api.signal.myEvidence, { deviceToken, code })).toEqual([dossier]);
+    }
+    expect(await t.query(api.signal.myEvidence, { deviceToken: 'outsider', code })).toBeNull();
+  });
+
+  test('a squad-of-2 player holding two roles gets exactly those two pieces and nothing else', async () => {
+    const t = newTest();
+    const { code } = await t.mutation(api.signal.createRoom, { deviceToken: HOST, name: 'Kit' });
+    await t.mutation(api.signal.joinRoom, { deviceToken: B, code, name: 'Lou' });
+    await t.run(async (ctx) => {
+      const room = await ctx.db
+        .query('rooms')
+        .withIndex('by_code', (q) => q.eq('code', code))
+        .unique();
+      for (const m of await ctx.db
+        .query('members')
+        .withIndex('by_room', (q) => q.eq('roomId', room!._id))
+        .collect()) {
+        await ctx.db.patch(
+          m._id,
+          m.deviceToken === HOST ? { role: 'hacker', roles: ['hacker', 'witness'] } : { role: 'detective', roles: ['detective'] },
+        );
+      }
+      await ctx.db.patch(room!._id, { status: 'intro' });
+    });
+    const duo = await t.query(api.signal.myEvidence, { deviceToken: HOST, code });
+    expect(duo?.map((d) => d.role)).toEqual(['hacker', 'witness']);
+    const duoText = JSON.stringify(duo);
+    expect(duoText).toContain(UNIQUE_DOSSIER_TEXT.hacker);
+    expect(duoText).toContain(UNIQUE_DOSSIER_TEXT.witness);
+    expect(duoText).not.toContain(UNIQUE_DOSSIER_TEXT.detective);
+    const solo = await t.query(api.signal.myEvidence, { deviceToken: B, code });
+    expect(solo?.map((d) => d.role)).toEqual(['detective']);
+    expect(JSON.stringify(solo)).not.toMatch(/DOCK RING seal test|game of Go/);
+    const view = await t.query(api.signal.room, { deviceToken: B, code });
+    expect(view?.members.map((m) => m.roles)).toEqual([['hacker', 'witness'], ['detective']]);
+    for (const leak of ANSWER_LEAKS) expect(duoText + JSON.stringify(solo)).not.toContain(leak);
+  });
+
+  test('nothing in the lobby', async () => {
+    const { t, code } = await lobby();
+    expect(await t.query(api.signal.myEvidence, { deviceToken: HOST, code })).toBeNull();
+  });
+});
+
 describe('rejoin and restart', () => {
   test('rejoining with the stored token returns the same member, role and state', async () => {
     const { t, code } = await playing();
