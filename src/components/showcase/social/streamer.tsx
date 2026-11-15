@@ -8,7 +8,7 @@ import { Palette, Space } from '@/constants/signal';
 import type { FeedLiveRow, StreamerPageView } from '@/lib/contract';
 import { Enter, Haptic } from '@/motion';
 
-import { dropTime, followers } from './copy';
+import { dropTime, followers, nameList } from './copy';
 import { SampleNote } from './feed';
 import { Avatar, BigButton, Screen, Section, TextAction, showcase } from './kit';
 
@@ -85,10 +85,12 @@ export function StreamerScreen({
           <View style={showcase.list}>
             {page.past.slice(0, 3).map((d) => (
               <View key={d.dropId}>
-                <Txt variant="body">{d.title}</Txt>
+                <Txt variant="body" numberOfLines={1}>
+                  {d.winner ? nameList(d.winner.memberNames) : d.title}
+                </Txt>
                 {d.winner ? (
-                  <Txt variant="small" color={Palette.paperMuted}>
-                    {d.winner.squadLabel} · {d.winner.memberNames.join(', ')}
+                  <Txt variant="caption" color={Palette.paperMuted} numberOfLines={1}>
+                    {d.winner.squadLabel} · {d.title}
                   </Txt>
                 ) : null}
               </View>
