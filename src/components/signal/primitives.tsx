@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
-import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInUp, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FontFamily, Palette, Radius, RoleMeta, Space } from '@/constants/signal';
 import type { Presence, Role } from '@/lib/contract';
+import { PressScale } from '@/motion';
 
 import { Icon } from './icon';
 import { useMotionReduced } from './settings';
@@ -17,6 +18,7 @@ export function Button({
   disabled,
   icon,
   style,
+  haptic = true,
 }: {
   title: string;
   onPress?: () => void;
@@ -24,27 +26,29 @@ export function Button({
   disabled?: boolean;
   icon?: ReactNode;
   style?: ViewStyle;
+  haptic?: boolean;
 }) {
   const fg = variant === 'primary' ? Palette.ink : variant === 'danger' ? Palette.onAccent : Palette.paper;
   return (
-    <Pressable
+    <PressScale
       accessibilityRole="button"
       accessibilityState={{ disabled }}
-      onPress={disabled ? undefined : onPress}
-      style={({ pressed }) => [
+      disabled={disabled}
+      haptic={haptic && onPress ? 'tap' : undefined}
+      onPress={onPress}
+      style={[
         styles.button,
         variant === 'primary' && styles.primary,
         variant === 'secondary' && styles.secondary,
         variant === 'danger' && styles.danger,
         disabled && styles.disabled,
-        pressed && !disabled && { transform: [{ scale: 0.97 }] },
         style,
       ]}>
       {icon}
       <Txt variant="button" color={disabled ? Palette.disabledText : fg}>
         {title}
       </Txt>
-    </Pressable>
+    </PressScale>
   );
 }
 
@@ -81,26 +85,21 @@ const presenceCopy: Record<Presence, string> = {
   offline: 'stepped away',
 };
 
-export function PresenceLine({ people }: { people: { name: string; role: Role | null; presence: Presence }[] }) {
+export function PresenceLine({ person }: { person: { name: string; presence: Presence } | null }) {
+  const reduced = useMotionReduced();
   return (
     <View style={styles.presence}>
-      {people.map((p) => (
-        <View key={p.name} style={styles.presenceItem}>
-          <View
-            style={[
-              styles.presenceDot,
-              { backgroundColor: p.presence === 'offline' ? 'transparent' : p.role ? RoleMeta[p.role].color : Palette.paperMuted },
-              p.presence === 'offline' && { borderWidth: 1.5, borderColor: Palette.paperFaint },
-            ]}
-          />
-          <Txt variant="small" color={p.presence === 'offline' ? Palette.paperFaint : Palette.paperMuted}>
-            <Txt variant="smallStrong" color={Palette.paper}>
-              {p.name}
-            </Txt>{' '}
-            {presenceCopy[p.presence]}
+      {person ? (
+        <Animated.View
+          key={`${person.name}-${person.presence}`}
+          entering={reduced ? undefined : FadeIn.duration(180)}
+          exiting={reduced ? undefined : FadeOut.duration(180)}
+          style={styles.presenceItem}>
+          <Txt variant="caption" color={Palette.paperMuted} numberOfLines={1}>
+            {`${person.name} ${presenceCopy[person.presence]}`}
           </Txt>
-        </View>
-      ))}
+        </Animated.View>
+      ) : null}
     </View>
   );
 }
@@ -250,9 +249,8 @@ const styles = StyleSheet.create({
   danger: { backgroundColor: Palette.danger },
   disabled: { backgroundColor: Palette.paperShade, borderWidth: 0 },
   roleTag: { flexDirection: 'row', alignItems: 'center', gap: Space.s },
-  presence: { gap: 6 },
-  presenceItem: { flexDirection: 'row', alignItems: 'center', gap: Space.s },
-  presenceDot: { width: 7, height: 7, borderRadius: 7 },
+  presence: { height: 17 },
+  presenceItem: { position: 'absolute', top: 0, left: 0, right: 0 },
   banner: {
     flexDirection: 'row',
     alignItems: 'center',

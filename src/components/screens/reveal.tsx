@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
@@ -7,7 +8,7 @@ import { useMotionReduced } from '@/components/signal/settings';
 import { Txt } from '@/components/signal/txt';
 import { FontFamily, Palette, Radius, RoleMeta, Space } from '@/constants/signal';
 import { suspectById } from '@/constants/case01';
-import { Stagger } from '@/motion';
+import { Haptic, PressScale, Stagger } from '@/motion';
 import type { RevealView, RoomView } from '@/lib/contract';
 
 export type RevealPage = 'reconstruction' | 'credits' | 'choice' | 'next';
@@ -18,6 +19,7 @@ export function RevealScreen({
   page,
   late,
   choice,
+  host,
   on = {},
 }: {
   room: RoomView;
@@ -25,11 +27,15 @@ export function RevealScreen({
   page: RevealPage;
   late?: boolean;
   choice?: 'report' | 'informant';
+  host?: { name: string; following: boolean; onFollow?: () => void };
   on?: { onPage?: (page: RevealPage) => void; onChoice?: (c: 'report' | 'informant') => void; onSeason?: () => void; onNewCase?: () => void };
 }) {
   const reduced = useMotionReduced();
   const culprit = suspectById(reveal.culprit);
   const enter = (i: number) => (reduced ? undefined : FadeInDown.duration(220).delay(60 * i));
+  useEffect(() => {
+    if (page === 'reconstruction') Haptic.tap();
+  }, [page]);
   const footer = {
     reconstruction: <Button title="What happens next" onPress={() => on.onPage?.('next')} />,
     credits: <Button title={`See what happens to ${culprit.first}`} onPress={() => on.onPage?.('choice')} />,
@@ -130,6 +136,17 @@ export function RevealScreen({
               Friday, 9 pm
             </Txt>
           </View>
+          {host ? (
+            host.following ? (
+              <Txt variant="body" color={Palette.paperMuted}>
+                See you Friday
+              </Txt>
+            ) : (
+              <PressScale accessibilityRole="link" haptic="tap" onPress={host.onFollow} style={styles.follow}>
+                <Txt variant="bodyStrong">{`Follow ${host.name} for next Friday`}</Txt>
+              </PressScale>
+            )
+          ) : null}
         </>
       ) : null}
     </Screen>
@@ -188,4 +205,5 @@ const styles = StyleSheet.create({
     borderColor: Palette.hairline,
   },
   teaserTitle: { fontSize: 22, lineHeight: 28 },
+  follow: { alignSelf: 'flex-start', paddingVertical: Space.s },
 });
