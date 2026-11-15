@@ -111,6 +111,8 @@ export type SignalErrorCode =
   | 'CONFIRM_REQUIRED'
   | 'DROP_NOT_FOUND'
   | 'DROP_CLOSED' // entries close at the start time; a late joiner gets this
+  | 'DROP_FULL' // a new device entering a drop that already seats DROP_CAPACITY (150) players
+  | 'RATE_LIMITED' // too many tries; data.retryAfterMs says when the next one can succeed
   | 'NOT_ENTERED'
   | 'COOLDOWN' // drops: a lock-in during the 20s after a wrong check
   | 'DEMO_CONTROLS_OFF'

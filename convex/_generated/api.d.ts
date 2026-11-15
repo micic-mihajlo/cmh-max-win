@@ -16,7 +16,14 @@ import type * as drops from "../drops.js";
 import type * as http from "../http.js";
 import type * as pings from "../pings.js";
 import type * as presence from "../presence.js";
+import type * as rateLimits from "../rateLimits.js";
 import type * as signal from "../signal.js";
+import type * as templates_aurora from "../templates/aurora.js";
+import type * as templates_engine from "../templates/engine.js";
+import type * as templates_random from "../templates/random.js";
+import type * as templates_registry from "../templates/registry.js";
+import type * as templates_splitCode from "../templates/splitCode.js";
+import type * as templates_types from "../templates/types.js";
 import type * as whop from "../whop.js";
 import type * as whopAuth from "../whopAuth.js";
 
@@ -35,7 +42,14 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   pings: typeof pings;
   presence: typeof presence;
+  rateLimits: typeof rateLimits;
   signal: typeof signal;
+  "templates/aurora": typeof templates_aurora;
+  "templates/engine": typeof templates_engine;
+  "templates/random": typeof templates_random;
+  "templates/registry": typeof templates_registry;
+  "templates/splitCode": typeof templates_splitCode;
+  "templates/types": typeof templates_types;
   whop: typeof whop;
   whopAuth: typeof whopAuth;
 }>;
@@ -68,4 +82,5 @@ export declare const internal: FilterApi<
 
 export declare const components: {
   presence: import("@convex-dev/presence/_generated/component.js").ComponentApi<"presence">;
+  rateLimiter: import("@convex-dev/rate-limiter/_generated/component.js").ComponentApi<"rateLimiter">;
 };
