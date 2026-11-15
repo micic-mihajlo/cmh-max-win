@@ -98,6 +98,10 @@ describe('challenge growth recap', () => {
       payoutAdapter: 'concept',
       newWhopMembers: 2,
     });
+    const entries = await t.run((ctx) => ctx.db.query('challengeEntries').collect());
+    const inOrder = entries.sort((a, b) => a.joinedAt - b.joinedAt);
+    expect(recap!.playerNames).toEqual(inOrder.map((e) => e.name.split(' ')[0]));
+    for (const e of entries) expect(JSON.stringify(recap)).not.toContain(e.deviceToken);
   });
 
   test('only the creator reads it, and drafts have none', async () => {
@@ -112,7 +116,7 @@ describe('challenge growth recap', () => {
     const { t, challengeId, players, teams } = await seeded();
     const recap = (await t.query(api.creatorGrowth.challengeGrowth, { deviceToken: HOST, challengeId }))!;
     expect(Object.keys(recap).sort()).toEqual(
-      ['challengeId', 'completions', 'createdAt', 'endedAt', 'newWhopMembers', 'paidCents', 'payoutAdapter', 'players', 'status', 'templateId', 'title', 'winners'].sort(),
+      ['challengeId', 'completions', 'createdAt', 'endedAt', 'newWhopMembers', 'paidCents', 'payoutAdapter', 'playerNames', 'players', 'status', 'templateId', 'title', 'winners'].sort(),
     );
     const stats = (await t.query(api.creatorGrowth.creatorStats, { deviceToken: HOST }))!;
     for (const json of [JSON.stringify(recap), JSON.stringify(stats)]) {

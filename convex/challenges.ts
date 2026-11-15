@@ -14,6 +14,7 @@ import {
 } from './_generated/server';
 import { CONCEPT_LABEL, createSandboxClaimLink } from './bounty';
 import { ELIGIBILITY_STUB_NOTE, resolveIdentity } from './creatorIdentity';
+import { slugOf } from './discovery';
 import { dealPieces, splitSizes } from './drops';
 import { handleProblem, normalizeHandle } from './handles';
 import { mixerTemplate, publishIssues, verifyMixerTeam } from './templates/engine';
@@ -260,6 +261,8 @@ function eligibilityView(c: ChallengeConfig): EligibilityView {
       : { kind: 'whop_members', productId: c.eligibility.productId, enforced: false, note: ELIGIBILITY_STUB_NOTE };
 }
 
+export const SHARE_URL_BASE = 'https://signal-app-wine.vercel.app/c/';
+
 async function summaryView(ctx: Ctx, c: Challenge): Promise<ChallengeSummaryView> {
   const [entries, teams, creator] = await Promise.all([entriesOf(ctx, c._id), teamsOf(ctx, c._id), creatorOf(ctx, c.creatorToken)]);
   return {
@@ -268,6 +271,8 @@ async function summaryView(ctx: Ctx, c: Challenge): Promise<ChallengeSummaryView
     config: c.config,
     joinCode: c.joinCode ?? null,
     creator,
+    slug: c.joinCode ? slugOf(creator.handle.replace(/^@/, ''), c.config.title, c.joinCode) : null,
+    shareUrl: c.joinCode ? SHARE_URL_BASE + c.joinCode : null,
     entrantCount: entries.length,
     teamCount: teams.length,
     createdAt: c.createdAt,

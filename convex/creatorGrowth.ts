@@ -4,12 +4,14 @@ import type { Doc } from './_generated/dataModel';
 import { query, type QueryCtx } from './_generated/server';
 import { paidPlaceCount } from './challenges';
 import { resolveIdentity } from './creatorIdentity';
+import { firstName } from './feed';
 import type { ChallengeGrowthView, CreatorStatsView } from '../src/lib/contract';
 
 // Creator growth (CAP-43): read-only counts over #58's challenge records. Every read goes through an index on
 // one challenge or one creator, and the views carry counts only: no device tokens, Whop ids, names or answers.
 
 const HISTORY_LIMIT = 50;
+const MAX_PLAYER_NAMES = 50;
 
 async function growthOf(ctx: QueryCtx, c: Doc<'challenges'>) {
   const [entries, teams, mixerTeams, payouts] = await Promise.all([
@@ -55,7 +57,16 @@ export const challengeGrowth = query({
     if (!c || c.status === 'draft') return null;
     const me = await resolveIdentity(ctx, deviceToken);
     if (c.creatorToken !== me.deviceToken) return null;
-    return (await growthOf(ctx, c)).view;
+    const entries = await ctx.db
+      .query('challengeEntries')
+      .withIndex('by_challenge', (q) => q.eq('challengeId', c._id))
+      .collect();
+    const playerNames = entries
+      .sort((a, b) => a.joinedAt - b.joinedAt)
+      .slice(0, MAX_PLAYER_NAMES)
+      .map((e) => firstName(e.name))
+      .filter(Boolean);
+    return { ...(await growthOf(ctx, c)).view, playerNames };
   },
 });
 
