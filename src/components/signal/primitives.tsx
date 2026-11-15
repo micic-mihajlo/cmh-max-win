@@ -25,7 +25,7 @@ export function Button({
   icon?: ReactNode;
   style?: ViewStyle;
 }) {
-  const fg = variant === 'primary' || variant === 'danger' ? Palette.onAccent : Palette.paper;
+  const fg = variant === 'primary' ? Palette.ink : variant === 'danger' ? Palette.onAccent : Palette.paper;
   return (
     <Pressable
       accessibilityRole="button"
@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Space.s,
   },
-  primary: { backgroundColor: Palette.ember },
+  primary: { backgroundColor: Palette.paper },
   secondary: { backgroundColor: 'transparent' },
   danger: { backgroundColor: Palette.danger },
   disabled: { backgroundColor: Palette.paperShade, borderWidth: 0 },
