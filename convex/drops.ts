@@ -4,6 +4,7 @@ import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, mutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
 import { ROLES, type Role } from './case01';
+import { checkScheduledStart, noteHostedDrop } from './feed';
 import { presence as presenceComponent } from './presence';
 import { squadSize } from './schema';
 import { CODE_ALPHABET, generateCode } from './signal';
@@ -97,7 +98,7 @@ async function findEntry(ctx: QueryCtx, dropId: string, deviceToken: string) {
     .unique();
 }
 
-function bountyView(drop: Doc<'drops'>): BountyView {
+export function bountyView(drop: Doc<'drops'>): BountyView {
   const sandbox = !drop.conceptOnly && process.env.BOUNTY_MODE === 'sandbox';
   return {
     totalCents: drop.bounty.totalCents,
@@ -529,18 +530,23 @@ export const hostDrop = mutation({
     winnerSlots: v.optional(v.number()),
     totalCents: v.optional(v.number()),
     creatorName: v.optional(v.string()),
+    startsAt: v.optional(v.number()), // a scheduled drop (feed.ts); omitted, the drop opens now
   },
-  handler: async (ctx, { deviceToken, title, winnerSlots, totalCents, creatorName }) => {
+  handler: async (ctx, { deviceToken, title, winnerSlots, totalCents, creatorName, startsAt }) => {
     if (!deviceToken) fail('WRONG_STATUS', 'Missing device token.');
-    return insertDrop(ctx, {
+    if (startsAt !== undefined) checkScheduledStart(startsAt, Date.now());
+    const name = (creatorName ?? '').trim().slice(0, 24) || (await lastNameOf(ctx, deviceToken)) || 'Host';
+    const hosted = await insertDrop(ctx, {
       dropId: `host-${Date.now().toString(36)}-${Math.floor(Math.random() * 46656).toString(36)}`,
       title: (title ?? 'The Aurora Seed').trim().slice(0, 60) || 'The Aurora Seed',
-      creatorName: (creatorName ?? '').trim().slice(0, 24) || (await lastNameOf(ctx, deviceToken)) || 'Host',
+      creatorName: name,
       squadSize: 3,
-      startsAt: Date.now() + HOSTED_DROP_HOLD_MS,
+      startsAt: startsAt ?? Date.now() + HOSTED_DROP_HOLD_MS,
       bounty: { totalCents: totalCents ?? 30_000, winnerSlots: winnerSlots ?? 3 },
       hostToken: deviceToken,
     });
+    await noteHostedDrop(ctx, { hostToken: deviceToken, name, dropId: hosted.dropId, scheduledFor: startsAt ?? null });
+    return hosted;
   },
 });
 

@@ -160,4 +160,46 @@ export default defineSchema({
     refreshToken: v.optional(v.string()),
     expiresAt: v.number(),
   }).index('by_whop_user', ['whopUserId']),
+  // ---------- Follow feed and push (CAP-45; signal/design/feed-notifications.md) ----------
+  // A streamer is the device that hosts drops (drops.hostToken). Only streamers._id is ever shown to clients.
+  streamers: defineTable({ hostToken: v.string(), name: v.string(), updatedAt: v.number() })
+    .index('by_host', ['hostToken'])
+    .index('by_updated', ['updatedAt']),
+  // One row per hosted drop. scheduledFor: hostDrop got a start time. openedAt: the streamer went live with it.
+  streamerDrops: defineTable({
+    streamerId: v.id('streamers'),
+    dropId: v.string(),
+    createdAt: v.number(),
+    scheduledFor: v.union(v.number(), v.null()),
+    openedAt: v.union(v.number(), v.null()),
+  })
+    .index('by_streamer', ['streamerId', 'createdAt'])
+    .index('by_drop', ['dropId']),
+  follows: defineTable({
+    deviceToken: v.string(),
+    streamerId: v.id('streamers'),
+    whopUserId: v.optional(v.string()), // set when the device had a linked Whop account at follow time
+    createdAt: v.number(),
+  })
+    .index('by_device', ['deviceToken', 'streamerId'])
+    .index('by_whop_user', ['whopUserId', 'streamerId'])
+    .index('by_streamer', ['streamerId']),
+  dropReminders: defineTable({ deviceToken: v.string(), dropId: v.string(), createdAt: v.number() })
+    .index('by_device', ['deviceToken', 'dropId'])
+    .index('by_drop', ['dropId']),
+  pushTokens: defineTable({
+    deviceToken: v.string(),
+    token: v.string(), // ExponentPushToken[...]
+    platform: v.union(v.literal('ios'), v.literal('android')),
+    updatedAt: v.number(),
+  })
+    .index('by_device', ['deviceToken'])
+    .index('by_token', ['token']),
+  // Dedupe ledger: at most one push per device per drop (a drop has one streamer).
+  pushSends: defineTable({
+    deviceToken: v.string(),
+    dropId: v.string(),
+    kind: v.union(v.literal('live'), v.literal('starting')),
+    sentAt: v.number(),
+  }).index('by_device_drop', ['deviceToken', 'dropId']),
 });
