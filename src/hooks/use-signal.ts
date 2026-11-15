@@ -1,6 +1,6 @@
 import { api } from '@convex/_generated/api';
 import { usePresence } from '@convex-dev/presence/react-native';
-import { useConvexConnectionState, useMutation, useQuery } from 'convex/react';
+import { useConvex, useConvexConnectionState, useMutation, useQuery } from 'convex/react';
 import { useCallback } from 'react';
 
 import { useDeviceToken } from '@/hooks/use-device-token';
@@ -22,6 +22,7 @@ import type {
   UseStartCase,
 } from '@/lib/contract';
 import { getDeviceToken } from '@/lib/device';
+import { toSignalError } from '@/lib/signal-error';
 
 export const useActiveRoom: UseActiveRoom = () => {
   const deviceToken = useDeviceToken();
@@ -106,9 +107,21 @@ export const useSetTheory: UseSetTheory = (code) => {
 
 export const useLockIn: UseLockIn = (code) => {
   const lock = useMutation(api.signal.lockIn);
+  const convex = useConvex();
   return useCallback(
-    async (revision) => lock({ deviceToken: await getDeviceToken(), code, revision }),
-    [lock, code],
+    async (revision) => {
+      const deviceToken = await getDeviceToken();
+      try {
+        return await lock({ deviceToken, code, revision });
+      } catch (error) {
+        const reason = toSignalError(error)?.code;
+        if (reason !== 'WRONG_STATUS' && reason !== 'ALREADY_CHECKED') throw error;
+        const room = await convex.query(api.signal.room, { deviceToken, code });
+        if (room?.status === 'resolved') return { outcome: 'resolved' } as const;
+        throw error;
+      }
+    },
+    [lock, convex, code],
   );
 };
 
