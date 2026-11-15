@@ -6,6 +6,7 @@ import { internalMutation, mutation, query, type MutationCtx, type QueryCtx } fr
 import { awardModeWithBudget } from './bounty';
 import { ROLES, type Role } from './case01';
 import { checkScheduledStart, noteHostedDrop } from './feed';
+import { dealPassphrase } from './passphrase';
 import { presence as presenceComponent } from './presence';
 import { enforceRateLimit } from './rateLimits';
 import { squadSize } from './schema';
@@ -21,6 +22,7 @@ import type {
   AwardPayoutView,
   SquadAwardView,
   SquadSize,
+  DropTemplateId,
 } from '../src/lib/contract';
 
 export const DEMO_DROP_ID = 'aurora-demo';
@@ -165,6 +167,7 @@ async function dropView(ctx: QueryCtx, drop: Doc<'drops'>, deviceToken: string):
         squad: room ? { code: room.code, size: (room.squadSize ?? 3) as SquadSize, label: room.squadLabel ?? '' } : null,
         unmatched: mine?.unmatched ?? false,
       },
+      ...(drop.template ? { template: drop.template } : {}),
     };
 }
 
@@ -300,7 +303,7 @@ async function formSquads(ctx: MutationCtx, drop: Doc<'drops'>) {
       squadSize: size,
       squadIndex,
       squadLabel: demo ? `Demo Squad ${String.fromCharCode(65 + demoSquads++)}` : `Squad ${squadIndex + 1 - demoSquads}`,
-      status: 'intro',
+      status: drop.template ? 'playing' : 'intro',
       theory: { culprit: null, revision: 0, lastEditedBy: null },
       attempts: 0,
       lastNudge: null,
@@ -308,6 +311,15 @@ async function formSquads(ctx: MutationCtx, drop: Doc<'drops'>) {
       checkSeq: 0,
       lastCheck: null,
     });
+    if (drop.template) {
+      const memberIds = [];
+      for (const entry of seats) {
+        memberIds.push(await ctx.db.insert('members', { roomId, deviceToken: entry.deviceToken, name: entry.name, role: null, presence: 'online' }));
+        await ctx.db.patch(entry._id, { squadRoomId: roomId });
+      }
+      await dealPassphrase(ctx, roomId, memberIds.map((id, i) => ({ playerId: id, name: seats[i].name })));
+      continue;
+    }
     const hands = dealPieces(drop.dropId, squadIndex, size);
     for (const [i, entry] of seats.entries()) {
       await ctx.db.insert('members', {
@@ -354,6 +366,7 @@ export async function insertDrop(
     bounty: { totalCents: number; winnerSlots: number };
     strictSquadSize?: boolean;
     hostToken?: string;
+    template?: DropTemplateId;
   },
 ) {
   const { totalCents, winnerSlots } = args.bounty;
@@ -370,6 +383,7 @@ export async function insertDrop(
     joinCode: await generateJoinCode(ctx),
     ...(args.strictSquadSize ? { strictSquadSize: true } : {}),
     ...(args.hostToken ? { hostToken: args.hostToken, conceptOnly: true } : {}),
+    ...(args.template ? { template: args.template } : {}),
     startsAt: args.startsAt,
     status: 'scheduled',
     bounty: { totalCents, currency: 'usd', winnerSlots },
@@ -590,8 +604,9 @@ export const hostDrop = mutation({
     creatorName: v.optional(v.string()),
     startsAt: v.optional(v.number()), // a scheduled drop (feed.ts); omitted, the drop opens now
     avatarUrl: v.optional(v.string()), // https only; shown on the streamer's card
+    template: v.optional(v.literal('split-passphrase')), // omitted: the Case 01 mystery
   },
-  handler: async (ctx, { deviceToken, title, winnerSlots, totalCents, creatorName, startsAt, avatarUrl }) => {
+  handler: async (ctx, { deviceToken, title, winnerSlots, totalCents, creatorName, startsAt, avatarUrl, template }) => {
     if (!deviceToken) fail('WRONG_STATUS', 'Missing device token.');
     await enforceRateLimit(ctx, 'hostDrop', deviceToken);
     if (startsAt !== undefined) checkScheduledStart(startsAt, Date.now());
@@ -604,6 +619,7 @@ export const hostDrop = mutation({
       startsAt: startsAt ?? Date.now() + HOSTED_DROP_HOLD_MS,
       bounty: { totalCents: totalCents ?? 30_000, winnerSlots: winnerSlots ?? 3 },
       hostToken: deviceToken,
+      ...(template ? { template } : {}),
     });
     await noteHostedDrop(ctx, { hostToken: deviceToken, name, dropId: hosted.dropId, scheduledFor: startsAt ?? null, avatarUrl });
     return hosted;
