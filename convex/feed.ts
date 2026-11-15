@@ -606,6 +606,20 @@ export const retitleDrop = internalMutation({
   },
 });
 
+// Renames a streamer (e.g. a seeded host whose name clashed with a Case 01 suspect). Idempotent. A later hostDrop
+// from the same device still sets the name from its creatorName, as before.
+export const renameStreamer = internalMutation({
+  args: { streamerId: v.string(), name: v.string() },
+  handler: async (ctx, { streamerId, name }) => {
+    const id = ctx.db.normalizeId('streamers', streamerId);
+    const streamer = id ? await ctx.db.get(id) : null;
+    const next = name.trim().slice(0, 24);
+    if (!streamer || !next) fail('DROP_NOT_FOUND', 'No such streamer, or an empty name.');
+    if (streamer.name !== next) await ctx.db.patch(streamer._id, { name: next });
+    return { streamerId, name: next };
+  },
+});
+
 // Hides the named streamers (exact name, any case), e.g. rehearsal hosts. Idempotent; returns how many it newly hid.
 export const hideStreamers = internalMutation({
   args: { names: v.array(v.string()) },

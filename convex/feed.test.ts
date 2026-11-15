@@ -336,6 +336,17 @@ describe('squadmates on Coming up rows', () => {
   });
 });
 
+describe('renameStreamer', () => {
+  test('renames a streamer in place and is idempotent', async () => {
+    const t = newTest();
+    const { streamerId } = await t.mutation(api.drops.hostDrop, { deviceToken: 'theo', creatorName: 'Theo Marsh' }).then(async (d) => (await t.query(api.feed.streamerForDrop, { deviceToken: 'x', dropId: d.dropId }))!);
+    for (let i = 0; i < 2; i++) expect(await t.mutation(internal.feed.renameStreamer, { streamerId, name: ' Milo Grant ' })).toEqual({ streamerId, name: 'Milo Grant' });
+    expect(await t.query(api.feed.streamerPage, { deviceToken: 'x', streamerId })).toMatchObject({ streamerId, name: 'Milo Grant' });
+    expect(await t.run((ctx) => ctx.db.query('streamers').collect())).toHaveLength(1);
+    expect(await errorCode(t.mutation(internal.feed.renameStreamer, { streamerId: 'nope', name: 'X' }))).toBe('DROP_NOT_FOUND');
+  });
+});
+
 describe('retitleDrop', () => {
   test('renames a hosted drop and is idempotent', async () => {
     const t = newTest();
