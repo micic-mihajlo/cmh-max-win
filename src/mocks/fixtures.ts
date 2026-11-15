@@ -11,7 +11,7 @@ const people: Record<Who, { memberId: string; name: string; role: Role; isHost: 
 
 export const whoByRole: Record<Role, Who> = { detective: 'maya', hacker: 'ravi', witness: 'lena' };
 
-type MemberSpec = { who: Who; role?: Role | null; presence?: Presence };
+type MemberSpec = { who: Who; role?: Role | null; roles?: Role[]; presence?: Presence };
 
 export type RoomFixture = {
   me?: Who | null;
@@ -25,6 +25,7 @@ export type RoomFixture = {
   nudge?: Exclude<SuspectId, 'jun'> | null;
   checkedRevision?: number | null;
   lastCheck?: RoomView['lastCheck'];
+  drop?: RoomView['drop'];
 };
 
 export function room({
@@ -39,19 +40,27 @@ export function room({
   nudge = null,
   checkedRevision = null,
   lastCheck = null,
+  drop = null,
 }: RoomFixture = {}): RoomView {
-  const list: MemberView[] = members.map(({ who, role, presence }) => ({
+  const list: MemberView[] = members.map(({ who, role, roles, presence }) => {
+    const primary = role === undefined ? people[who].role : role;
+    return {
     memberId: people[who].memberId,
     name: people[who].name,
-    role: role === undefined ? people[who].role : role,
+    role: primary,
+    roles: roles ?? (primary ? [primary] : []),
     presence: presence ?? (status === 'playing' && locked.includes(who) ? 'ready' : status === 'playing' ? 'reviewing' : 'online'),
     isHost: people[who].isHost,
     isMe: who === me,
-  }));
+    };
+  });
   const mine = list.find((m) => m.isMe) ?? null;
   return {
     code: 'K7QX',
     status,
+    squadSize: members.length === 2 ? 2 : 3,
+    drop,
+    cooldownUntil: null,
     caseId: 'case01',
     isHost: me ? people[me].isHost : false,
     me: mine ? { memberId: mine.memberId, role: mine.role, name: mine.name } : null,
