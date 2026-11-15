@@ -1,27 +1,30 @@
 import { router } from 'expo-router';
 import type { ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, TextInput, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { FontFamily, RoleMeta, Space } from '@/constants/signal';
+import { FontFamily, Palette, RoleMeta, Space } from '@/constants/signal';
 import { Txt } from '@/components/signal/txt';
 import { Enter, PressScale } from '@/motion';
 
 import type { BuilderRole } from './validate';
 
+// SIGNAL token map (whop-design.md): sand surfaces, sand-12 ink, orange-9 only on the commit action.
 export const G = {
-  bg: '#FAFAF7',
-  surface: '#FFFFFF',
-  ink: '#161513',
-  inkSoft: '#6B6860',
-  line: '#E8E6E0',
-  fill: '#F1F0EB',
-  onInk: '#FAFAF7',
-  ok: '#2F6B3A',
+  bg: Palette.ink,
+  surface: Palette.panel,
+  ink: Palette.paper,
+  inkSoft: Palette.paperMuted,
+  line: Palette.hairline,
+  fill: Palette.paperShade,
+  onInk: Palette.ink,
+  accent: Palette.ember,
+  onAccent: Palette.onAccent,
+  ok: Palette.ok,
   okWash: '#EAF1EA',
-  bad: '#B8381A',
+  bad: Palette.danger,
   badWash: '#F8E9E3',
-  role: { detective: '#F3EDE0', hacker: '#E7EDF4', witness: '#F4E6E1' } as Record<BuilderRole, string>,
+  role: { detective: Palette.paperShade, hacker: Palette.paperShade, witness: Palette.paperShade } as Record<BuilderRole, string>,
 };
 
 export const docName = (label: string) => label.charAt(0) + label.slice(1).toLowerCase();
@@ -102,7 +105,17 @@ export function Stat({ value, label }: { value: string; label: string }) {
   );
 }
 
-export function PrimaryButton({ title, onPress, variant = 'primary', disabled }: { title: string; onPress?: () => void; variant?: 'primary' | 'text'; disabled?: boolean }) {
+export function PrimaryButton({
+  title,
+  onPress,
+  variant = 'primary',
+  disabled,
+}: {
+  title: string;
+  onPress?: () => void;
+  variant?: 'primary' | 'accent' | 'text';
+  disabled?: boolean;
+}) {
   if (variant === 'text') {
     return (
       <PressScale accessibilityRole="button" onPress={onPress} haptic="tap" style={styles.textButton}>
@@ -115,12 +128,52 @@ export function PrimaryButton({ title, onPress, variant = 'primary', disabled }:
   return (
     <View style={styles.flex}>
       <PressScale accessibilityRole="button" disabled={disabled} onPress={onPress} haptic="tap">
-        <View style={[styles.button, disabled && styles.buttonDisabled]}>
-          <Txt variant="button" color={G.onInk} style={styles.buttonText}>
+        <View style={[styles.button, variant === 'accent' && styles.buttonAccent, disabled && styles.buttonDisabled]}>
+          <Txt variant="button" color={variant === 'accent' ? G.onAccent : G.onInk} style={styles.buttonText}>
             {title}
           </Txt>
         </View>
       </PressScale>
+    </View>
+  );
+}
+
+export function Field({
+  label,
+  value,
+  onChange,
+  placeholder,
+  multiline,
+  big,
+  autoFocus,
+  maxLength,
+  prefix,
+}: {
+  label?: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  multiline?: boolean;
+  big?: boolean;
+  autoFocus?: boolean;
+  maxLength?: number;
+  prefix?: string;
+}) {
+  return (
+    <View style={styles.field}>
+      {label ? <Caption>{label}</Caption> : null}
+      <TextInput
+        value={prefix && value ? prefix + value : value}
+        onChangeText={(t) => onChange(prefix && t.startsWith(prefix) ? t.slice(prefix.length) : t)}
+        placeholder={placeholder}
+        placeholderTextColor={Palette.disabledText}
+        multiline={multiline}
+        autoFocus={autoFocus}
+        maxLength={maxLength}
+        autoCapitalize={prefix ? 'none' : 'sentences'}
+        autoCorrect={!prefix}
+        style={[styles.input, multiline && styles.inputTall, big && styles.inputBig]}
+      />
     </View>
   );
 }
@@ -165,7 +218,21 @@ const styles = StyleSheet.create({
   statValue: { fontFamily: FontFamily.uiSemi, fontSize: 28, lineHeight: 34, color: G.ink, fontVariant: ['tabular-nums'] },
   flex: { flex: 1 },
   button: { height: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Space.l, backgroundColor: G.ink },
+  buttonAccent: { backgroundColor: G.accent },
   buttonText: { fontFamily: FontFamily.uiMedium },
+  field: { gap: Space.s },
+  input: {
+    backgroundColor: G.surface,
+    borderRadius: 14,
+    paddingHorizontal: Space.l,
+    paddingVertical: Space.m,
+    fontFamily: FontFamily.ui,
+    fontSize: 17,
+    lineHeight: 24,
+    color: G.ink,
+  },
+  inputTall: { minHeight: 96, textAlignVertical: 'top' },
+  inputBig: { fontFamily: FontFamily.display, fontSize: 24, lineHeight: 30 },
   buttonDisabled: { opacity: 0.32 },
   textButton: { paddingHorizontal: Space.s, paddingVertical: Space.m },
   hairline: { height: StyleSheet.hairlineWidth, backgroundColor: G.line },

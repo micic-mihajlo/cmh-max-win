@@ -7,7 +7,7 @@ import { Card, G, Hairline, PrimaryButton, Section, Stat, StudioScreen, studio }
 import { creator, lastDrop, liveDrop, upcomingDrops } from '@/mocks/showcase/studio';
 import { PressScale } from '@/motion';
 
-export default function Studio() {
+export function SampleStudioHome() {
   return (
     <StudioScreen
       kicker="Sample data"

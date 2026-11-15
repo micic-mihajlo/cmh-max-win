@@ -1,3 +1,4 @@
+import { Redirect } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -5,12 +6,13 @@ import { Space } from '@/constants/signal';
 import { Txt } from '@/components/signal/txt';
 import { draftStore } from '@/components/showcase/draft-store';
 import { Caption, Card, Chip, G, RoleCaption, Section, StudioScreen, studio } from '@/components/showcase/studio-ui';
+import { sampleStudio } from '@/components/studio/sample';
 import { splitPieces } from '@/components/showcase/validate';
 import { Enter } from '@/motion';
 
 const members = ['Kit', 'Lou', 'Ana'];
 
-export default function PlayerPreview() {
+function PlayerPreview() {
   const draft = draftStore.get();
   const [seat, setSeat] = useState(0);
   const counts = splitPieces(draft.pieces.length, draft.squadSize);
@@ -67,3 +69,7 @@ const styles = StyleSheet.create({
 });
 
 
+
+export default function PlayerPreviewRoute() {
+  return sampleStudio ? <PlayerPreview /> : <Redirect href="/studio" />;
+}
