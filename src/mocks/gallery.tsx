@@ -15,6 +15,7 @@ import { Dossiers, Reveal } from './case01';
 import type { Role, RoomView, SeasonPackView } from '@/lib/contract';
 import { room, whoByRole, type RoomFixture } from './fixtures';
 import { DropStates } from './drops';
+import { HostStates } from './host';
 
 export type MockState = {
   id: string;
@@ -268,6 +269,7 @@ export const MockStates: MockState[] = [
   },
   { id: '09-reduce-motion', ref: '9.12', section: 'System', title: 'Reduce motion', display: { reduceMotion: true }, render: () => <AgreementScreen phase="checking" room={asRole('witness', allLocked)} /> },
   ...DropStates,
+  ...HostStates,
 ];
 
 export const mockById = (id: string) => MockStates.find((s) => s.id === id);
