@@ -28,11 +28,10 @@ export default function WinRoute() {
       award={award}
       bounty={drop.bounty}
       squadLabel={squad.label}
-      members={room.members.map((m) => ({ name: m.name, isMe: m.isMe, roles: m.roles }))}
       offset={offset}
       on={{
         onClaim: () => award.claimUrl && Linking.openURL(award.claimUrl),
-        onReveal: () => router.push({ pathname: '/room/[code]', params: { code: squad.code, reveal: '1' } }),
+        onContinue: () => router.push({ pathname: '/room/[code]', params: { code: squad.code, reveal: '1' } }),
       }}
     />
   );

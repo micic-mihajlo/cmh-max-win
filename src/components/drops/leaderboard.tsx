@@ -13,19 +13,18 @@ import { short } from './ui';
 // RoomView-derived state for the bottom card while the squad is racing.
 export type RacingSquad = { pick: string | null; locked: number; size: number; nudge: string | null; cooldownUntil: number | null };
 
+// Only our row carries a time; other squads are dimmed labels.
 function Row({ row }: { row: LeaderboardRow }) {
   return (
-    <View style={[styles.row, row.isMine && styles.rowMine]}>
-      <Txt variant="bodyStrong" color={row.status === 'winner' ? Palette.ember : Palette.paperMuted} style={styles.rank}>
+    <View style={[styles.row, row.isMine ? styles.rowMine : styles.rowOther]}>
+      <Txt variant="bodyStrong" color={row.isMine ? Palette.ember : Palette.paperMuted} style={styles.rank}>
         {row.rank ?? '–'}
       </Txt>
-      <Txt variant="bodyStrong" style={styles.flex}>
+      <Txt variant="bodyStrong" color={row.isMine ? Palette.paper : Palette.paperMuted} style={styles.flex}>
         {row.squadLabel}
         {row.isMine ? ' · you' : ''}
       </Txt>
-      <Txt variant="time" color={row.status === 'solving' ? Palette.paperMuted : Palette.paper}>
-        {row.status === 'solving' ? 'Racing' : short(row.solveMs ?? 0)}
-      </Txt>
+      {row.isMine ? <Txt variant="time">{row.status === 'solving' ? 'Racing' : short(row.solveMs ?? 0)}</Txt> : null}
     </View>
   );
 }
@@ -155,6 +154,7 @@ const styles = StyleSheet.create({
     borderColor: Palette.hairline,
   },
   rowMine: { borderWidth: 1, borderColor: Palette.ember },
+  rowOther: { opacity: 0.5 },
   rank: { width: 20, fontVariant: ['tabular-nums'] },
   card: {
     gap: Space.s,
