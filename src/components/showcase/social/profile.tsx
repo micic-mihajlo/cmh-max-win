@@ -5,6 +5,7 @@ import { FontFamily, Palette, Radius, Space } from '@/constants/signal';
 import { me } from '@/mocks/showcase/social';
 import { Enter } from '@/motion';
 
+import { nameList } from './copy';
 import { Avatar, Screen, Section, Wash, showcase } from './kit';
 
 export function ProfileScreen() {
@@ -54,9 +55,11 @@ export function ProfileScreen() {
                 {q.placement}
               </Txt>
               <View style={showcase.flex}>
-                <Txt variant="bodyStrong">{q.squad}</Txt>
-                <Txt variant="small" color={Palette.paperMuted} numberOfLines={1}>
-                  {q.members.join(', ')} · {q.drop}
+                <Txt variant="bodyStrong" numberOfLines={1}>
+                  {nameList(q.members)}
+                </Txt>
+                <Txt variant="caption" color={Palette.paperMuted} numberOfLines={1}>
+                  {q.squad} · {q.drop}
                 </Txt>
               </View>
               <View style={styles.right}>

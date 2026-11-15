@@ -18,6 +18,9 @@ export function WaitingRoomScreen({ drop, offset, onBack }: { drop: DropView; of
   const unmatched = drop.me.unmatched;
   const creator = drop.creatorName.replace('@', '');
   const display = creator.charAt(0).toUpperCase() + creator.slice(1);
+  const named = drop.entrants.filter((p) => !p.isMe).slice(0, 2).map((p) => p.name);
+  const others = drop.entrantCount - named.length;
+  const hereLine = others > 0 ? `${named.length ? `${named.join(', ')} and ` : ''}${others} ${others === 1 ? 'other' : 'others'} ${named.length + others === 1 ? 'is' : 'are'} here` : `${named.join(' and ')} ${named.length === 1 ? 'is' : 'are'} here`;
   return (
     <Screen
       footer={
@@ -32,7 +35,7 @@ export function WaitingRoomScreen({ drop, offset, onBack }: { drop: DropView; of
           </Txt>
         )
       }>
-      <Enter from={24}>
+      <Enter from={8}>
         <View style={styles.creator}>
           <View style={styles.pfp}>
             <Txt variant="name">{display.charAt(0)}</Txt>
@@ -74,16 +77,15 @@ export function WaitingRoomScreen({ drop, offset, onBack }: { drop: DropView; of
                 </View>
               ))}
             </View>
-            <Txt variant="smallStrong">{drop.entrantCount}</Txt>
-            <Txt variant="small" color={Palette.paperMuted}>
-              joined
+            <Txt variant="small" color={Palette.paperMuted} style={styles.flexShrink}>
+              {hereLine}
             </Txt>
           </View>
         </View>
       )}
 
       <Txt variant="bodyStrong" style={styles.center}>
-        {`You’ll be matched into a squad of ${drop.squadSize}.`}
+        {`${display}’s about to put you with ${drop.squadSize === 2 ? 'one other' : 'two others'}.`}
       </Txt>
     </Screen>
   );
@@ -91,6 +93,7 @@ export function WaitingRoomScreen({ drop, offset, onBack }: { drop: DropView; of
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  flexShrink: { flexShrink: 1 },
   center: { textAlign: 'center' },
   creator: { flexDirection: 'row', alignItems: 'center', gap: Space.m },
   pfp: {

@@ -1,14 +1,14 @@
-import { useState } from 'react';
+import type { ComponentType } from 'react';
 import { StyleSheet, Switch, View } from 'react-native';
 
 import { Txt } from '@/components/signal/txt';
 import { Palette, Space } from '@/constants/signal';
-import type { Streamer } from '@/mocks/showcase/feed';
+import type { StreamerCardView } from '@/lib/contract';
 
 import { SampleNote } from './feed';
 import { Avatar, Screen, Section, Wash, showcase } from './kit';
 
-function Toggle({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void }) {
+export function Toggle({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void }) {
   return (
     <Switch
       value={value}
@@ -22,32 +22,39 @@ function Toggle({ label, value, onChange }: { label: string; value: boolean; onC
   );
 }
 
-export function NotificationSettingsScreen({ streamers, sample }: { streamers: Streamer[]; sample?: boolean }) {
-  const [live, setLive] = useState<Record<string, boolean>>(() => Object.fromEntries(streamers.map((s) => [s.id, true])));
-  const [starting, setStarting] = useState(true);
+export function NotificationSettingsScreen({
+  streamers,
+  FollowToggle,
+  sample,
+}: {
+  streamers: StreamerCardView[] | undefined;
+  FollowToggle: ComponentType<{ streamer: StreamerCardView }>;
+  sample?: boolean;
+}) {
   return (
     <Screen title="Notifications">
-      <Section title="Room starting" style={styles.first}>
-        <View style={showcase.row}>
-          <Txt variant="body" color={Palette.paperMuted} style={showcase.flex}>
-            When a reminded drop opens
+      <Section title="Going live" style={styles.first}>
+        {streamers && streamers.length === 0 ? (
+          <Txt variant="body" color={Palette.paperMuted}>
+            Follow a streamer to get a ping when they go live.
           </Txt>
-          <Toggle label="Room starting" value={starting} onChange={setStarting} />
-        </View>
+        ) : (
+          <View style={showcase.list}>
+            {(streamers ?? []).map((s) => (
+              <View key={s.streamerId} style={showcase.row}>
+                <Avatar initials={s.name.slice(0, 1)} size={36} />
+                <Txt variant="body" style={showcase.flex}>
+                  {s.name}
+                </Txt>
+                <FollowToggle streamer={s} />
+              </View>
+            ))}
+          </View>
+        )}
       </Section>
-      <Section title="Going live">
-        <View style={showcase.list}>
-          {streamers.map((s) => (
-            <View key={s.id} style={showcase.row}>
-              <Avatar initials={s.initials} size={36} />
-              <Txt variant="body" style={showcase.flex}>
-                {s.name}
-              </Txt>
-              <Toggle label={`${s.name} going live`} value={live[s.id]} onChange={(v) => setLive((p) => ({ ...p, [s.id]: v }))} />
-            </View>
-          ))}
-        </View>
-      </Section>
+      <Txt variant="small" color={Palette.paperMuted} style={[showcase.gutter, styles.note]}>
+        Drops you tap Remind me on also ping you when the room opens.
+      </Txt>
       {sample ? <SampleNote /> : null}
     </Screen>
   );
@@ -55,4 +62,5 @@ export function NotificationSettingsScreen({ streamers, sample }: { streamers: S
 
 const styles = StyleSheet.create({
   first: { marginTop: Space.m },
+  note: { marginTop: Space.xxl },
 });

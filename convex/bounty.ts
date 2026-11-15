@@ -174,9 +174,28 @@ export function realPayoutCapCents(): number {
   return Number.isFinite(cap) && cap >= 0 && process.env.SIGNAL_REAL_PAYOUT_CAP_CENTS ? cap : 1000;
 }
 
+// Total cents all real transfers may ever commit (SIGNAL_REAL_PAYOUT_BUDGET_CENTS). Unset means 0: no real payouts.
+export function realPayoutBudgetCents(): number {
+  const budget = Number(process.env.SIGNAL_REAL_PAYOUT_BUDGET_CENTS);
+  return Number.isFinite(budget) && budget > 0 ? budget : 0;
+}
+
 export function awardMode(drop: Pick<Doc<'drops'>, 'conceptOnly'>, awardCents: number): 'concept' | 'sandbox' | 'transfer' {
-  if (process.env.SIGNAL_REAL_PAYOUTS === 'on') return awardCents <= realPayoutCapCents() ? 'transfer' : 'concept';
+  if (process.env.SIGNAL_REAL_PAYOUTS === 'on') {
+    return awardCents <= realPayoutCapCents() && awardCents <= realPayoutBudgetCents() ? 'transfer' : 'concept';
+  }
   return !drop.conceptOnly && process.env.BOUNTY_MODE === 'sandbox' ? 'sandbox' : 'concept';
+}
+
+// The mode an award actually gets: a 'transfer' award that would push the cents already committed to real
+// transfers (waiting for sign-in, sending or sent; failed rows release theirs) past the budget stays concept.
+export async function awardModeWithBudget(ctx: MutationCtx, drop: Pick<Doc<'drops'>, 'conceptOnly'>, awardCents: number) {
+  const mode = awardMode(drop, awardCents);
+  if (mode !== 'transfer') return mode;
+  const committed = (await ctx.db.query('bountyPayouts').collect())
+    .filter((r) => r.status !== 'failed')
+    .reduce((sum, r) => sum + r.cents, 0);
+  return committed + awardCents <= realPayoutBudgetCents() ? 'transfer' : 'concept';
 }
 
 async function queueTransfer(ctx: MutationCtx, payoutId: Id<'bountyPayouts'>, whopUserId: string) {

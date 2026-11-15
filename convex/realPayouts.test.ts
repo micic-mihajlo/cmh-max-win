@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { api, internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
-import { awardMode } from './bounty';
+import { awardMode, awardModeWithBudget, createTransferRows } from './bounty';
 import schema from './schema';
 
 const modules = import.meta.glob('./**/*.ts');
@@ -17,6 +17,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.stubEnv('WHOP_API_KEY', 'test-key');
   vi.stubEnv('WHOP_ACCOUNT_ID', 'biz_platform');
+  vi.stubEnv('SIGNAL_REAL_PAYOUT_BUDGET_CENTS', '100000');
   transfers = [];
   respond = () => Response.json({ id: 'xfer_' + transfers.length });
   vi.stubGlobal(
@@ -106,6 +107,29 @@ describe('real payouts (SIGNAL_REAL_PAYOUTS)', () => {
     expect(awardMode({ conceptOnly: true }, 301)).toBe('concept');
     vi.stubEnv('SIGNAL_REAL_PAYOUT_CAP_CENTS', '0');
     expect(awardMode({}, 1)).toBe('concept');
+  });
+
+  test('no budget means no real payouts, even with the flag on', async () => {
+    vi.stubEnv('SIGNAL_REAL_PAYOUTS', 'on');
+    vi.stubEnv('SIGNAL_REAL_PAYOUT_BUDGET_CENTS', '');
+    expect(awardMode({}, 1)).toBe('concept');
+    vi.stubEnv('SIGNAL_REAL_PAYOUT_BUDGET_CENTS', '0');
+    expect(awardMode({}, 1)).toBe('concept');
+  });
+
+  test('a $10 budget: the first award pays by transfer, the second goes concept', async () => {
+    vi.stubEnv('SIGNAL_REAL_PAYOUTS', 'on');
+    vi.stubEnv('SIGNAL_REAL_PAYOUT_BUDGET_CENTS', '1000');
+    const t = convexTest(schema, modules);
+    const { awardId } = await seedAward(t);
+    expect(await t.run((ctx) => awardModeWithBudget(ctx, {}, 999))).toBe('transfer');
+    await t.run((ctx) => createTransferRows(ctx, awardId));
+    expect(await t.run((ctx) => awardModeWithBudget(ctx, {}, 999))).toBe('concept');
+    expect(await t.run((ctx) => awardModeWithBudget(ctx, {}, 1))).toBe('transfer');
+    await t.run(async (ctx) => {
+      for (const r of await ctx.db.query('bountyPayouts').collect()) await ctx.db.patch(r._id, { status: 'failed' });
+    });
+    expect(await t.run((ctx) => awardModeWithBudget(ctx, {}, 999))).toBe('transfer');
   });
 
   test('linked members are paid once each; the split adds up to the squad share', async () => {

@@ -1,6 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/signal/backdrop';
+import { joinNames } from '@/components/signal/room';
 import { Button, Label } from '@/components/signal/primitives';
 import { Txt } from '@/components/signal/txt';
 import { Palette, Radius, Space } from '@/constants/signal';
@@ -11,19 +12,30 @@ import { useServerClock } from './clock';
 import { short } from './ui';
 
 // RoomView-derived state for the bottom card while the squad is racing.
-export type RacingSquad = { pick: string | null; locked: number; size: number; nudge: string | null; cooldownUntil: number | null };
+export type RacingSquad = { pick: string | null; locked: number; size: number; nudge: string | null; cooldownUntil: number | null; agreed?: string[]; meLocked?: boolean };
+
+const squadNames = (names: string[]) => (names.length > 1 ? `${names.slice(0, -1).join(', ')} & ${names[names.length - 1]}` : names.join(''));
 
 // Only our row carries a time; other squads are dimmed labels.
 function Row({ row }: { row: LeaderboardRow }) {
   return (
-    <View style={[styles.row, row.isMine ? styles.rowMine : styles.rowOther]}>
+    <View style={styles.row}>
       <Txt variant="bodyStrong" color={row.isMine ? Palette.paper : Palette.paperMuted} style={styles.rank}>
-        {row.rank ?? '–'}
+        {row.rank ?? ''}
       </Txt>
-      <Txt variant="bodyStrong" color={row.isMine ? Palette.paper : Palette.paperMuted} style={styles.flex}>
-        {row.squadLabel}
-        {row.isMine ? ' · you' : ''}
-      </Txt>
+      {row.isMine && row.memberNames.length ? (
+        <View style={styles.flex}>
+          <Txt variant="bodyStrong">{squadNames(row.memberNames)}</Txt>
+          <Txt variant="caption" color={Palette.paperMuted}>
+            {row.squadLabel}
+          </Txt>
+        </View>
+      ) : (
+        <Txt variant="bodyStrong" color={row.isMine ? Palette.paper : Palette.paperMuted} style={styles.flex}>
+          {row.squadLabel}
+          {row.isMine ? ' · you' : ''}
+        </Txt>
+      )}
       {row.isMine ? <Txt variant="time">{row.status === 'solving' ? 'Racing' : short(row.solveMs ?? 0)}</Txt> : null}
     </View>
   );
@@ -53,8 +65,7 @@ export function LeaderboardScreen({
   const stillRacing = board.rows.length - solved.length;
   const inMoney = mine?.status === 'winner';
   const missed = mine?.status === 'solved';
-  const creator = drop.creatorName.replace('@', '');
-  const title = inMoney ? `You placed #${mine?.rank}` : missed ? `Solved · #${mine?.rank}` : 'Race';
+  const title = inMoney || missed ? `You ${(mine?.memberNames.length || drop.squadSize) === 2 ? 'two' : 'three'} got #${mine?.rank}.` : 'Race';
   const sub = missed
     ? `The bounty went to the first ${board.winnerSlots} squads.`
     : taken >= board.winnerSlots
@@ -69,7 +80,7 @@ export function LeaderboardScreen({
             <View style={styles.cardHead}>
               <Label>Your squad’s pick</Label>
               <Txt variant="smallStrong" color={Palette.paperMuted}>
-                {racing.locked} of {racing.size} locked
+                {racing.agreed?.length && !racing.meLocked ? `${joinNames(racing.agreed)} agreed. Your call.` : `${racing.locked} of ${racing.size} locked`}
               </Txt>
             </View>
             <Txt variant="name">{racing.pick ?? 'No pick yet'}</Txt>
@@ -98,7 +109,6 @@ export function LeaderboardScreen({
           </>
         )
       }>
-      <Label>{`${creator.charAt(0).toUpperCase()}${creator.slice(1)}’s drop · ${drop.title}`}</Label>
       <View style={styles.titleRow}>
         <View style={styles.flex}>
           <Txt variant="display">{title}</Txt>
@@ -136,21 +146,9 @@ const styles = StyleSheet.create({
   spots: { flexDirection: 'row', gap: 6 },
   spot: { flex: 1, height: 8, borderRadius: Radius.pill, backgroundColor: Palette.panelRaised },
   spotTaken: { backgroundColor: Palette.ember },
-  list: { gap: 6 },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Space.m,
-    paddingVertical: 12,
-    paddingHorizontal: Space.l,
-    borderRadius: Radius.m,
-    backgroundColor: Palette.panel,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Palette.hairline,
-  },
-  rowMine: {},
-  rowOther: { opacity: 0.5 },
-  rank: { width: 20, fontVariant: ['tabular-nums'] },
+  list: { backgroundColor: Palette.panel, borderRadius: 16, paddingHorizontal: Space.l },
+  row: { flexDirection: 'row', alignItems: 'center', gap: Space.m, height: 56 },
+  rank: { minWidth: 28, fontVariant: ['tabular-nums'] },
   card: {
     gap: Space.s,
     padding: Space.l,

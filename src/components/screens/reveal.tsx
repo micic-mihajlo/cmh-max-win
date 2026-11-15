@@ -43,7 +43,7 @@ export function RevealScreen({
   }[page];
 
   return (
-    <Screen footer={footer}>
+    <Screen footer={footer} contentStyle={page === 'credits' ? styles.centered : undefined}>
       {late ? <Banner tone="good" title="Your crew solved it." text="You were away when it resolved. Here’s what happened." /> : null}
 
       {page === 'reconstruction' ? (
@@ -122,15 +122,13 @@ export function RevealScreen({
         <>
           <Txt variant="display">Case closed. For now.</Txt>
           <View style={styles.teaser}>
-            <Txt variant="title">{reveal.teaser.title}</Txt>
-            <Txt variant="serif" color={Palette.paper}>
-              {reveal.teaser.text}
+            <Txt variant="name" style={styles.teaserTitle}>
+              The Second Seed
             </Txt>
-            <View style={styles.coming}>
-              <Txt variant="label" color={Palette.paperMuted}>
-                Coming · not playable yet
-              </Txt>
-            </View>
+            <Txt variant="body">The seed they recovered is a replica.</Txt>
+            <Txt variant="small" color={Palette.paperMuted}>
+              Friday, 9 pm
+            </Txt>
           </View>
         </>
       ) : null}
@@ -160,6 +158,7 @@ function ChoiceCard({ title, text, selected, onPress }: { title: string; text: s
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  centered: { flexGrow: 1, justifyContent: 'center' },
   italic: { fontFamily: FontFamily.serifItalic },
   credits: {
     backgroundColor: Palette.card,
@@ -176,7 +175,7 @@ const styles = StyleSheet.create({
   tDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: Palette.paper },
   tLine: { flex: 1, width: 1, backgroundColor: Palette.hairline, marginTop: 4 },
   tTime: { width: 48, paddingTop: 2 },
-  lines: { gap: Space.l },
+  lines: { gap: Space.m },
   creditName: { fontFamily: FontFamily.uiMedium, color: Palette.paper },
   previewTag: { alignSelf: 'flex-start', borderWidth: 1, borderColor: Palette.paperMuted, borderRadius: Radius.pill, paddingHorizontal: 10, paddingVertical: 4 },
   choice: { borderWidth: 1, borderColor: Palette.hairline, borderRadius: Radius.m, padding: Space.l, gap: 6, backgroundColor: Palette.panel },
@@ -188,5 +187,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Palette.hairline,
   },
-  coming: { alignSelf: 'flex-start', borderWidth: 1, borderStyle: 'dashed', borderColor: Palette.paperFaint, borderRadius: Radius.pill, paddingHorizontal: 10, paddingVertical: 4 },
+  teaserTitle: { fontSize: 22, lineHeight: 28 },
 });

@@ -12,7 +12,8 @@ export const mixerColor = v.union(v.literal('red'), v.literal('blue'), v.literal
 export const challengeConfig = v.object({
   title: v.string(),
   blurb: v.string(),
-  templateId: v.union(v.literal('mystery-aurora'), v.literal('split-passphrase')),
+  templateId: v.union(v.literal('mystery-aurora'), v.literal('split-passphrase'), v.literal('quick-quiz')),
+  templateConfig: v.optional(v.any()), // the template's own creator content (quick-quiz: its questions), checked at publish
   teamFormation: v.union(v.literal('dealt'), v.literal('mixer')),
   teamSize: v.union(v.literal(1), v.literal(2), v.literal(3), v.literal(4)),
   mixerColors: v.array(mixerColor),
@@ -291,6 +292,25 @@ export default defineSchema({
   })
     .index('by_challenge', ['challengeId', 'place', 'playerIndex'])
     .index('by_challenge_token', ['challengeId', 'deviceToken']),
+  // ---------- Live layer (CAP-40) ----------
+  // One per challenge, created on the first lock, start or host action. state is the template's (Template SDK v2).
+  liveSessions: defineTable({
+    challengeId: v.id('challenges'),
+    templateId: v.string(),
+    state: v.any(),
+    lockedAt: v.optional(v.number()),
+    lastActionAt: v.optional(v.record(v.string(), v.number())), // per host action, for its minimum interval
+  }).index('by_challenge', ['challengeId']),
+  // A dealt team's engine session, for templates that run on the template engine (quick-quiz).
+  teamSessions: defineTable({
+    challengeId: v.id('challenges'),
+    teamId: v.id('challengeTeams'),
+    label: v.string(),
+    session: v.any(), // engine Session: { templateId, seed, players (entry ids), state }
+    finishedAt: v.optional(v.number()),
+  })
+    .index('by_challenge', ['challengeId'])
+    .index('by_team', ['teamId']),
   identities: defineTable({
     deviceToken: v.string(),
     whopUserId: v.string(),
@@ -315,4 +335,50 @@ export default defineSchema({
     refreshToken: v.optional(v.string()),
     expiresAt: v.number(),
   }).index('by_whop_user', ['whopUserId']),
+  // ---------- Follow feed and push (CAP-45; signal/design/feed-notifications.md) ----------
+  // A streamer is the device that hosts drops (drops.hostToken). Only streamers._id is ever shown to clients.
+  streamers: defineTable({ hostToken: v.string(), name: v.string(), updatedAt: v.number() })
+    .index('by_host', ['hostToken'])
+    .index('by_updated', ['updatedAt']),
+  // One row per hosted drop. scheduledFor: hostDrop got a start time. openedAt: the streamer went live with it.
+  streamerDrops: defineTable({
+    streamerId: v.id('streamers'),
+    dropId: v.string(),
+    createdAt: v.number(),
+    scheduledFor: v.union(v.number(), v.null()),
+    openedAt: v.union(v.number(), v.null()),
+  })
+    .index('by_streamer', ['streamerId', 'createdAt'])
+    .index('by_drop', ['dropId']),
+  follows: defineTable({
+    deviceToken: v.string(),
+    streamerId: v.id('streamers'),
+    whopUserId: v.optional(v.string()), // set when the device had a linked Whop account at follow time
+    createdAt: v.number(),
+  })
+    .index('by_device', ['deviceToken', 'streamerId'])
+    .index('by_whop_user', ['whopUserId', 'streamerId'])
+    .index('by_streamer', ['streamerId']),
+  dropReminders: defineTable({ deviceToken: v.string(), dropId: v.string(), createdAt: v.number() })
+    .index('by_device', ['deviceToken', 'dropId'])
+    .index('by_drop', ['dropId']),
+  pushTokens: defineTable({
+    deviceToken: v.string(),
+    token: v.string(), // ExponentPushToken[...]
+    platform: v.union(v.literal('ios'), v.literal('android')),
+    updatedAt: v.number(),
+  })
+    .index('by_device', ['deviceToken'])
+    .index('by_token', ['token']),
+  // Dedupe ledger: at most one push per device per drop (a drop has one streamer).
+  pushSends: defineTable({
+    deviceToken: v.string(),
+    dropId: v.string(),
+    kind: v.union(v.literal('live'), v.literal('starting')),
+    sentAt: v.number(),
+  }).index('by_device_drop', ['deviceToken', 'dropId']),
+  // ---------- Creator discovery (CAP-45): "Notify me when this starts" on a challenge. Push delivery comes later. ----------
+  challengeReminders: defineTable({ deviceToken: v.string(), challengeId: v.id('challenges'), createdAt: v.number() })
+    .index('by_device', ['deviceToken', 'challengeId'])
+    .index('by_challenge', ['challengeId']),
 });

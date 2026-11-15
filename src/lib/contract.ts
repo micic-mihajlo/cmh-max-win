@@ -338,7 +338,9 @@ export type HostView = {
 
 export type UseHostView = (dropId: string | null) => HostView | null | undefined; // null = not the host, or no such drop
 // creatorName heads the race ("Nova's drop"). Omitted: the newest name this device token used server-side, else "Host".
-export type UseHostDrop = () => (args: { title?: string; winnerSlots?: number; totalCents?: number; creatorName?: string }) => Promise<{ dropId: string; joinCode: string }>;
+// startsAt (ms epoch, 2 minutes to 30 days ahead): a scheduled drop, listed under "Coming up" with Remind me until it opens.
+// Omitted: the drop opens now and the streamer goes live, as before.
+export type UseHostDrop = () => (args: { title?: string; winnerSlots?: number; totalCents?: number; creatorName?: string; startsAt?: number }) => Promise<{ dropId: string; joinCode: string }>;
 export type UseDealSquads = (dropId: string) => () => Promise<void>; // host only; NOT_ENOUGH_PLAYERS below 4
 
 export type UseDropByCode = (code: string | null) => DropView | null | undefined; // null = no open drop with that code
@@ -354,7 +356,7 @@ export type UseServerOffset = () => number | null;
 // (teams dealt) -> ended (results final) or cancelled. Drops above keep working unchanged.
 // Identity is the device token for now, behind one server helper (resolveIdentity) that Sign in with Whop replaces.
 
-export type ChallengeTemplateId = 'mystery-aurora' | 'split-passphrase'; // ids from the CAP-32 template registry
+export type ChallengeTemplateId = 'mystery-aurora' | 'split-passphrase' | 'quick-quiz'; // ids from the CAP-32 template registry
 export type ChallengeTemplateView = {
   id: ChallengeTemplateId;
   name: string; // 'The Aurora Seed'
@@ -411,6 +413,7 @@ export type ChallengeConfig = {
   payoutAdapter: PayoutAdapterId;
   requireWhopToJoin: boolean; // forced true for whop_members; recommended for large pools. Otherwise Whop is needed only to claim
   claimWindowMs: number; // how long a winner has to claim after approval; default 7 days. Unclaimed shares return to the pool
+  templateConfig?: unknown; // the template's own content, checked at publish (quick-quiz: { questions }; see templates.md)
 };
 export type ChallengeConfigPatch = Partial<ChallengeConfig>;
 export type ConfigIssue = { field: keyof ChallengeConfig; message: string }; // why publish would be refused
@@ -696,5 +699,8 @@ export type UseSubmitMixerAnswer = (challengeId: string) => (answer: string) => 
 
 export type UseChallengeRecap = (challengeId: string | null) => ChallengeRecapView | null | undefined; // null until ended
 
+export * from './contract-feed';
+export * from './contract-discovery';
 export * from './contract-growth';
 export * from './contract-whop';
+export * from './contract-live'; // live layer: host start, lock and actions, public live view (CAP-40)

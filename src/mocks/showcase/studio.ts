@@ -5,8 +5,8 @@ export const creator = { name: 'Nova', handle: '@nova', followers: 1284, drops: 
 export const liveDrop = { title: 'The Aurora Seed', code: 'KQZT', here: 38, squads: 12, bounty: 300, winners: 3 };
 
 export const upcomingDrops = [
-  { title: 'The Courier Case', when: 'Fri · 8:00 PM', bounty: 500, winners: 5, reminders: 212 },
-  { title: 'The Ashby Emerald', when: 'Sat · 2:00 PM', bounty: 150, winners: 3, reminders: 96 },
+  { title: 'The Courier Case', when: 'Fri 8 PM', bounty: 500, winners: 5, reminders: 212 },
+  { title: 'The Ashby Emerald', when: 'Sat 2 PM', bounty: 150, winners: 3, reminders: 96 },
 ];
 
 export const lastDrop = { title: 'The Vermeer Sketch', entrants: 42, squads: 14, solveRate: 0.86, medianSolve: '2:41', firstSolve: '0:58' };

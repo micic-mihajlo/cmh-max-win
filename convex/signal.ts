@@ -3,7 +3,7 @@ import type { Doc, Id } from './_generated/dataModel';
 import { internal } from './_generated/api';
 import { mutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
 import { AURORA_REVEAL, PIECES, nudgeText, ownNudgeText, pieceFor } from './aurora';
-import { awardMode, createTransferRows } from './bounty';
+import { awardModeWithBudget, createTransferRows } from './bounty';
 import { ANSWER, DOSSIERS, NUDGES, REVEAL, ROLES } from './case01';
 import { challengeIsPlayable, recordChallengeFinish } from './challenges';
 import { presence as presenceComponent } from './presence';
@@ -162,7 +162,7 @@ async function recordSolve(ctx: MutationCtx, room: Doc<'rooms'>, now: number) {
   if (place > drop.bounty.winnerSlots) return;
   const size = room.squadSize ?? MAX_MEMBERS;
   const { amountCents, perPlayerCents } = bountyShares(drop.bounty.totalCents, drop.bounty.winnerSlots, size);
-  const mode = awardMode(drop, amountCents);
+  const mode = await awardModeWithBudget(ctx, drop, amountCents);
   const awardId = await ctx.db.insert('bountyAwards', {
     dropId: drop.dropId,
     roomId: room._id,
