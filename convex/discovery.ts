@@ -3,6 +3,7 @@ import { ConvexError, v } from 'convex/values';
 import type { Doc, Id } from './_generated/dataModel';
 import { mutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
 import { paidPlaceCount } from './challenges';
+import { isTestLabel } from './feed';
 import { resolveIdentity, type ResolvedIdentity } from './whopAuth';
 import { findCreatorByHandle, normalizeHandle } from './handles';
 import type {
@@ -198,6 +199,8 @@ export const creatorPage = query({
   handler: async (ctx, { handle, deviceToken }): Promise<CreatorPageView | null> => {
     const creator = await findCreatorByHandle(ctx, handle);
     if (!creator) return null;
+    const hiddenHost = await streamerOf(ctx, creator);
+    if (hiddenHost && (hiddenHost.hidden || isTestLabel(hiddenHost.name))) return null;
     const all = await ctx.db
       .query('challenges')
       .withIndex('by_creator', (q) => q.eq('creatorToken', creator.deviceToken))

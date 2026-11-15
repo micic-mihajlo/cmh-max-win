@@ -14,6 +14,7 @@ import type * as case01 from "../case01.js";
 import type * as challenges from "../challenges.js";
 import type * as creatorGrowth from "../creatorGrowth.js";
 import type * as creatorIdentity from "../creatorIdentity.js";
+import type * as crons from "../crons.js";
 import type * as demo from "../demo.js";
 import type * as discovery from "../discovery.js";
 import type * as drops from "../drops.js";
@@ -52,6 +53,7 @@ declare const fullApi: ApiFromModules<{
   challenges: typeof challenges;
   creatorGrowth: typeof creatorGrowth;
   creatorIdentity: typeof creatorIdentity;
+  crons: typeof crons;
   demo: typeof demo;
   discovery: typeof discovery;
   drops: typeof drops;
