@@ -16,7 +16,7 @@ const load = (c: CommunityCase) => {
 
 export default function Community() {
   return (
-    <StudioScreen title="Community cases">
+    <StudioScreen kicker="Sample data" title="Community cases">
       {communityCases.map((c, i) => (
         <Enter key={c.id} index={i} from={8}>
           <View style={styles.item}>

@@ -18,6 +18,8 @@ import { StreamersScreen } from './streamers';
 // Each screen has a live source (the feed hooks) and, in EXPO_PUBLIC_MOCKS=1 bundles only, a sample source.
 const fx = feedFixtures;
 const openDrop = (dropId: string) => router.push({ pathname: '/drop/[id]', params: { id: dropId } } as unknown as Href);
+const openLive = (l: { dropId: string; streamerId: string; inProgress?: boolean; dropStatus?: string }) =>
+  l.inProgress || l.dropStatus === 'live' ? router.push(streamerHref(l.streamerId)) : openDrop(l.dropId);
 
 function RemindLabel({ on, onPress }: { on: boolean; onPress: () => void }) {
   return <TextAction title={on ? '✓ Reminded' : 'Remind me'} muted={on} onPress={onPress} />;
@@ -59,7 +61,7 @@ function LiveFeed() {
       .then((t) => t && register(t))
       .catch(() => {});
   }, [register]);
-  return <FeedScreen view={useFollowingFeed()} Remind={LiveRemind} onOpenLive={(l) => openDrop(l.dropId)} />;
+  return <FeedScreen view={useFollowingFeed()} Remind={LiveRemind} onOpenLive={openLive} />;
 }
 
 export function Streamer({ id }: { id: string | null }) {
@@ -115,7 +117,7 @@ export function Notifications() {
 
 function LiveNotifications() {
   const feed = useFollowingFeed();
-  return <NotificationsScreen key={feed ? 'ready' : 'loading'} items={feed ? inboxFromFeed(feed) : []} onOpen={(n) => openDrop(n.dropId)} />;
+  return <NotificationsScreen key={feed ? 'ready' : 'loading'} items={feed ? inboxFromFeed(feed) : []} onOpen={openLive} />;
 }
 
 export function NotificationSettings() {

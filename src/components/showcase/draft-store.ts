@@ -6,6 +6,8 @@ export type Draft = PuzzleInput & { title: string; setting: string; setup: strin
 
 export const auroraDraft: Draft = { ...auroraPuzzle, ...auroraWorld, squadSize: 3, bounty: 300, winners: 3, when: 'Fri 8 PM' };
 
+export const blankDraft: Draft = { suspects: [], pieces: [], answer: '', title: '', setting: '', setup: '', squadSize: 3, bounty: 300, winners: 3, when: 'Fri 8 PM' };
+
 let current: Draft = auroraDraft;
 
 export const draftStore = {

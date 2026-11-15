@@ -50,7 +50,7 @@ export function FeedScreen({
                   <LiveAvatar initials={l.streamerName.slice(0, 1)} uri={avatar(l.streamerId)} />
                   <Txt variant="smallStrong">{l.streamerName}</Txt>
                   <Txt variant="small" color={Palette.paperMuted} numberOfLines={1}>
-                    {l.title}
+                    {l.dropStatus === 'live' ? 'In progress' : l.title}
                   </Txt>
                 </Pressable>
               </Enter>
