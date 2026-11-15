@@ -20,7 +20,7 @@ import {
   useConnection,
   useLeaveRoom,
   useLockIn,
-  useMyDossier,
+  useMyEvidence,
   useRestart,
   useReveal,
   useRoom,
@@ -154,7 +154,7 @@ function Playing({
   menuActions: NonNullable<Parameters<typeof DossierScreen>[0]['on']>['menu'];
 }) {
   const code = room.code;
-  const dossier = useMyDossier(code);
+  const evidence = useMyEvidence(code);
   const setTheory = useSetTheory(code);
   const lockIn = useLockIn(code);
   const [tab, setTab] = useState<'evidence' | 'suspects'>('evidence');
@@ -224,7 +224,7 @@ function Playing({
   return (
     <DossierScreen
       room={room}
-      pieces={dossier ? [dossier] : undefined}
+      pieces={evidence ?? undefined}
       ui={{
         tab,
         sheet: { expanded, notice, pendingPick },
