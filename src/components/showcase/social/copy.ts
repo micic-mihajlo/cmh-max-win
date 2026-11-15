@@ -54,6 +54,7 @@ export function inboxFromFeed(feed: FollowingFeedView): InboxItem[] {
       joinCode: u.joinCode,
       dropId: u.dropId,
       streamerId: u.streamerId,
+      squadmates: u.squadmates,
       when: 'Now',
     }));
   return [...starting, ...live];
