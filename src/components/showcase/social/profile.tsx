@@ -11,7 +11,7 @@ import { Screen, Section, showcase } from './kit';
 
 export function ProfileScreen() {
   return (
-    <Screen title="Profile">
+    <Screen>
       <Enter style={[showcase.gutter, styles.head]}>
         <Avatar name={me.name} size={48} filled />
         <Txt variant="display" style={styles.name}>
