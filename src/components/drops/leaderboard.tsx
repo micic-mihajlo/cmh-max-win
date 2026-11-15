@@ -80,9 +80,10 @@ export function LeaderboardScreen({
             <View style={styles.cardHead}>
               <Label>Your squad’s pick</Label>
               <Txt variant="smallStrong" color={Palette.paperMuted}>
-                {racing.agreed?.length && !racing.meLocked ? `${joinNames(racing.agreed)} agreed. Your call.` : `${racing.locked} of ${racing.size} locked`}
+                {`${racing.locked} of ${racing.size} locked`}
               </Txt>
             </View>
+            {racing.agreed?.length && !racing.meLocked ? <Txt variant="bodyStrong">{`${joinNames(racing.agreed)} agreed. Your call.`}</Txt> : null}
             <Txt variant="name">{racing.pick ?? 'No pick yet'}</Txt>
             {racing.nudge ? (
               <NudgeEntrance haptic={false}>

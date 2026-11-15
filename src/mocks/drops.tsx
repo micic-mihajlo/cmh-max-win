@@ -55,7 +55,7 @@ const duo: SquadMemberView[] = [
 const row = (rank: number | null, n: number, status: LeaderboardRow['status'], solveMs: number | null, wrongGuesses = 0, isMine = false): LeaderboardRow => ({
   rank,
   squadLabel: `Squad ${n}`,
-  memberNames: [],
+  memberNames: isMine ? ['Kit', 'Lou', 'Ana'] : [],
   status,
   solveMs,
   attempts: wrongGuesses,
@@ -165,6 +165,13 @@ export const DropStates: MockState[] = [
     title: 'Join · no drop with that code',
     render: () => <JoinCodeScreen code="KRQZ" phase="error" name="Kit" />,
   },
+  {
+    id: '11-join-error-host',
+    ref: 'host.md',
+    section: 'Drops',
+    title: 'Join · drop known, not live',
+    render: () => <JoinCodeScreen code="KRQZ" phase="error" name="Kit" hostName="Nova" />,
+  },
   { id: '11-join-in', ref: 'host.md', section: 'Drops', title: 'Join · you’re in', render: () => <JoinCodeScreen code="KRQX" phase="joined" name="Kit" /> },
   {
     id: '11-entry',
@@ -218,13 +225,27 @@ export const DropStates: MockState[] = [
     id: '14-race',
     ref: 'D5',
     section: 'Drops',
+    title: 'Race · racing, two locked, your call',
+    render: () => (
+      <LeaderboardScreen
+        offset={0}
+        drop={live(3)}
+        board={racingBoard}
+        racing={{ pick: 'Jun Halloway', locked: 2, size: 3, nudge: null, cooldownUntil: null, agreed: ['Lou', 'Ana'], meLocked: false }}
+      />
+    ),
+  },
+  {
+    id: '14-race-wrong',
+    ref: 'D5',
+    section: 'Drops',
     title: 'Race · racing + wrong pick',
     render: () => (
       <LeaderboardScreen
         offset={0}
         drop={live(3)}
         board={racingBoard}
-        racing={{ pick: 'Ines Vale', locked: 2, size: 3, nudge: 'Not Ines. Ask Ana to read the Scene Notes.', cooldownUntil: loadedAt + 20_000 }}
+        racing={{ pick: 'Ines Vale', locked: 0, size: 3, nudge: 'Not Ines. Ask Ana to read the Scene Notes.', cooldownUntil: loadedAt + 20_000 }}
       />
     ),
   },
