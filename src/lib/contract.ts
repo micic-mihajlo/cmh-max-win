@@ -114,7 +114,15 @@ export type SignalErrorCode =
   | 'NOT_ENTERED'
   | 'COOLDOWN' // drops: a lock-in during the 20s after a wrong check
   | 'DEMO_CONTROLS_OFF'
-  | 'NOT_ENOUGH_PLAYERS'; // dealSquads below 4 entrants // demo:* mutations on a deployment without SIGNAL_DEMO_CONTROLS=on
+  | 'NOT_ENOUGH_PLAYERS' // dealSquads below 4 entrants // demo:* mutations on a deployment without SIGNAL_DEMO_CONTROLS=on
+  | 'CHALLENGE_NOT_FOUND'
+  | 'NOT_CREATOR' // a host-only challenge action from anyone but its creator
+  | 'NO_PROFILE' // creating a challenge before saving a creator profile
+  | 'HANDLE_TAKEN'
+  | 'INVALID_CONFIG' // publish with config issues; data.issues: ConfigIssue[]
+  | 'CHALLENGE_CLOSED' // joining after entry closed, or a host action in the wrong status
+  | 'CHALLENGE_CANCELLED'
+  | 'NOT_ELIGIBLE'; // reserved: whop_members enforcement after Sign in with Whop
 
 export type SignalError = { code: SignalErrorCode; message: string };
 
@@ -288,3 +296,230 @@ export type UseLeaveDrop = (dropId: string) => () => Promise<void>; // waiting r
 // Milliseconds to add to Date.now() to get server time, measured once per mount with a mutation round-trip
 // (queries are cached, so a serverNow field on a query can be arbitrarily stale). null until measured.
 export type UseServerOffset = () => number | null;
+
+// ---------- Creator console: challenges (CAP-31; signal/laneb/creator-console.md) ----------
+// A challenge is a drop that a creator owns and configures: draft -> published (open, has a join code) -> live
+// (teams dealt) -> ended (results final) or cancelled. Drops above keep working unchanged.
+// Identity is the device token for now, behind one server helper (resolveIdentity) that Sign in with Whop replaces.
+
+export type ChallengeTemplateId = 'mystery-aurora';
+export type ChallengeTemplateView = {
+  id: ChallengeTemplateId;
+  name: string; // 'The Aurora Seed'
+  blurb: string;
+  teamSizes: number[]; // team sizes this template can be played at; mystery-aurora: [2, 3] today
+};
+
+export type LeftoverPolicy = 'smaller_teams' | 'wait_next_round'; // players who don't fill a whole team
+export type StartMode = 'live' | 'scheduled' | 'window';
+// live: the host deals. scheduled: teams are dealt at startsAt. window: open until endsAt, and a team forms each
+// time teamSize players are waiting; at endsAt the leftover policy applies to whoever is still waiting.
+
+export type Eligibility = { kind: 'open' } | { kind: 'whop_members'; productId: string };
+
+export type RewardPolicy =
+  | { kind: 'winner_takes_all' }
+  | { kind: 'top_x_equal'; places: number } // places >= 1
+  | { kind: 'tiered'; percents: number[] }; // percents[i] is place i+1's share; positive integers that sum to 100
+// Within a team the place's amount is split equally per player.
+
+export type PayoutAdapterId = 'concept' | 'whop';
+// concept (default): moves no money; rows end as sent_concept and must be labelled as a concept in the UI.
+// whop: Whop transfer to the player's Whop user id, or a one-claim claim link when the player has no Whop account.
+// Only server-created challenges can use whop for now; a creator's own challenge is always concept.
+
+export type ChallengeConfig = {
+  title: string; // 1..60 chars
+  blurb: string; // 0..280 chars
+  templateId: ChallengeTemplateId;
+  teamSize: number; // 1, 2, 3 or any N >= 1; must be one of the template's teamSizes to publish
+  leftover: LeftoverPolicy;
+  startMode: StartMode;
+  startsAt: number | null; // ms epoch; required for scheduled, ignored otherwise
+  endsAt: number | null; // ms epoch; required for window, an optional deadline for live and scheduled
+  eligibility: Eligibility;
+  reward: RewardPolicy;
+  poolCents: number; // integer >= 0
+  currency: 'usd';
+  payoutAdapter: PayoutAdapterId;
+};
+export type ChallengeConfigPatch = Partial<ChallengeConfig>;
+export type ConfigIssue = { field: keyof ChallengeConfig; message: string }; // why publish would be refused
+
+export type ChallengeStatus = 'draft' | 'published' | 'live' | 'ended' | 'cancelled';
+
+export type CreatorProfileView = {
+  creatorId: string; // stable id; the device token's creator today, the Whop user later
+  displayName: string;
+  handle: string; // '@nova', unique, lowercase a-z 0-9 _
+  identity: 'device' | 'whop';
+};
+
+export type EligibilityView = {
+  kind: Eligibility['kind'];
+  productId: string | null;
+  enforced: boolean; // false until Sign in with Whop: whop_members is stored but nobody is turned away yet
+  note: string | null; // e.g. 'Whop membership is recorded but not checked yet.'
+};
+
+export type FundingView = {
+  status: 'none' | 'committed_concept'; // committed_concept: a ledger commitment at publish, no money held
+  amountCents: number;
+  committedAt: number | null;
+  label: string; // e.g. 'Concept funding — no real money is held'
+};
+
+export type ChallengeSummaryView = {
+  challengeId: string;
+  status: ChallengeStatus;
+  config: ChallengeConfig;
+  joinCode: string | null; // set at publish
+  creator: { displayName: string; handle: string };
+  entrantCount: number;
+  teamCount: number;
+  createdAt: number;
+  publishedAt: number | null;
+  endedAt: number | null;
+};
+
+// The draft editor: the current config and everything publish would refuse.
+export type ChallengeDraftView = ChallengeSummaryView & { issues: ConfigIssue[]; template: ChallengeTemplateView };
+
+export type ChallengeTeamView = {
+  teamId: string;
+  label: string; // 'Team 1'
+  memberNames: string[];
+  status: 'playing' | 'finished' | 'unfinished'; // unfinished: the challenge ended before they finished
+  place: number | null; // finishing place, 1-based
+  finishedAt: number | null; // ms epoch, server commit time
+  finishMs: number | null; // finishedAt minus the moment the team was dealt
+};
+
+export type ChallengeResultRow = {
+  place: number;
+  teamLabel: string;
+  memberNames: string[];
+  finishMs: number;
+  inMoney: boolean; // a paid place under the reward policy
+};
+
+// Exact integer cents. Each paid place gets its budget (winner_takes_all: the pool; top_x_equal:
+// floor(pool / places); tiered: floor(pool * percent / 100)), split per player rounding down. Every leftover
+// cent goes to first place's first player (entry order). Budgets of places nobody filled return to the creator.
+// Invariant: sum(lines[].players[].cents) + returnedCents === poolCents.
+export type PayoutPreviewView = {
+  poolCents: number;
+  paidCents: number;
+  returnedCents: number;
+  lines: {
+    place: number;
+    teamLabel: string;
+    budgetCents: number; // the place's budget before the per-player rounding
+    players: { name: string; cents: number }[];
+  }[];
+};
+
+export type PayoutStatus = 'pending' | 'approved' | 'sent' | 'sent_concept' | 'failed';
+export type PayoutRowView = {
+  name: string;
+  place: number;
+  teamLabel: string;
+  cents: number;
+  status: PayoutStatus;
+  adapter: PayoutAdapterId;
+  method: 'concept' | 'transfer' | 'claim_link' | null; // how the adapter paid; null until sent
+  error: string | null;
+};
+
+// The host console: everything the creator sees while running a challenge. Readable only by its creator.
+export type HostConsoleView = ChallengeSummaryView & {
+  eligibility: EligibilityView;
+  funding: FundingView;
+  entrants: { name: string; joinedAt: number; teamLabel: string | null; waitingNextRound: boolean }[]; // entry order
+  teams: ChallengeTeamView[];
+  results: ChallengeResultRow[]; // finishers so far, by place
+  serverNow: number; // ms epoch at query time, for a drift-free countdown
+  timeLeftMs: number | null; // until startsAt (scheduled, before the deal) or endsAt; null when neither applies
+  cancelReason: string | null;
+  can: { deal: boolean; end: boolean; cancel: boolean; approvePayouts: boolean; clone: boolean };
+  payoutPreview: PayoutPreviewView | null; // once ended
+  payouts: PayoutRowView[]; // the payout ledger, after approvePayouts; empty before
+};
+
+// What an entrant (or someone holding the code) sees.
+export type PlayerChallengeView = {
+  challengeId: string;
+  status: ChallengeStatus;
+  title: string;
+  blurb: string;
+  templateId: ChallengeTemplateId;
+  creator: { displayName: string; handle: string };
+  joinCode: string | null;
+  startMode: StartMode;
+  teamSize: number;
+  startsAt: number | null;
+  endsAt: number | null;
+  serverNow: number;
+  entrantCount: number;
+  reward: RewardPolicy;
+  poolCents: number;
+  payoutAdapter: PayoutAdapterId;
+  eligibility: EligibilityView;
+  cancelled: { reason: string; at: number } | null; // set when the host cancelled; show it instead of the game
+  me: {
+    entered: boolean;
+    name: string | null;
+    team: { teamId: string; label: string; roomCode: string; size: number } | null; // open the RoomView with roomCode
+    waitingNextRound: boolean; // left over under wait_next_round
+  };
+};
+
+export type MyPayoutView = {
+  place: number;
+  teamLabel: string;
+  cents: number;
+  status: PayoutStatus;
+  adapter: PayoutAdapterId;
+  method: 'concept' | 'transfer' | 'claim_link' | null;
+  claimUrl: string | null; // claim_link method only
+  label: string; // e.g. 'Concept payout — no real money moves'
+};
+
+// The shareable recap card once a challenge has ended.
+export type ChallengeRecapView = {
+  challengeId: string;
+  title: string;
+  creator: { displayName: string; handle: string };
+  templateId: ChallengeTemplateId;
+  status: 'ended' | 'cancelled';
+  endedAt: number;
+  entrantCount: number;
+  teamCount: number;
+  poolCents: number;
+  paidCents: number;
+  payoutAdapter: PayoutAdapterId;
+  podium: (ChallengeResultRow & { cents: number })[]; // paid places with each team's total
+  fastestFinishMs: number | null;
+};
+
+export type UseCreatorProfile = () => CreatorProfileView | null | undefined; // null = no profile yet
+export type UseSaveCreatorProfile = () => (args: { displayName: string; handle: string }) => Promise<CreatorProfileView>; // HANDLE_TAKEN
+export type UseChallengeTemplates = () => ChallengeTemplateView[] | undefined;
+export type UseMyChallenges = () => ChallengeSummaryView[] | undefined; // the creator's own, newest first
+export type UseCreateChallenge = () => (patch?: ChallengeConfigPatch) => Promise<{ challengeId: string }>; // needs a profile
+export type UseChallengeDraft = (challengeId: string | null) => ChallengeDraftView | null | undefined; // creator only
+export type UseUpdateChallengeDraft = (challengeId: string) => (patch: ChallengeConfigPatch) => Promise<{ issues: ConfigIssue[] }>;
+export type UsePublishChallenge = (challengeId: string) => () => Promise<{ joinCode: string }>; // INVALID_CONFIG lists issues in data.issues
+export type UseHostConsole = (challengeId: string | null) => HostConsoleView | null | undefined; // null = not the creator
+export type UseDealTeams = (challengeId: string) => () => Promise<void>; // live mode only; NOT_ENOUGH_PLAYERS below one team
+export type UseEndChallenge = (challengeId: string) => () => Promise<void>;
+export type UseCancelChallenge = (challengeId: string) => (reason: string) => Promise<void>;
+export type UseApprovePayouts = (challengeId: string) => () => Promise<{ approved: number; alreadyApproved: number }>; // idempotent
+export type UseCloneChallenge = (challengeId: string) => () => Promise<{ challengeId: string }>; // a new draft with the same config
+export type UseChallengeByCode = (code: string | null) => PlayerChallengeView | null | undefined;
+export type UseJoinChallenge = () => (args: { code: string; name: string }) => Promise<{ challengeId: string }>;
+export type UseLeaveChallenge = (challengeId: string) => () => Promise<void>; // before your team is dealt
+export type UseMyChallenge = (challengeId: string | null) => PlayerChallengeView | null | undefined;
+export type UseMyPayout = (challengeId: string | null) => MyPayoutView | null | undefined; // null = nothing for you
+export type UseChallengeRecap = (challengeId: string | null) => ChallengeRecapView | null | undefined; // null until ended
+
