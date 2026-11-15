@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,7 +8,7 @@ import { Case01, Suspects, suspectById } from '@/constants/case01';
 import type { RoomView, SuspectId } from '@/lib/contract';
 
 import { Banner, Button, Label } from './primitives';
-import { joinNames, lockedIds, seated } from './room';
+import { joinNames, lockedIds, seals } from './room';
 import { Seal } from './seal';
 import { useMotionReduced } from './settings';
 import { SuspectOption } from './suspect-card';
@@ -26,6 +27,17 @@ function statusLine(room: RoomView) {
   if (lockedOthers.length > 0)
     return { text: `${joinNames(lockedOthers)} ${lockedOthers.length === 1 ? 'agrees' : 'agree'}. Lock in if you do.`, strong: true };
   return { text: 'Counts only for this version. Any change clears everyone.', strong: false };
+}
+
+function useSecondsUntil(until: number | null) {
+  const [now, setNow] = useState(() => Date.now());
+  const active = until !== null && until > now;
+  useEffect(() => {
+    if (!active) return;
+    const id = setInterval(() => setNow(Date.now()), 500);
+    return () => clearInterval(id);
+  }, [active]);
+  return until === null ? 0 : Math.max(0, Math.ceil((until - now) / 1000));
 }
 
 export function TheorySheet({
@@ -57,6 +69,7 @@ export function TheorySheet({
   const editorName = editor ? (editor.memberId === room.me?.memberId ? 'You' : editor.name) : null;
   const status = statusLine(room);
   const ruledOut = room.lastNudge;
+  const cooldown = useSecondsUntil(room.cooldownUntil);
 
   return (
     <>
@@ -98,7 +111,7 @@ export function TheorySheet({
           <ScrollView style={fullHeight ? styles.flex : undefined} contentContainerStyle={styles.expanded} showsVerticalScrollIndicator={false}>
             {notice ? <Banner tone={notice.tone} title={notice.title} text={notice.text} /> : null}
             <Txt variant="small" color={Palette.paperMuted}>
-              {Case01.rule}
+              {room.drop ? 'Whoever’s left is the thief. Everyone locks in the same name.' : Case01.rule}
             </Txt>
             <View style={styles.options}>
               {Suspects.map((s) => (
@@ -107,17 +120,25 @@ export function TheorySheet({
                   suspect={s}
                   selected={(pendingPick ?? room.theory.culprit) === s.id}
                   pending={pendingPick === s.id}
-                  ruledOutBy={ruledOut && ruledOut.wrongPick === s.id ? RoleMeta[ruledOut.forRole].label : undefined}
+                  ruledOutBy={
+                    ruledOut && ruledOut.wrongPick === s.id
+                      ? ruledOut.holder
+                        ? ruledOut.holder.memberId === room.me?.memberId
+                          ? 'You'
+                          : ruledOut.holder.name
+                        : RoleMeta[ruledOut.forRole].label
+                      : undefined
+                  }
                   onPress={() => onPick?.(s.id)}
                 />
               ))}
             </View>
             <View style={styles.seals}>
-              {seated(room).map(({ role, member }) => (
-                <View key={role} style={styles.sealCol}>
-                  <Seal role={role} filled={!!member && locked.has(member.memberId)} size={46} />
+              {seals(room).map(({ role, member }) => (
+                <View key={member.memberId} style={styles.sealCol}>
+                  <Seal role={role} filled={locked.has(member.memberId)} size={46} />
                   <Txt variant="small" color={Palette.paperMuted} numberOfLines={1}>
-                    {member ? (member.isMe ? 'You' : member.name) : 'Open'}
+                    {member.isMe ? 'You' : member.name}
                   </Txt>
                 </View>
               ))}
@@ -126,9 +147,11 @@ export function TheorySheet({
               variant={status.strong ? 'bodyStrong' : 'small'}
               color={status.strong ? Palette.paper : Palette.paperMuted}
               style={styles.center}>
-              {status.text}
+              {cooldown > 0 ? 'Wrong pick. Talk it through before you try again.' : status.text}
             </Txt>
-            {!culprit || alreadyChecked ? (
+            {cooldown > 0 ? (
+              <Button title={`Try again in ${cooldown}s`} disabled />
+            ) : !culprit || alreadyChecked ? (
               <Button title="I agree with this theory" disabled />
             ) : meLocked ? (
               <Button title="Locked in ✓" variant="secondary" />
