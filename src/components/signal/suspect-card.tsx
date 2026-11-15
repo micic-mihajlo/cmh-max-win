@@ -1,7 +1,8 @@
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { Palette, Radius, Space } from '@/constants/signal';
 import type { Suspect } from '@/constants/case01';
+import { PressScale } from '@/motion';
 
 import { Txt } from './txt';
 
@@ -46,17 +47,15 @@ export function SuspectOption({
   suspect,
   selected,
   ruledOutBy,
-  pending,
   onPress,
 }: {
   suspect: Suspect;
   selected: boolean;
   ruledOutBy?: string;
-  pending?: boolean;
   onPress?: () => void;
 }) {
   return (
-    <Pressable accessibilityRole="radio" accessibilityState={{ selected }} onPress={onPress} style={styles.option}>
+    <PressScale accessibilityRole="radio" accessibilityState={{ selected }} haptic="tap" onPress={onPress} style={styles.option}>
       <View style={styles.optionBody}>
         <Txt variant="bodyStrong" color={selected ? Palette.paper : Palette.paperMuted}>
           {suspect.name}
@@ -65,15 +64,15 @@ export function SuspectOption({
           {suspect.job}
         </Txt>
       </View>
-      {pending ? <ActivityIndicator color={Palette.paper} /> : selected ? <Txt variant="bodyStrong">✓</Txt> : null}
+      {selected ? <Txt variant="bodyStrong">✓</Txt> : null}
       {ruledOutBy ? (
         <View style={styles.struck}>
           <Txt variant="label" color={Palette.danger}>
-            Ruled out by the {ruledOutBy}
+            Ruled out by {ruledOutBy}
           </Txt>
         </View>
       ) : null}
-    </Pressable>
+    </PressScale>
   );
 }
 
