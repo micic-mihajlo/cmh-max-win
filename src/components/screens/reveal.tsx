@@ -44,11 +44,6 @@ export function RevealScreen({
 
   return (
     <Screen footer={footer}>
-      {page === 'credits' ? null : (
-        <Txt variant="small" color={Palette.paperMuted}>
-          {room.drop ? `${room.drop.squadLabel} · solved` : `Solved on attempt ${room.attempts + 1}`}
-        </Txt>
-      )}
       {late ? <Banner tone="good" title="Your crew solved it." text="You were away when it resolved. Here’s what happened." /> : null}
 
       {page === 'reconstruction' ? (
@@ -137,9 +132,6 @@ export function RevealScreen({
               </Txt>
             </View>
           </View>
-          <Txt variant="small" color={Palette.paperMuted}>
-            Your crew’s progress and choices are saved. One of you can re-invite the others when Episode 02 is ready.
-          </Txt>
         </>
       ) : null}
     </Screen>
