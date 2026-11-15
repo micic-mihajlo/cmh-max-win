@@ -1,11 +1,4 @@
-import {
-  Fraunces_400Regular,
-  Fraunces_400Regular_Italic,
-  Fraunces_600SemiBold,
-  Fraunces_700Bold,
-  useFonts as useFraunces,
-} from '@expo-google-fonts/fraunces';
-import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, useFonts as useInter } from '@expo-google-fonts/inter';
+import { Inter_400Regular, Inter_400Regular_Italic, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, useFonts } from '@expo-google-fonts/inter';
 import { ConvexProvider } from 'convex/react';
 import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -24,9 +17,7 @@ const theme = {
 };
 
 export default function RootLayout() {
-  const [frauncesLoaded] = useFraunces({ Fraunces_400Regular, Fraunces_400Regular_Italic, Fraunces_600SemiBold, Fraunces_700Bold });
-  const [interLoaded] = useInter({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold });
-  const ready = frauncesLoaded && interLoaded;
+  const [ready] = useFonts({ Inter_400Regular, Inter_400Regular_Italic, Inter_500Medium, Inter_600SemiBold, Inter_700Bold });
 
   useEffect(() => {
     if (ready) SplashScreen.hideAsync();

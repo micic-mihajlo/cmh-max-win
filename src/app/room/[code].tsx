@@ -1,6 +1,7 @@
-import { Redirect, router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Share, StyleSheet, View } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { AgreementScreen } from '@/components/screens/agreement';
 import { ClosedScreen } from '@/components/screens/closed';
@@ -31,7 +32,7 @@ import {
 import { useFollowStreamer, useStreamerForDrop } from '@/hooks/use-feed';
 import type { Role, RoomView, SuspectId } from '@/lib/contract';
 import { toSignalError } from '@/lib/signal-error';
-import { Haptic } from '@/motion';
+import { Ease, Haptic } from '@/motion';
 
 type Menu = 'menu' | 'lobby' | 'confirm-restart' | 'confirm-leave' | null;
 
@@ -232,6 +233,7 @@ function Playing({
   const lock = async () => {
     const third = lockedIds(room).size === 2;
     if (third) setChecking(true);
+    const tappedAt = Date.now();
     try {
       await lockIn(room.theory.revision);
       setNotice(undefined);
@@ -242,6 +244,7 @@ function Playing({
       else if (err === 'ALREADY_CHECKED') setNotice({ tone: 'warn', title: 'Already checked.', text: 'Change the theory to try again.' });
       else fail(e);
     } finally {
+      if (third) await new Promise((done) => setTimeout(done, Math.max(0, STAMP_HOLD_MS - (Date.now() - tappedAt))));
       setChecking(false);
     }
   };
@@ -282,7 +285,7 @@ function Resolved({ room }: { room: RoomView }) {
   const [choice, setChoice] = useState<'report' | 'informant' | undefined>(undefined);
   const { reveal: showReveal } = useLocalSearchParams<{ reveal?: string }>();
   if (!reveal) return <AgreementScreen room={room} phase="checking" />;
-  if (room.drop && !showReveal) return <Redirect href={{ pathname: '/drop/[id]/race', params: { id: room.drop.dropId } }} />;
+  if (room.drop && !showReveal) return <DropHandoff room={room} dropId={room.drop.dropId} />;
   const crew = room.members.map((m) => m.name);
   return (
     <RevealScreen
@@ -312,7 +315,31 @@ function Resolved({ room }: { room: RoomView }) {
   );
 }
 
+const STAMP_HOLD_MS = 400;
+const HANDOFF_HOLD_MS = 900;
+const HANDOFF_FADE_MS = 240;
+
+// A solved drop squad holds on "All three agree" before fading to the race board, so the last lock-in still lands.
+function DropHandoff({ room, dropId }: { room: RoomView; dropId: string }) {
+  const opacity = useSharedValue(1);
+  useEffect(() => {
+    const fade = setTimeout(() => opacity.set(withTiming(0, { duration: HANDOFF_FADE_MS, easing: Ease.out })), HANDOFF_HOLD_MS);
+    const go = setTimeout(() => router.replace({ pathname: '/drop/[id]/race', params: { id: dropId } }), HANDOFF_HOLD_MS + HANDOFF_FADE_MS);
+    return () => {
+      clearTimeout(fade);
+      clearTimeout(go);
+    };
+  }, [dropId, opacity]);
+  const style = useAnimatedStyle(() => ({ opacity: opacity.get() }));
+  return (
+    <Animated.View style={[styles.flex, style]}>
+      <AgreementScreen room={room} phase="checking" />
+    </Animated.View>
+  );
+}
+
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   loading: { flex: 1, backgroundColor: Palette.ink, alignItems: 'center', justifyContent: 'center' },
 });
 
