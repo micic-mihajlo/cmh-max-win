@@ -12,7 +12,7 @@ export const mixerColor = v.union(v.literal('red'), v.literal('blue'), v.literal
 export const challengeConfig = v.object({
   title: v.string(),
   blurb: v.string(),
-  templateId: v.literal('mystery-aurora'),
+  templateId: v.union(v.literal('mystery-aurora'), v.literal('split-passphrase')),
   teamFormation: v.union(v.literal('dealt'), v.literal('mixer')),
   teamSize: v.union(v.literal(1), v.literal(2), v.literal(3), v.literal(4)),
   mixerColors: v.array(mixerColor),

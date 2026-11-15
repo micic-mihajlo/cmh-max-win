@@ -45,7 +45,7 @@ async function published(patch: ChallengeConfigPatch = {}, t: T = newTest()) {
 }
 
 async function join(t: T, joinCode: string, players: string[]) {
-  for (const deviceToken of players) await t.mutation(api.challenges.joinChallenge, { deviceToken, code: joinCode, name: deviceToken.toUpperCase() });
+  for (const deviceToken of players) await t.action(api.challenges.joinChallenge, { deviceToken, code: joinCode, name: deviceToken.toUpperCase() });
 }
 
 async function teamsOf(t: T, challengeId: string, players: string[]) {
@@ -206,7 +206,7 @@ describe('start modes', () => {
     expect(view.status).toBe('live');
     expect(view.teams.map((x) => x.memberNames)).toEqual([['P1', 'P2', 'P3']]);
     expect(view.entrants.find((e) => e.name === 'P4')?.waitingNextRound).toBe(true);
-    expect(await errorCode(t.mutation(api.challenges.joinChallenge, { deviceToken: 'late', code: joinCode, name: 'Late' }))).toBe('CHALLENGE_CLOSED');
+    expect(await errorCode(t.action(api.challenges.joinChallenge, { deviceToken: 'late', code: joinCode, name: 'Late' }))).toBe('CHALLENGE_CLOSED');
   });
 
   test('scheduled: teams are dealt at startsAt', async () => {
@@ -246,7 +246,7 @@ describe('cancel', () => {
     expect(await errorCode(t.mutation(api.challenges.cancelChallenge, { deviceToken: HOST, challengeId, reason: ' ' }))).toBe('INVALID_CONFIG');
     await t.mutation(api.challenges.cancelChallenge, { deviceToken: HOST, challengeId, reason: 'Stream went down' });
     expect((await t.query(api.challenges.myChallenge, { deviceToken: 'p1', challengeId }))!.cancelled).toEqual({ reason: 'Stream went down', at: expect.any(Number) });
-    expect(await errorCode(t.mutation(api.challenges.joinChallenge, { deviceToken: 'new', code: joinCode, name: 'N' }))).toBe('CHALLENGE_CANCELLED');
+    expect(await errorCode(t.action(api.challenges.joinChallenge, { deviceToken: 'new', code: joinCode, name: 'N' }))).toBe('CHALLENGE_CANCELLED');
     expect(await errorCode(solve(t, team.code, team.members))).toBe('CHALLENGE_CLOSED');
     expect((await t.query(api.challenges.challengeRecap, { challengeId }))!).toMatchObject({ status: 'cancelled', paidCents: 0, podium: [] });
   });
@@ -295,25 +295,54 @@ describe('payout ledger and claiming', () => {
 });
 
 describe('eligibility', () => {
-  test('whop_members is stored and forces Whop to join, but membership is not checked yet', async () => {
+  test('with Whop OAuth configured, joining asks Whop for access to the product', async () => {
+    vi.stubEnv('WHOP_OAUTH_CLIENT_ID', 'client');
+    vi.stubEnv('WHOP_API_KEY', 'test-key');
+    const fetchMock = vi.fn(async (url: string) => new Response(JSON.stringify({ has_access: url.includes('whop_member'), access_level: 'customer' })));
+    vi.stubGlobal('fetch', fetchMock);
+    try {
+      const { t, joinCode } = await published({ eligibility: { kind: 'whop_members', productId: 'prod_123' } });
+      expect((await t.query(api.challenges.challengeByCode, { deviceToken: 'p1', code: joinCode }))!.eligibility).toMatchObject({ enforced: true, note: null });
+      await linkWhop(t, 'p1', 'whop_outsider');
+      await linkWhop(t, 'p2', 'whop_member');
+      expect(await errorCode(t.action(api.challenges.joinChallenge, { deviceToken: 'p1', code: joinCode, name: 'P1' }))).toBe('NOT_ELIGIBLE');
+      expect(await t.action(api.challenges.joinChallenge, { deviceToken: 'p2', code: joinCode, name: 'P2' })).toHaveProperty('challengeId');
+      expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
+        expect.stringContaining('/users/whop_outsider/access/prod_123'),
+        expect.stringContaining('/users/whop_member/access/prod_123'),
+      ]);
+    } finally {
+      vi.unstubAllEnvs();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  test('without Whop OAuth, whop_members is stored and forces Whop to join, but membership is not checked', async () => {
     const { t, challengeId, joinCode } = await published({ eligibility: { kind: 'whop_members', productId: 'prod_123' } });
     const view = (await t.query(api.challenges.challengeByCode, { deviceToken: 'p1', code: joinCode }))!;
     expect(view.requireWhopToJoin).toBe(true);
     expect(view.eligibility).toMatchObject({ kind: 'whop_members', productId: 'prod_123', enforced: false });
     expect(view.eligibility.note).toMatch(/not checked/);
-    expect(await errorCode(t.mutation(api.challenges.joinChallenge, { deviceToken: 'p1', code: joinCode, name: 'P1' }))).toBe('WHOP_SIGN_IN_REQUIRED');
+    expect(await errorCode(t.action(api.challenges.joinChallenge, { deviceToken: 'p1', code: joinCode, name: 'P1' }))).toBe('WHOP_SIGN_IN_REQUIRED');
     await linkWhop(t, 'p1', 'whop_anyone');
-    expect(await t.mutation(api.challenges.joinChallenge, { deviceToken: 'p1', code: joinCode, name: 'P1' })).toEqual({ challengeId });
+    expect(await t.action(api.challenges.joinChallenge, { deviceToken: 'p1', code: joinCode, name: 'P1' })).toEqual({ challengeId });
   });
 });
 
 describe('mixer mode', () => {
+  test('mixer needs a template with mixer support, and dealt teams play Aurora', () => {
+    const issues = (patch: ChallengeConfigPatch) => validateConfig({ ...DEFAULT_CONFIG, title: 'x', ...patch } as never, false, Date.now()).map((i) => i.field);
+    expect(issues({ teamFormation: 'mixer' })).toEqual(['templateId']);
+    expect(issues({ teamFormation: 'mixer', templateId: 'split-passphrase' })).toEqual([]);
+    expect(issues({ templateId: 'split-passphrase' })).toEqual(['templateId']);
+  });
+
   const colorsOf = async (t: T, challengeId: string, players: string[]) =>
     Promise.all(players.map(async (deviceToken) => (await t.query(api.challenges.myChallenge, { deviceToken, challengeId }))!.me.mixer!));
-  const keyOf = (text: string) => text.match(/Your key is ([A-Z]+-\d+)/)![1];
+  const keyOf = (text: string) => text.match(/Your word is ([A-Za-z]+-\d+)/)![1];
 
   async function mixer() {
-    const { t, challengeId, joinCode } = await published({ teamFormation: 'mixer', mixerColors: ['red', 'blue'], reward: { kind: 'placement', percents: [60, 40] } });
+    const { t, challengeId, joinCode } = await published({ teamFormation: 'mixer', templateId: 'split-passphrase', mixerColors: ['red', 'blue'], reward: { kind: 'placement', percents: [60, 40] } });
     await join(t, joinCode, tokens(6));
     const me = await colorsOf(t, challengeId, tokens(6));
     return { t, challengeId, me };

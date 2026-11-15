@@ -3,6 +3,7 @@ import { ConvexError, v, type Infer } from 'convex/values';
 import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import {
+  action,
   internalAction,
   internalMutation,
   internalQuery,
@@ -14,7 +15,9 @@ import {
 import { CONCEPT_LABEL, createSandboxClaimLink } from './bounty';
 import { ELIGIBILITY_STUB_NOTE, resolveIdentity } from './creatorIdentity';
 import { dealPieces, splitSizes } from './drops';
-import { mixerTemplate } from './mixerTemplate';
+import { mixerTemplate, verifyMixerTeam } from './templates/engine';
+import { listTemplates } from './templates/registry';
+import { checkWhopAccess } from './whopAuth';
 import { challengeConfig } from './schema';
 import { CODE_ALPHABET, generateCode } from './signal';
 import { whopEnvironment, whopRequest } from './whop';
@@ -25,6 +28,7 @@ import type {
   ChallengeResultRow,
   ChallengeStandingsView,
   ChallengeSummaryView,
+  ChallengeTemplateId,
   ChallengeTeamView,
   ChallengeTemplateView,
   ConfigIssue,
@@ -55,14 +59,17 @@ function fail(code: SignalErrorCode, message: string, extra?: Record<string, unk
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-export const TEMPLATES: ChallengeTemplateView[] = [
-  {
-    id: 'mystery-aurora',
-    name: 'The Aurora Seed',
-    blurb: 'Everyone holds a piece. Nobody solves it alone.',
-    teamSizes: [1, 2, 3, 4],
-  },
-];
+// Templates come from the CAP-32 registry. Dealt teams play in aurora rooms, so dealt mode needs mystery-aurora
+// for now; mixer mode needs a template with mixer support.
+export const TEMPLATES: ChallengeTemplateView[] = listTemplates().map((t) => ({
+  id: t.id as ChallengeTemplateId,
+  name: t.name,
+  blurb: t.summary,
+  teamSizes: t.teamSizes as TeamSize[],
+  formations: t.formations,
+}));
+
+const whopOAuthConfigured = () => Boolean(process.env.WHOP_OAUTH_CLIENT_ID);
 
 export const DEFAULT_CONFIG: ChallengeConfig = {
   title: '',
@@ -145,6 +152,8 @@ export function validateConfig(c: ChallengeConfig, serverCreated: boolean, now: 
   if (c.blurb.length > 280) add('blurb', 'Keep the blurb under 280 characters.');
   const template = TEMPLATES.find((t) => t.id === c.templateId);
   if (!template) add('templateId', 'Unknown template.');
+  else if (!template.formations.includes(c.teamFormation)) add('templateId', template.name + ' does not support ' + c.teamFormation + ' teams.');
+  else if (c.teamFormation === 'dealt' && c.templateId !== 'mystery-aurora') add('templateId', 'Dealt teams play Aurora for now.');
   if (!Number.isInteger(c.teamSize) || c.teamSize < 1 || c.teamSize > MAX_TEAM_SIZE) add('teamSize', 'Teams are 1 to ' + MAX_TEAM_SIZE + ' players.');
   else if (c.teamFormation === 'dealt' && template && !template.teamSizes.includes(c.teamSize)) {
     add('teamSize', template.name + ' plays in teams of ' + template.teamSizes.join(' or ') + ' for now.');
@@ -236,7 +245,9 @@ async function creatorOf(ctx: Ctx, deviceToken: string) {
 function eligibilityView(c: ChallengeConfig): EligibilityView {
   return c.eligibility.kind === 'open'
     ? { kind: 'open', productId: null, enforced: false, note: null }
-    : { kind: 'whop_members', productId: c.eligibility.productId, enforced: false, note: ELIGIBILITY_STUB_NOTE };
+    : whopOAuthConfigured()
+      ? { kind: 'whop_members', productId: c.eligibility.productId, enforced: true, note: null }
+      : { kind: 'whop_members', productId: c.eligibility.productId, enforced: false, note: ELIGIBILITY_STUB_NOTE };
 }
 
 async function summaryView(ctx: Ctx, c: Challenge): Promise<ChallengeSummaryView> {
@@ -578,7 +589,33 @@ export const myChallenge = query({
   },
 });
 
-export const joinChallenge = mutation({
+// Joining is an action so whop_members eligibility can ask Whop (checkWhopAccess) before the entry is written.
+// Until Whop OAuth is configured on the deployment, membership is recorded but not checked.
+export const joinChallenge = action({
+  args: { deviceToken: v.string(), code: v.string(), name: v.string() },
+  handler: async (ctx, args): Promise<{ challengeId: string }> => {
+    const gate = await ctx.runQuery(internal.challenges.joinGate, { deviceToken: args.deviceToken, code: args.code });
+    if (gate && whopOAuthConfigured()) {
+      if (!gate.whopUserId) fail('WHOP_SIGN_IN_REQUIRED', 'Sign in with Whop to join this challenge.');
+      const { hasAccess } = await checkWhopAccess(gate.whopUserId, gate.productId);
+      if (!hasAccess) fail('NOT_ELIGIBLE', 'This challenge is for members of the creator’s Whop.');
+    }
+    return ctx.runMutation(internal.challenges.enterChallenge, args);
+  },
+});
+
+export const joinGate = internalQuery({
+  args: { deviceToken: v.string(), code: v.string() },
+  handler: async (ctx, { deviceToken, code }) => {
+    const c = await findByCode(ctx, code);
+    if (!c || c.config.eligibility.kind !== 'whop_members') return null;
+    if (await findEntry(ctx, c._id, deviceToken)) return null;
+    const me = await resolveIdentity(ctx, deviceToken);
+    return { productId: c.config.eligibility.productId, whopUserId: me.whopUserId ?? null };
+  },
+});
+
+export const enterChallenge = internalMutation({
   args: { deviceToken: v.string(), code: v.string(), name: v.string() },
   handler: async (ctx, { deviceToken, code, name }) => {
     const c = await findByCode(ctx, code);
@@ -1103,7 +1140,9 @@ export const submitMixerAnswer = mutation({
     const now = Date.now();
     if (team.cooldownUntil && now < team.cooldownUntil) fail('COOLDOWN', 'Wrong answers cost time. Talk it through.');
     const members = (await Promise.all(team.memberIds.map((id) => ctx.db.get(id)))).filter((m) => m !== null);
-    const result = mixerTemplate(c.config.templateId).verify(
+    const result = verifyMixerTeam(
+      c.config.templateId,
+      c.config.mixerColors,
       answer,
       members.map((m) => ({ color: m.color!, secret: fragmentOf(c, m)!.secret })),
     );

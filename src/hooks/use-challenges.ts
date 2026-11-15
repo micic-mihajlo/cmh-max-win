@@ -1,5 +1,5 @@
 import { api } from '@convex/_generated/api';
-import { useMutation, useQuery } from 'convex/react';
+import { useAction, useMutation, useQuery } from 'convex/react';
 import { useCallback } from 'react';
 
 import { useDeviceToken } from '@/hooks/use-device-token';
@@ -65,7 +65,7 @@ export const useCreateChallenge: UseCreateChallenge = () => {
 };
 
 export const useJoinChallenge: UseJoinChallenge = () => {
-  const join = useMutation(c.joinChallenge);
+  const join = useAction(c.joinChallenge);
   return useCallback(async (args) => join({ deviceToken: await getDeviceToken(), ...args }), [join]);
 };
 
