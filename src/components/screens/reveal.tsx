@@ -122,15 +122,13 @@ export function RevealScreen({
         <>
           <Txt variant="display">Case closed. For now.</Txt>
           <View style={styles.teaser}>
-            <Txt variant="title">{reveal.teaser.title}</Txt>
-            <Txt variant="serif" color={Palette.paper}>
-              {reveal.teaser.text}
+            <Txt variant="name" style={styles.teaserTitle}>
+              The Second Seed
             </Txt>
-            <View style={styles.coming}>
-              <Txt variant="label" color={Palette.paperMuted}>
-                Coming · not playable yet
-              </Txt>
-            </View>
+            <Txt variant="body">The seed they recovered is a replica.</Txt>
+            <Txt variant="small" color={Palette.paperMuted}>
+              Friday, 9 pm
+            </Txt>
           </View>
         </>
       ) : null}
@@ -189,5 +187,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Palette.hairline,
   },
-  coming: { alignSelf: 'flex-start', borderWidth: 1, borderStyle: 'dashed', borderColor: Palette.paperFaint, borderRadius: Radius.pill, paddingHorizontal: 10, paddingVertical: 4 },
+  teaserTitle: { fontSize: 22, lineHeight: 28 },
 });
