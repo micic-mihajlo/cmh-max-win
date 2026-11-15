@@ -29,8 +29,8 @@ export const MIN_SHOWN_FOLLOWERS = 3;
 export const MAX_SQUADMATES = 3;
 const RECENT_DROPS = 20;
 
-// Load-test and QA hosts and drops, kept off the public feed.
-const TEST_LABELS = [/^load\b/i, /\bload ·/i, /^qa\b/i, /CMHM-\d+/, /\(ignore\)/i];
+// Load-test and QA hosts and drops, kept off the public feed. "Host" is hostDrop's default: a host that never set a name.
+const TEST_LABELS = [/^load\b/i, /\bload ·/i, /^qa\b/i, /CMHM-\d+/, /\(ignore\)/i, /^host$/i];
 export const isTestLabel = (label: string) => TEST_LABELS.some((p) => p.test(label.trim()));
 const isHiddenStreamer = (s: Doc<'streamers'>) => !!s.hidden || isTestLabel(s.name);
 

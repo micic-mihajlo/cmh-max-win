@@ -352,6 +352,16 @@ describe('showcase hygiene', () => {
     expect(hidden.filter((s) => s.hidden).map((s) => s.name).sort()).toEqual(['CMHM-10 host', 'Ivy (ignore)', 'Load runner', 'QA bot', 'Rio', 'load · 12']);
   });
 
+  test('the default host name "Host" is hidden at read time, "Hosta" is not', async () => {
+    const t = newTest();
+    const unnamed = await t.mutation(api.drops.hostDrop, { deviceToken: 'unnamed' });
+    const hosta = await hostAs(t, 'hosta', 'Hosta');
+    await hostAs(t, 'shouty', 'HOST');
+    expect((await t.query(api.feed.streamers, { deviceToken: 'fan' })).map((s) => s.name)).toEqual(['Hosta']);
+    expect(await t.query(api.feed.streamerForDrop, { deviceToken: 'fan', dropId: unnamed.dropId })).toBeNull();
+    expect(await t.query(api.feed.streamerForDrop, { deviceToken: 'fan', dropId: hosta.dropId })).toMatchObject({ name: 'Hosta' });
+  });
+
   test('hideStreamers hides exact names, ignoring case, once', async () => {
     const t = newTest();
     for (const [d, name] of [['h1', 'Host'], ['h2', 'kit'], ['h3', 'Kitty'], ['h4', 'Nova']]) await hostAs(t, d, name);
