@@ -1,7 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/signal/backdrop';
-import { Label } from '@/components/signal/primitives';
 import { Txt } from '@/components/signal/txt';
 import { Palette, Radius, Space } from '@/constants/signal';
 import { PressScale, Stagger } from '@/motion';
@@ -16,11 +15,7 @@ export function CreatorSetupScreen({ drop, live, onOpen }: { drop: CreatorDrop; 
   return (
     <Screen
       footer={
-        live ? (
-          <Txt variant="small" color={Palette.paperMuted} style={styles.center}>
-            Free to enter. The first correct squads win, no luck involved.
-          </Txt>
-        ) : (
+        live ? null : (
           <PressScale onPress={onOpen} style={styles.cta}>
             <Txt variant="button" color={Palette.onAccent}>
               Open drop
@@ -29,8 +24,7 @@ export function CreatorSetupScreen({ drop, live, onOpen }: { drop: CreatorDrop; 
         )
       }>
       <View style={styles.head}>
-        <Label>{live ? 'Your drop is live' : 'New drop'}</Label>
-        <Txt variant="display">{live ? 'Share it with your followers' : 'Run a drop'}</Txt>
+        <Txt variant="display">{live ? 'Your drop is live.' : 'Run a drop'}</Txt>
       </View>
       <View style={[styles.card, live && styles.cardLive]}>
         <View style={styles.row}>
@@ -45,13 +39,6 @@ export function CreatorSetupScreen({ drop, live, onOpen }: { drop: CreatorDrop; 
               {`${money(drop.totalCents)} · first ${drop.winnerSlots} squads win`}
             </Txt>
           </View>
-          {live ? (
-            <View style={styles.liveTag}>
-              <Txt variant="label" color={Palette.onAccent}>
-                Live
-              </Txt>
-            </View>
-          ) : null}
         </View>
         {live ? (
           <Stagger>
@@ -59,7 +46,7 @@ export function CreatorSetupScreen({ drop, live, onOpen }: { drop: CreatorDrop; 
               <Txt variant="small" color={Palette.paperMuted} numberOfLines={1} style={styles.flex}>
                 {live.shareUrl}
               </Txt>
-              <Txt variant="smallStrong" color={Palette.ember}>
+              <Txt variant="smallStrong" color={Palette.paper}>
                 Share
               </Txt>
             </View>
@@ -89,7 +76,6 @@ const styles = StyleSheet.create({
   cardLive: { borderColor: Palette.ember },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   art: { width: 56, height: 56, borderRadius: Radius.m, backgroundColor: Palette.panelRaised, alignItems: 'center', justifyContent: 'center' },
-  liveTag: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.pill, backgroundColor: Palette.ember },
   line: { flexDirection: 'row', alignItems: 'baseline', gap: Space.s, paddingTop: Space.s },
   count: { fontVariant: ['tabular-nums'] },
   cta: { height: 54, borderRadius: 16, backgroundColor: Palette.ember, alignItems: 'center', justifyContent: 'center' },

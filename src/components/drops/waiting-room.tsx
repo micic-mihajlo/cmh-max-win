@@ -10,7 +10,7 @@ import { useServerClock } from './clock';
 import type { DropView } from '@/lib/contract';
 import { clock } from './ui';
 
-const avatarColors = [Palette.ember, RoleColors.witness, RoleColors.hacker, RoleColors.detective];
+const avatarColors = [Palette.paper, RoleColors.witness, RoleColors.hacker, RoleColors.detective];
 
 export function WaitingRoomScreen({ drop, offset, onBack }: { drop: DropView; offset: number | null; onBack?: () => void }) {
   const now = useServerClock(offset);
@@ -39,11 +39,13 @@ export function WaitingRoomScreen({ drop, offset, onBack }: { drop: DropView; of
           </View>
           <View style={styles.flex}>
             <Txt variant="bodyStrong">{display}</Txt>
-            <Txt variant="small" color={Palette.paperMuted}>
-              is live
-            </Txt>
+            <View style={styles.liveRow}>
+              <View style={styles.live} />
+              <Txt variant="small" color={Palette.paperMuted}>
+                is live
+              </Txt>
+            </View>
           </View>
-          <View style={styles.live} />
         </View>
         <Txt variant="display" style={styles.title}>
           {drop.title}
@@ -96,11 +98,12 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     borderWidth: 2,
-    borderColor: Palette.ember,
+    borderColor: Palette.hairline,
     backgroundColor: Palette.panelRaised,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  liveRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   live: { width: 6, height: 6, borderRadius: 3, backgroundColor: Palette.ember },
   title: { marginTop: Space.l },
   countBox: { alignItems: 'center', gap: 4, marginTop: Space.s },
