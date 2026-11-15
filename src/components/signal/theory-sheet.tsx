@@ -138,7 +138,7 @@ export function TheorySheet({
             <View style={styles.seals}>
               {seals(room).map(({ role, member }) => (
                 <View key={member.memberId} style={styles.sealCol}>
-                  <Seal role={role} filled={locked.has(member.memberId)} size={46} initial={member.name.charAt(0).toUpperCase()} />
+                  <Seal role={role} filled={locked.has(member.memberId)} haptic={member.isMe} size={46} initial={member.name.charAt(0).toUpperCase()} />
                   <Txt variant="small" color={Palette.paperMuted} numberOfLines={1}>
                     {member.isMe ? 'You' : member.name}
                   </Txt>

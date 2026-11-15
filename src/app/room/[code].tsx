@@ -185,7 +185,7 @@ function Playing({
   const nudge = room.lastNudge;
   const showWrong = !!nudge && room.checkedRevision === room.theory.revision && seenNudge !== nudge.revision;
 
-  if (checking) return <AgreementScreen room={room} phase="checking" />;
+  if (checking) return <AgreementScreen room={room} phase="checking" stamp={room.me?.memberId} />;
   if (showWrong) return <AgreementScreen room={room} phase="wrong" onBack={() => setSeenNudge(nudge.revision)} />;
 
   const pick = async (id: SuspectId) => {
