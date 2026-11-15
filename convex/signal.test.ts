@@ -1,10 +1,11 @@
 /// <reference types="vite/client" />
 import presenceTest from '@convex-dev/presence/test';
 import { convexTest } from 'convex-test';
-import { describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { api } from './_generated/api';
 import schema from './schema';
+import { RECLAIM_GRACE_MS } from './signal';
 
 const modules = import.meta.glob('./**/*.ts');
 
@@ -36,6 +37,23 @@ async function online(t: T, code: string, deviceToken: string) {
     interval: 10_000,
   });
   return sessionToken;
+}
+
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-11-15T20:00:00Z'));
+});
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+function wait(ms: number) {
+  vi.setSystemTime(Date.now() + ms);
+}
+
+async function stepAway(t: T, sessionToken: string, forMs = RECLAIM_GRACE_MS + 1_000) {
+  await t.mutation(api.presence.disconnect, { sessionToken });
+  wait(forMs);
 }
 
 async function errorCode(p: Promise<unknown>) {
@@ -244,8 +262,8 @@ describe('rejoin and restart', () => {
 describe('battle-test fixes', () => {
   test('nothing is reclaimable in the lobby, and a member never sees seats to reclaim', async () => {
     const { t, code, sessions } = await lobby();
-    await t.mutation(api.presence.disconnect, { sessionToken: sessions[HOST] });
-    await t.mutation(api.presence.disconnect, { sessionToken: sessions[C] });
+    await stepAway(t, sessions[HOST]);
+    await stepAway(t, sessions[C]);
     for (const deviceToken of [HOST, B, 'outsider']) {
       expect((await t.query(api.signal.room, { deviceToken, code }))?.reclaimableRoles).toEqual([]);
     }
@@ -257,7 +275,7 @@ describe('battle-test fixes', () => {
     );
     await online(t, code, HOST);
     await t.mutation(api.signal.startCase, { deviceToken: HOST, code });
-    await t.mutation(api.presence.disconnect, { sessionToken: sessions[C] });
+    await stepAway(t, sessions[C]);
     expect((await t.query(api.signal.room, { deviceToken: B, code }))?.reclaimableRoles).toEqual([]);
     expect((await t.query(api.signal.room, { deviceToken: C, code }))?.reclaimableRoles).toEqual([]);
     expect((await t.query(api.signal.room, { deviceToken: 'outsider', code }))?.reclaimableRoles).toEqual([
@@ -332,7 +350,7 @@ describe('battle-test fixes', () => {
       'ROLE_TAKEN',
     );
 
-    await t.mutation(api.presence.disconnect, { sessionToken: sessions[C] });
+    await stepAway(t, sessions[C]);
     expect((await t.query(api.signal.room, { deviceToken: HOST, code }))?.members[2].presence).toBe('offline');
     expect(await t.mutation(api.signal.joinRoom, { deviceToken: 'phone', code, name: 'Ana' })).toEqual({
       code,
@@ -354,11 +372,57 @@ describe('battle-test fixes', () => {
 
   test('reclaiming the host seat hands the host role to the new device', async () => {
     const { t, code, sessions } = await playing();
-    await t.mutation(api.presence.disconnect, { sessionToken: sessions[HOST] });
+    await stepAway(t, sessions[HOST]);
     await t.mutation(api.signal.reclaimRole, { deviceToken: 'new-host', code, role: 'hacker' });
     expect((await t.query(api.signal.room, { deviceToken: 'new-host', code }))?.isHost).toBe(true);
     expect(await errorCode(t.mutation(api.signal.restart, { deviceToken: HOST, code, confirm: true }))).toBe(
       'NOT_A_MEMBER',
     );
+  });
+});
+
+describe('reclaim grace period', () => {
+  test('a seat is not reclaimable until its holder has been offline for the grace period', async () => {
+    const { t, code, sessions } = await playing();
+    await stepAway(t, sessions[C], RECLAIM_GRACE_MS - 5_000);
+    expect((await t.query(api.signal.room, { deviceToken: HOST, code }))?.members[2].presence).toBe('offline');
+    expect((await t.query(api.signal.room, { deviceToken: 'phone', code }))?.reclaimableRoles).toEqual([]);
+    expect(await errorCode(t.mutation(api.signal.joinRoom, { deviceToken: 'phone', code, name: 'Ana' }))).toBe(
+      'CASE_STARTED',
+    );
+    expect(await errorCode(t.mutation(api.signal.reclaimRole, { deviceToken: 'phone', code, role: 'detective' }))).toBe(
+      'ROLE_TAKEN',
+    );
+
+    wait(6_000);
+    expect((await t.mutation(api.signal.joinRoom, { deviceToken: 'phone', code, name: 'Ana' })).reclaimableRoles).toEqual([
+      'detective',
+    ]);
+    await t.mutation(api.signal.reclaimRole, { deviceToken: 'phone', code, role: 'detective' });
+    expect((await t.query(api.signal.myDossier, { deviceToken: 'phone', code }))?.role).toBe('detective');
+  });
+
+  test('a holder who comes back inside the grace period keeps the seat and the token still works', async () => {
+    const { t, code, sessions } = await playing();
+    await stepAway(t, sessions[HOST], 10_000);
+    expect(await errorCode(t.mutation(api.signal.reclaimRole, { deviceToken: 'thief', code, role: 'hacker' }))).toBe(
+      'ROLE_TAKEN',
+    );
+    await online(t, code, HOST);
+    wait(RECLAIM_GRACE_MS * 2);
+    expect(await errorCode(t.mutation(api.signal.reclaimRole, { deviceToken: 'thief', code, role: 'hacker' }))).toBe(
+      'ROLE_TAKEN',
+    );
+    const room = await t.query(api.signal.room, { deviceToken: HOST, code });
+    expect(room).toMatchObject({ isHost: true, me: { role: 'hacker' } });
+    expect((await t.query(api.signal.myDossier, { deviceToken: HOST, code }))?.role).toBe('hacker');
+    expect(await t.query(api.signal.myDossier, { deviceToken: 'thief', code })).toBeNull();
+  });
+
+  test('a lost host phone can still be recovered after the grace period', async () => {
+    const { t, code, sessions } = await playing();
+    await stepAway(t, sessions[HOST]);
+    await t.mutation(api.signal.reclaimRole, { deviceToken: 'host-new-phone', code, role: 'hacker' });
+    expect((await t.query(api.signal.room, { deviceToken: 'host-new-phone', code }))?.isHost).toBe(true);
   });
 });

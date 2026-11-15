@@ -66,14 +66,29 @@ async function members(ctx: QueryCtx, roomId: Id<'rooms'>) {
     .collect();
 }
 
-async function onlineMemberIds(ctx: QueryCtx, room: Doc<'rooms'>) {
-  const online = await presenceComponent.listRoom(ctx, room.code, true);
-  return new Set(online.map((p) => p.userId));
+// A seat only becomes reclaimable once its holder has been offline this long, so a phone that is
+// briefly locked or backgrounded keeps its seat.
+export const RECLAIM_GRACE_MS = 30_000;
+
+type SeatPresence = { online: Set<string>; offlineSince: Map<string, number> };
+
+async function seatPresence(ctx: QueryCtx, room: Doc<'rooms'>): Promise<SeatPresence> {
+  const rows = await presenceComponent.listRoom(ctx, room.code);
+  return {
+    online: new Set(rows.filter((p) => p.online).map((p) => p.userId)),
+    offlineSince: new Map(rows.filter((p) => !p.online).map((p) => [p.userId, p.lastDisconnected])),
+  };
 }
 
-function reclaimable(room: Doc<'rooms'>, all: Doc<'members'>[], online: Set<string>, me: Doc<'members'> | null): Role[] {
+function canReclaim(holder: Doc<'members'>, seats: SeatPresence) {
+  if (seats.online.has(holder._id)) return false;
+  const since = seats.offlineSince.get(holder._id);
+  return since === undefined || Date.now() - since >= RECLAIM_GRACE_MS;
+}
+
+function reclaimable(room: Doc<'rooms'>, all: Doc<'members'>[], seats: SeatPresence, me: Doc<'members'> | null): Role[] {
   if (room.status === 'lobby' || me) return [];
-  return ROLES.filter((r) => all.some((m) => m.role === r && !online.has(m._id)));
+  return ROLES.filter((r) => all.some((m) => m.role === r && canReclaim(m, seats)));
 }
 
 async function clearLockIns(ctx: MutationCtx, roomId: Id<'rooms'>) {
@@ -114,7 +129,8 @@ export const room = query({
     if (!room) return null;
     const me = await findMember(ctx, room._id, deviceToken);
     const all = await members(ctx, room._id);
-    const online = await onlineMemberIds(ctx, room);
+    const seats = await seatPresence(ctx, room);
+    const online = seats.online;
     const editor = room.theory.lastEditedBy ? all.find((m) => m._id === room.theory.lastEditedBy) : undefined;
     const locks = (
       await ctx.db
@@ -152,7 +168,7 @@ export const room = query({
       checkedRevision: room.checkedRevision,
       checkSeq: room.checkSeq,
       lastCheck: room.lastCheck,
-      reclaimableRoles: reclaimable(room, all, online, me),
+      reclaimableRoles: reclaimable(room, all, seats, me),
     };
   },
 });
@@ -227,7 +243,7 @@ export const joinRoom = mutation({
       });
       return { code: room.code, status: 'joined', reclaimableRoles: [] };
     }
-    const seats = reclaimable(room, all, await onlineMemberIds(ctx, room), null);
+    const seats = reclaimable(room, all, await seatPresence(ctx, room), null);
     if (seats.length) return { code: room.code, status: 'reclaim', reclaimableRoles: seats };
     if (room.status === 'lobby') fail('ROOM_FULL', 'This room already has 3 players.');
     fail('CASE_STARTED', 'This case has already started.');
@@ -243,7 +259,9 @@ export const reclaimRole = mutation({
     if (all.some((m) => m.deviceToken === deviceToken)) fail('WRONG_STATUS', 'You are already in this room.');
     const holder = all.find((m) => m.role === role);
     if (!holder) fail('WRONG_STATUS', 'Nobody holds that role. Join and claim it instead.');
-    if ((await onlineMemberIds(ctx, room)).has(holder._id)) fail('ROLE_TAKEN', 'That player is still here.');
+    if (!canReclaim(holder, await seatPresence(ctx, room))) {
+      fail('ROLE_TAKEN', 'That player is still here or only just stepped away.');
+    }
     await ctx.db.patch(holder._id, { deviceToken });
     if (room.hostToken === holder.deviceToken) await ctx.db.patch(room._id, { hostToken: deviceToken });
   },
