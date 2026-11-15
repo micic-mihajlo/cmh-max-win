@@ -90,9 +90,6 @@ export function DropCard({ drop, children }: { drop: DropSummaryView; children?:
       <Txt variant="display">{drop.title}</Txt>
       <BountyLine bounty={drop.bounty} />
       <View style={styles.pieces}>
-        {(['hacker', 'witness', 'detective'] as Role[]).map((r) => (
-          <View key={r} style={[styles.piece, { borderColor: RoleColors[r] }]} />
-        ))}
         <Txt variant="small" color={Palette.paperMuted} style={styles.flex}>
           3 pieces, split across your squad. {Tagline}
         </Txt>

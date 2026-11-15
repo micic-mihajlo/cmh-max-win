@@ -8,6 +8,7 @@ import { feedFixtures } from '@/mocks/showcase/feed-load';
 import { inboxFromFeed } from './copy';
 import { FeedScreen, streamerHref } from './feed';
 import { TextAction } from './kit';
+import { LiveBoundary } from './live-boundary';
 import { Toggle, NotificationSettingsScreen } from './notification-settings';
 import { NotificationsScreen } from './notifications';
 import { existingPushToken, requestPushToken } from './push';
@@ -44,7 +45,11 @@ function SampleFollowToggle({ streamer }: { streamer: StreamerCardView }) {
 
 export function Feed() {
   if (fx) return <FeedScreen view={fx.feed} Remind={SampleRemind} onOpenLive={(l) => router.push(streamerHref(l.streamerId))} sample />;
-  return <LiveFeed />;
+  return (
+    <LiveBoundary title="Following">
+      <LiveFeed />
+    </LiveBoundary>
+  );
 }
 
 function LiveFeed() {
@@ -59,7 +64,11 @@ function LiveFeed() {
 
 export function Streamer({ id }: { id: string | null }) {
   if (fx) return <SampleStreamer id={id ?? 'nova'} />;
-  return <LiveStreamer id={id} />;
+  return (
+    <LiveBoundary>
+      <LiveStreamer id={id} />
+    </LiveBoundary>
+  );
 }
 
 function SampleStreamer({ id }: { id: string }) {
@@ -97,7 +106,11 @@ function LiveStreamer({ id }: { id: string | null }) {
 
 export function Notifications() {
   if (fx) return <NotificationsScreen items={inboxFromFeed(fx.feed)} onOpen={() => {}} sample />;
-  return <LiveNotifications />;
+  return (
+    <LiveBoundary title="Notifications">
+      <LiveNotifications />
+    </LiveBoundary>
+  );
 }
 
 function LiveNotifications() {
@@ -107,7 +120,11 @@ function LiveNotifications() {
 
 export function NotificationSettings() {
   if (fx) return <NotificationSettingsScreen streamers={fx.feed.following} FollowToggle={SampleFollowToggle} sample />;
-  return <LiveNotificationSettings />;
+  return (
+    <LiveBoundary title="Notifications">
+      <LiveNotificationSettings />
+    </LiveBoundary>
+  );
 }
 
 function LiveNotificationSettings() {
@@ -116,7 +133,11 @@ function LiveNotificationSettings() {
 
 export function Streamers() {
   if (fx) return <StreamersScreen streamers={fx.streamers} sample />;
-  return <LiveStreamers />;
+  return (
+    <LiveBoundary title="Streamers">
+      <LiveStreamers />
+    </LiveBoundary>
+  );
 }
 
 function LiveStreamers() {

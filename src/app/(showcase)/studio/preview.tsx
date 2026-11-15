@@ -22,9 +22,6 @@ export default function PlayerPreview() {
       <Txt variant="serif" color={G.ink}>
         {draft.setup}
       </Txt>
-      <Txt variant="bodyStrong" color={G.ink}>
-        Everyone holds a piece. Nobody solves it alone.
-      </Txt>
 
       <Section title="Suspects">
         <Card>
@@ -44,7 +41,7 @@ export default function PlayerPreview() {
       <Section title="Seen as">
         <View style={studio.row}>
           {counts.map((count, i) => (
-            <Chip key={i} label={`${members[i]} · ${count}`} selected={seat === i} onPress={() => setSeat(i)} />
+            <Chip key={i} label={members[i]} selected={seat === i} onPress={() => setSeat(i)} />
           ))}
         </View>
       </Section>
