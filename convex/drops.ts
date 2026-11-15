@@ -419,6 +419,8 @@ async function deleteDrop(ctx: MutationCtx, drop: Doc<'drops'>) {
     await ctx.db.delete(s._id);
   }
   for (const e of await entriesOf(ctx, drop.dropId)) await ctx.db.delete(e._id);
+  const seats = await ctx.db.query('dropSeats').withIndex('by_drop_seat', (q) => q.eq('dropId', drop.dropId)).collect();
+  for (const s of seats) await ctx.db.delete(s._id);
   await ctx.db.delete(drop._id);
 }
 
