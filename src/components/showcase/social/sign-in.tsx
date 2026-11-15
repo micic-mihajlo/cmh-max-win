@@ -25,6 +25,7 @@ export function WelcomeScreen({ onWhop, onApple }: { onWhop: () => void; onApple
         </Enter>
       </View>
       <Enter index={2} style={styles.actions}>
+        <PreviewNote />
         <BigButton title="Continue with Whop" onPress={onWhop} />
         <View style={styles.apple}>
           <TextAction title="Continue with Apple" onPress={onApple} />
@@ -69,8 +70,19 @@ export function ClaimHandleScreen({ onDone }: { onDone: () => void }) {
           ))}
         </View>
       </Enter>
-      <BigButton title={`Claim @${clean || 'handle'}`} onPress={ok ? onDone : undefined} />
+      <View style={styles.actions}>
+        <PreviewNote />
+        <BigButton title={`Claim @${clean || 'handle'}`} onPress={ok ? onDone : undefined} />
+      </View>
     </View>
+  );
+}
+
+function PreviewNote() {
+  return (
+    <Txt variant="small" color={Palette.paperMuted} style={styles.center}>
+      {"Preview · sign-in isn't connected yet, so no account is created"}
+    </Txt>
   );
 }
 

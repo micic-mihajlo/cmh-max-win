@@ -1,11 +1,11 @@
 import { router, type Href } from 'expo-router';
 import type { ComponentType } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { Txt } from '@/components/signal/txt';
 import { Palette, Space } from '@/constants/signal';
 import type { FeedLiveRow, FeedUpcomingRow, FollowingFeedView } from '@/lib/contract';
-import { Enter } from '@/motion';
+import { Enter, PressScale } from '@/motion';
 
 import { dropTime } from './copy';
 import { Avatar, BigButton, Screen, Section, showcase } from './kit';
@@ -25,6 +25,7 @@ export function FeedScreen({
   sample?: boolean;
 }) {
   if (!view) return <Screen title="Following">{null}</Screen>;
+  const avatar = (streamerId: string) => view.following.find((s) => s.streamerId === streamerId)?.avatarUrl;
 
   if (view.following.length === 0)
     return (
@@ -45,13 +46,13 @@ export function FeedScreen({
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.liveRow} style={styles.bleed}>
             {view.live.map((l, i) => (
               <Enter key={l.dropId} index={i}>
-                <Pressable accessibilityRole="button" accessibilityLabel={`${l.streamerName} is live with ${l.title}`} style={styles.live} onPress={() => onOpenLive(l)}>
-                  <LiveAvatar initials={l.streamerName.slice(0, 1)} />
+                <PressScale scaleTo={0.98} haptic="tap" accessibilityRole="button" accessibilityLabel={`${l.streamerName} is live with ${l.title}`} style={styles.live} onPress={() => onOpenLive(l)}>
+                  <LiveAvatar initials={l.streamerName.slice(0, 1)} uri={avatar(l.streamerId)} />
                   <Txt variant="smallStrong">{l.streamerName}</Txt>
                   <Txt variant="small" color={Palette.paperMuted} numberOfLines={1}>
-                    {l.title}
+                    {l.dropStatus === 'live' ? 'In progress' : l.title}
                   </Txt>
-                </Pressable>
+                </PressScale>
               </Enter>
             ))}
           </ScrollView>
@@ -66,8 +67,8 @@ export function FeedScreen({
         ) : (
           <View>
             {view.upcoming.map((u) => (
-              <Pressable key={u.dropId} style={[showcase.row, styles.row]} onPress={() => router.push(streamerHref(u.streamerId))}>
-                <Avatar initials={u.streamerName.slice(0, 1)} size={40} />
+              <PressScale scaleTo={0.98} haptic="tap" key={u.dropId} style={[showcase.row, styles.row]} onPress={() => router.push(streamerHref(u.streamerId))}>
+                <Avatar initials={u.streamerName.slice(0, 1)} uri={avatar(u.streamerId)} size={40} />
                 <View style={showcase.flex}>
                   <Txt variant="bodyStrong" numberOfLines={1}>
                     {u.streamerName} · {dropTime(u.startsAt, view.serverNow)}
@@ -77,7 +78,7 @@ export function FeedScreen({
                   </Txt>
                 </View>
                 <Remind row={u} />
-              </Pressable>
+              </PressScale>
             ))}
           </View>
         )}

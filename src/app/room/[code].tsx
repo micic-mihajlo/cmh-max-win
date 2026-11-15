@@ -43,6 +43,10 @@ export default function RoomRoute() {
   return <LiveRoom room={room} />;
 }
 
+function everyone(n: number) {
+  return n === 2 ? 'both of you' : n === 3 ? 'all three' : n === 4 ? 'all four' : 'everyone';
+}
+
 function Loading() {
   return (
     <View style={styles.loading}>
@@ -74,7 +78,7 @@ function LiveRoom({ room }: { room: RoomView }) {
       const taker = role ? latest.current.members.find((m) => !m.isMe && m.roles.includes(role)) : undefined;
       return show({ text: taker && role ? `${taker.name} just took the ${RoleMeta[role].label}.` : 'Someone just took that role. Pick another.', tone: 'warn' });
     }
-    if (err === 'ROLES_NOT_FILLED') return show({ text: 'Someone left their role. Wait for all three.', tone: 'warn' });
+    if (err === 'ROLES_NOT_FILLED') return show({ text: `Someone left their role. Wait for ${everyone(room.squadSize)}.`, tone: 'warn' });
     if (err === 'WRONG_STATUS') return show({ text: 'That moment passed. Here’s where things are.' });
     show({ text: 'That didn’t go through. Try again.', tone: 'warn' });
   };
@@ -209,7 +213,7 @@ function Playing({
   const nudge = room.lastNudge;
   const showWrong = !!nudge && room.checkedRevision === room.theory.revision && seenNudge !== nudge.revision;
 
-  if (checking) return <AgreementScreen room={room} phase="checking" />;
+  if (checking) return <AgreementScreen room={room} phase="checking" stamp={room.me?.memberId} />;
   if (showWrong) return <AgreementScreen room={room} phase="wrong" onBack={() => setSeenNudge(nudge.revision)} />;
 
   const pick = async (id: SuspectId) => {
@@ -252,7 +256,7 @@ function Playing({
       ui={{
         tab,
         sheet: { expanded, notice, pendingPick },
-        banner: banner ?? (away ? { tone: 'info', title: `${away.name} stepped away.`, text: 'The case waits for all three.' } : undefined),
+        banner: banner ?? (away ? { tone: 'info', title: `${away.name} stepped away.`, text: `The case waits for ${everyone(room.squadSize)}.` } : undefined),
         toast: toast ?? undefined,
         menu: menu === 'menu' || menu === 'confirm-restart' || menu === 'confirm-leave' ? menu : undefined,
         highlight,

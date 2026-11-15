@@ -43,7 +43,7 @@ export default function JoinRoute() {
 
   if (name === undefined) return null;
   if (name === null) return <NameEntryScreen name={draft} onChangeName={setDraft} onContinue={() => save(draft.trim())} />;
-  if (dropId && drop?.me.squad) return <Redirect href={{ pathname: '/drop/[id]', params: { id: dropId } }} />;
+  if (dropId && (drop?.me.squad || drop?.me.entered)) return <Redirect href={{ pathname: '/drop/[id]', params: { id: dropId } }} />;
 
   return (
     <JoinCodeScreen

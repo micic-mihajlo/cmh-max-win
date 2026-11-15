@@ -5,13 +5,35 @@ import { Txt } from '@/components/signal/txt';
 import { Palette, Radius, Space } from '@/constants/signal';
 import { PressScale, Stagger } from '@/motion';
 
-import { money, Tagline } from './ui';
+import { Brass, money, Tagline } from './ui';
 
 export type CreatorDrop = { title: string; totalCents: number; winnerSlots: number };
+export type Pot = { key: string; label: string; totalCents: number; concept?: boolean };
 
-// Nova's screen: one prefilled drop card and Open drop. Creating a drop is server-only today, so the prefilled
-// card is a mock; the live card shows the real entrant count from useDrop.
-export function CreatorSetupScreen({ drop, live, onOpen }: { drop: CreatorDrop; live?: { entrantCount: number; shareUrl: string }; onOpen?: () => void }) {
+export const POTS: Pot[] = [
+  { key: 'concept', label: 'Concept', totalCents: 30000, concept: true },
+  { key: '3', label: '$3', totalCents: 300 },
+  { key: '6', label: '$6', totalCents: 600 },
+  { key: '9', label: '$9', totalCents: 900 },
+];
+
+// Nova's screen: the drop card, a bounty picker, and Open drop. The server decides whether money really moves;
+// the live card shows the real entrant count from useDrop.
+export function CreatorSetupScreen({
+  drop,
+  live,
+  pot,
+  onPot,
+  error,
+  onOpen,
+}: {
+  drop: CreatorDrop;
+  live?: { entrantCount: number; shareUrl: string };
+  pot?: Pot;
+  onPot?: (pot: Pot) => void;
+  error?: string | null;
+  onOpen?: () => void;
+}) {
   return (
     <Screen
       footer={
@@ -38,6 +60,11 @@ export function CreatorSetupScreen({ drop, live, onOpen }: { drop: CreatorDrop; 
             <Txt variant="small" color={Palette.paperMuted}>
               {`${money(drop.totalCents)} · first ${drop.winnerSlots} squads win`}
             </Txt>
+            {pot?.concept ? (
+              <Txt variant="label" color={Brass}>
+                Concept · no real money moves
+              </Txt>
+            ) : null}
           </View>
         </View>
         {live ? (
@@ -60,7 +87,32 @@ export function CreatorSetupScreen({ drop, live, onOpen }: { drop: CreatorDrop; 
             </View>
           </Stagger>
         ) : null}
+        {!live && pot && onPot ? (
+          <View style={styles.pots}>
+            {POTS.map((p) => {
+              const on = p.key === pot.key;
+              return (
+                <PressScale
+                  key={p.key}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: on }}
+                  onPress={() => onPot(p)}
+                  haptic="tap"
+                  style={[styles.pot, on && styles.potOn]}>
+                  <Txt variant="smallStrong" color={on ? Palette.ink : Palette.paper}>
+                    {p.label}
+                  </Txt>
+                </PressScale>
+              );
+            })}
+          </View>
+        ) : null}
       </View>
+      {error ? (
+        <Txt variant="body" color={Palette.danger}>
+          {error}
+        </Txt>
+      ) : null}
       <Txt variant="quote" color={Palette.paperMuted}>
         {Tagline}
       </Txt>
@@ -77,5 +129,18 @@ const styles = StyleSheet.create({
   art: { width: 56, height: 56, borderRadius: Radius.m, backgroundColor: Palette.panelRaised, alignItems: 'center', justifyContent: 'center' },
   line: { flexDirection: 'row', alignItems: 'baseline', gap: Space.s, paddingTop: Space.s },
   count: { fontVariant: ['tabular-nums'] },
+  pots: { flexDirection: 'row', flexWrap: 'wrap', gap: Space.s },
+  pot: {
+    minWidth: 56,
+    height: 40,
+    paddingHorizontal: Space.m,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Palette.hairline,
+    backgroundColor: Palette.panelRaised,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  potOn: { backgroundColor: Palette.paper, borderColor: Palette.paper },
   cta: { height: 54, borderRadius: 16, backgroundColor: Palette.paper, alignItems: 'center', justifyContent: 'center' },
 });

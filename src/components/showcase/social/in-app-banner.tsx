@@ -1,11 +1,11 @@
 import { useEffect } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withDelay, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Txt } from '@/components/signal/txt';
 import { Palette, Space } from '@/constants/signal';
-import { Ease, Haptic, useReduced } from '@/motion';
+import { Ease, Haptic, PressScale, useReduced } from '@/motion';
 
 import { Avatar } from './kit';
 
@@ -37,7 +37,7 @@ export function InAppBanner({
   }));
   return (
     <Animated.View style={[styles.wrap, { top: insets.top + Space.s }, style]}>
-      <Pressable accessibilityRole="alert" onPress={onPress} style={styles.banner}>
+      <PressScale scaleTo={0.98} haptic="tap" accessibilityRole="alert" onPress={onPress} style={styles.banner}>
         <Avatar initials={initials} size={36} />
         <View style={styles.body}>
           <Txt variant="smallStrong" numberOfLines={1}>
@@ -47,7 +47,7 @@ export function InAppBanner({
             {body}
           </Txt>
         </View>
-      </Pressable>
+      </PressScale>
     </Animated.View>
   );
 }

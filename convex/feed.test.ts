@@ -317,6 +317,35 @@ describe('squadmates on the 2-minute ping', () => {
   });
 });
 
+describe('squadmates on Coming up rows', () => {
+  test('a device that entered or tapped Remind me sees who is waiting; other followers do not', async () => {
+    const t = newTest();
+    const startsAt = Date.now() + 30 * MIN;
+    const { dropId, streamerId } = await host(t, startsAt);
+    for (const d of ['lou', 'ana', 'fan', 'reminded']) await t.mutation(api.feed.followStreamer, { deviceToken: d, streamerId });
+    await t.mutation(api.feed.remindMe, { deviceToken: 'reminded', dropId });
+    await t.mutation(api.drops.enterDrop, { deviceToken: 'lou', dropId, name: 'Lou Reed' });
+    const row = async (d: string) => (await t.query(api.feed.followingFeed, { deviceToken: d })).upcoming[0];
+    expect((await row('lou')).squadmates).toBeUndefined();
+    await t.mutation(api.drops.enterDrop, { deviceToken: 'ana', dropId, name: 'Demo · Ana' });
+    expect((await row('lou')).squadmates).toEqual(['Ana']);
+    expect((await row('ana')).squadmates).toEqual(['Lou']);
+    expect((await row('reminded')).squadmates).toEqual(['Lou', 'Ana']);
+    expect((await row('fan')).squadmates).toBeUndefined();
+    expect((await t.query(api.feed.streamerPage, { deviceToken: 'reminded', streamerId }))!.nextDrop!.squadmates).toEqual(['Lou', 'Ana']);
+  });
+});
+
+describe('retitleDrop', () => {
+  test('renames a hosted drop and is idempotent', async () => {
+    const t = newTest();
+    const { dropId, streamerId } = await host(t, Date.now() + 30 * MIN);
+    for (let i = 0; i < 2; i++) expect(await t.mutation(internal.feed.retitleDrop, { dropId, title: ' Case 02 · The Glass Orchard ' })).toEqual({ dropId, title: 'Case 02 · The Glass Orchard' });
+    expect((await t.query(api.feed.streamerPage, { deviceToken: 'x', streamerId }))!.nextDrop!.title).toBe('Case 02 · The Glass Orchard');
+    expect(await errorCode(t.mutation(internal.feed.retitleDrop, { dropId: 'nope', title: 'X' }))).toBe('DROP_NOT_FOUND');
+  });
+});
+
 describe('showcase hygiene', () => {
   async function hostAs(t: T, deviceToken: string, creatorName: string, title = 'The Aurora Seed', startsAt?: number) {
     const hosted = await t.mutation(api.drops.hostDrop, { deviceToken, creatorName, title, ...(startsAt ? { startsAt } : {}) });
@@ -350,6 +379,25 @@ describe('showcase hygiene', () => {
     expect(await t.mutation(internal.feed.hideTestHosts, {})).toEqual({ hidden: 0 });
     const hidden = await t.run((ctx) => ctx.db.query('streamers').collect());
     expect(hidden.filter((s) => s.hidden).map((s) => s.name).sort()).toEqual(['CMHM-10 host', 'Ivy (ignore)', 'Load runner', 'QA bot', 'Rio', 'load · 12']);
+  });
+
+  test('the default host name "Host" is hidden at read time, "Hosta" is not', async () => {
+    const t = newTest();
+    const unnamed = await t.mutation(api.drops.hostDrop, { deviceToken: 'unnamed' });
+    const hosta = await hostAs(t, 'hosta', 'Hosta');
+    await hostAs(t, 'shouty', 'HOST');
+    expect((await t.query(api.feed.streamers, { deviceToken: 'fan' })).map((s) => s.name)).toEqual(['Hosta']);
+    expect(await t.query(api.feed.streamerForDrop, { deviceToken: 'fan', dropId: unnamed.dropId })).toBeNull();
+    expect(await t.query(api.feed.streamerForDrop, { deviceToken: 'fan', dropId: hosta.dropId })).toMatchObject({ name: 'Hosta' });
+    expect(await t.mutation(internal.feed.hideTestHosts, {})).toEqual({ hidden: 0 });
+  });
+
+  test('hideStreamers hides exact names, ignoring case, once', async () => {
+    const t = newTest();
+    for (const [d, name] of [['h1', 'Host'], ['h2', 'kit'], ['h3', 'Kitty'], ['h4', 'Nova']]) await hostAs(t, d, name);
+    expect(await t.mutation(internal.feed.hideStreamers, { names: ['HOST', ' Kit ', 'nobody'] })).toEqual({ hidden: 2 });
+    expect(await t.mutation(internal.feed.hideStreamers, { names: ['host', 'kit'] })).toEqual({ hidden: 0 });
+    expect((await t.query(api.feed.streamers, { deviceToken: 'fan' })).map((s) => s.name).sort()).toEqual(['Kitty', 'Nova']);
   });
 
   test('drops titled like tests stay out of live and past lists', async () => {
@@ -457,6 +505,19 @@ describe('expireStaleDrops', () => {
     expect(await t.mutation(internal.feed.expireStaleDrops, {})).toEqual({ expired: 0 });
     expect(await status(t, waiting.dropId)).toBe('scheduled');
     expect(await status(t, upcoming.dropId)).toBe('scheduled');
+  });
+
+  test("an unnamed or flagged host's racing drop is not a test drop: it survives the cron at 3 hours", async () => {
+    const t = newTest();
+    const unnamed = await dealt(t, 'unnamed-host', '');
+    const flagged = await dealt(t, 'flagged-host', 'Rio');
+    await t.mutation(internal.feed.hideStreamers, { names: ['Rio'] });
+    const names = (await t.run((ctx) => ctx.db.query('streamers').collect())).map((s) => s.name).sort();
+    expect(names).toEqual(['Host', 'Rio']);
+    vi.advanceTimersByTime(3 * HOUR);
+    expect(await t.mutation(internal.feed.expireStaleDrops, {})).toEqual({ expired: 0 });
+    expect(await status(t, unnamed.dropId)).toBe('live');
+    expect(await status(t, flagged.dropId)).toBe('live');
   });
 
   test('a real racing drop with a quiet squad survives; once no squad is racing, it ends after 12 hours', async () => {

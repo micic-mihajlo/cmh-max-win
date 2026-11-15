@@ -1,8 +1,9 @@
 import { router, type Href } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { Txt } from '@/components/signal/txt';
+import { PressScale } from '@/motion';
 import { Palette, Space } from '@/constants/signal';
 
 import { notificationCopy, type InboxItem } from './copy';
@@ -25,7 +26,7 @@ export function NotificationsScreen({ items, onOpen, sample }: { items: InboxIte
             {items.map((n) => {
               const copy = notificationCopy(n);
               return (
-                <Pressable key={n.id} accessibilityRole="button" style={[showcase.row, styles.item]} onPress={() => onOpen(n)}>
+                <PressScale scaleTo={0.98} haptic="tap" key={n.id} accessibilityRole="button" style={[showcase.row, styles.item]} onPress={() => onOpen(n)}>
                   <Avatar initials={n.streamerName.slice(0, 1)} size={40} />
                   <View style={showcase.flex}>
                     <Txt variant="bodyStrong" numberOfLines={1}>
@@ -35,7 +36,7 @@ export function NotificationsScreen({ items, onOpen, sample }: { items: InboxIte
                       {copy.body} · {n.when}
                     </Txt>
                   </View>
-                </Pressable>
+                </PressScale>
               );
             })}
           </View>

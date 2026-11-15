@@ -1,24 +1,39 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 
-import { CreatorSetupScreen } from '@/components/drops/creator-setup';
+import { CreatorSetupScreen, POTS } from '@/components/drops/creator-setup';
 import { useHostDrop } from '@/hooks/use-drops';
+import { toSignalError } from '@/lib/signal-error';
 
-// Open a hosted drop from this device; it becomes the big shared screen.
+const TITLE = 'The Aurora Seed';
+const WINNER_SLOTS = 3;
+
+// Open a hosted drop from this device; it becomes the big shared screen. The server owns the bounty from here on.
 export default function HostNewRoute() {
   const hostDrop = useHostDrop();
+  const [pot, setPot] = useState(POTS[0]);
   const [opening, setOpening] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   return (
     <CreatorSetupScreen
-      drop={{ title: 'The Aurora Seed', totalCents: 30000, winnerSlots: 3 }}
+      drop={{ title: TITLE, totalCents: pot.totalCents, winnerSlots: WINNER_SLOTS }}
+      pot={pot}
+      onPot={(p) => {
+        setPot(p);
+        setError(null);
+      }}
+      error={error}
       onOpen={
         opening
           ? undefined
           : async () => {
               setOpening(true);
+              setError(null);
               try {
-                const { dropId } = await hostDrop({ title: 'The Aurora Seed', totalCents: 30000, winnerSlots: 3 });
+                const { dropId } = await hostDrop({ title: TITLE, totalCents: pot.totalCents, winnerSlots: WINNER_SLOTS });
                 router.replace({ pathname: '/drop/[id]/host', params: { id: dropId } });
+              } catch (e) {
+                setError(toSignalError(e)?.message ?? 'That didn’t go through. Try again.');
               } finally {
                 setOpening(false);
               }

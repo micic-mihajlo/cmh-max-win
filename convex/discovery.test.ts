@@ -141,11 +141,17 @@ describe('share links', () => {
       ['challengeId', 'creator', 'endsAt', 'joinCode', 'membersOnly', 'phase', 'prizePool', 'serverNow', 'slug', 'startMode', 'startsAt', 'title'].sort(),
     );
     expect(preview).toMatchObject({ membersOnly: true, phase: 'upcoming', creator: { displayName: 'Nova', handle: '@nova' }, prizePool: { display: '$1,250.50' } });
-    const mixerPreview = await t.query(api.discovery.shareLink, { ref: mixer.joinCode });
+    const mixerPreview = (await t.query(api.discovery.shareLink, { ref: mixer.joinCode }))!;
+    expect(Object.keys(mixerPreview).sort()).toEqual(Object.keys(preview).sort());
+    for (const p of [preview, mixerPreview]) expect(Object.keys(p.creator).sort()).toEqual(['displayName', 'handle']);
+    // Exact matches on every string in the previews: the short random codes can't collide with substrings of ids.
+    const leaves = (v: unknown): string[] => (typeof v === 'string' ? [v] : v && typeof v === 'object' ? Object.values(v).flatMap(leaves) : []);
+    const shown = new Set(leaves([preview, mixerPreview]));
     const entries = await t.run((ctx) => ctx.db.query('challengeEntries').collect());
     const privates = [HOST, 'prod_secret_123', 'p1', 'p2', 'Name-p1', ...entries.flatMap((e) => [e.fragmentSeed ?? '', e.playerCode ?? '']).filter(Boolean)];
+    for (const secret of privates) expect(shown.has(secret)).toBe(false);
     const raw = JSON.stringify([preview, mixerPreview]);
-    for (const secret of privates) expect(raw).not.toContain(secret);
+    for (const secret of [HOST, 'prod_secret_123']) expect(raw).not.toContain(secret);
   });
 
   test("an ended challenge's preview shows no join code", async () => {
@@ -193,5 +199,19 @@ describe('follow and remind', () => {
     expect(reminders[0]).toMatchObject({ startMode: 'scheduled', startsAt: Date.now() + 30 * MIN, creator: { handle: '@nova' } });
     await t.mutation(api.discovery.cancelChallengeReminder, { deviceToken: 'fan', challengeId: sooner.challengeId });
     expect((await t.query(api.discovery.upcomingReminders, { deviceToken: 'fan' })).map((r) => r.title)).toEqual(['Later', 'On stream']);
+  });
+
+  test("a reminder row names up to 3 others already waiting, never the device's own", async () => {
+    const t = await creator();
+    const soon = await publish(t, { title: 'Soon', startMode: 'scheduled', startsAt: Date.now() + 30 * MIN });
+    const empty = await publish(t, { title: 'Empty', startMode: 'scheduled', startsAt: Date.now() + 60 * MIN });
+    await join(t, soon.joinCode, ['p1', 'p2', 'p3', 'p4']);
+    for (const d of ['fan', 'p1']) for (const c of [soon, empty]) await t.mutation(api.discovery.remindChallenge, { deviceToken: d, challengeId: c.challengeId });
+    const fan = await t.query(api.discovery.upcomingReminders, { deviceToken: 'fan' });
+    expect(fan.map((r) => [r.title, r.squadmates])).toEqual([
+      ['Soon', ['Name-p1', 'Name-p2', 'Name-p3']],
+      ['Empty', undefined],
+    ]);
+    expect((await t.query(api.discovery.upcomingReminders, { deviceToken: 'p1' }))[0].squadmates).toEqual(['Name-p2', 'Name-p3', 'Name-p4']);
   });
 });

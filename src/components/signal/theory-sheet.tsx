@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
+import { useEffect, useMemo, useState } from 'react';
+import { PanResponder, ScrollView, StyleSheet, View } from 'react-native';
+import Animated, { FadeIn, LinearTransition, SlideInDown, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Palette, Radius, RoleMeta, Space } from '@/constants/signal';
 import { Suspects, suspectById } from '@/constants/case01';
 import type { RoomView, SuspectId } from '@/lib/contract';
+import { PressScale } from '@/motion';
 
 import { Banner, Button } from './primitives';
 import { joinNames, lockedIds, seals } from './room';
@@ -69,8 +70,34 @@ export function TheorySheet({
   const alreadyChecked = room.checkedRevision === room.theory.revision;
   const culprit = room.theory.culprit ? suspectById(room.theory.culprit) : null;
   const status = statusLine(room);
+  const agreed = room.members.filter((m) => !m.isMe && locked.has(m.memberId)).map((m) => m.name);
+  const editor = room.theory.lastEditedBy;
+  const caption =
+    agreed.length > 0
+      ? `${joinNames(agreed)} agreed`
+      : editor
+        ? editor.memberId === room.me?.memberId
+          ? 'Your pick'
+          : `${editor.name}’s pick`
+        : null;
   const ruledOut = room.lastNudge;
   const cooldown = useSecondsUntil(room.cooldownUntil, serverOffset);
+  const dragY = useSharedValue(0);
+  const dragStyle = useAnimatedStyle(() => ({ transform: [{ translateY: dragY.get() }] }));
+  const drag = useMemo(() => {
+    const settle = (vy: number) => dragY.set(reduced ? 0 : withSpring(0, { velocity: vy * 1000, damping: 20, stiffness: 240 }));
+    return PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 8 && Math.abs(g.dy) > Math.abs(g.dx),
+      onPanResponderMove: (_, g) => dragY.set(expanded ? Math.max(0, g.dy) : Math.min(0, g.dy)),
+      onPanResponderRelease: (_, g) => {
+        const down = g.dy > 60 || g.vy > 0.5;
+        const up = g.dy < -60 || g.vy < -0.5;
+        if ((expanded && down) || (!expanded && up)) onToggle?.();
+        settle(g.vy);
+      },
+      onPanResponderTerminate: (_, g) => settle(g.vy),
+    });
+  }, [expanded, onToggle, reduced, dragY]);
 
   return (
     <>
@@ -79,39 +106,42 @@ export function TheorySheet({
       ) : null}
       <Animated.View
         entering={reduced ? undefined : SlideInDown.springify().damping(20)}
+        layout={reduced ? undefined : LinearTransition.springify().damping(20).stiffness(240)}
         style={[
           styles.sheet,
           { paddingBottom: insets.bottom + Space.m },
           fullHeight && expanded && { top: insets.top + Space.s },
+          dragStyle,
         ]}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Shared theory" onPress={onToggle} style={styles.summary}>
-          <View style={styles.handle} />
-          {expanded ? (
-            <View style={styles.sheetHead}>
-              <Txt variant="title">Who took the seed?</Txt>
-              <Txt variant="body" color={Palette.paperMuted}>
-                Whoever’s left is the thief.
-              </Txt>
-            </View>
-          ) : (
-            <View style={styles.summaryRow}>
-              <View style={styles.flex}>
-                <Txt variant="small" color={Palette.paperMuted}>
-                  Squad theory
+        <View {...drag.panHandlers}>
+          <PressScale accessibilityRole="button" accessibilityLabel="Shared theory" scaleTo={0.98} onPress={onToggle} style={styles.summary}>
+            <View style={styles.handle} />
+            {expanded ? (
+              <View style={styles.sheetHead}>
+                <Txt variant="title">Who took the seed?</Txt>
+                <Txt variant="body" color={Palette.paperMuted}>
+                  Whoever’s left is the thief.
                 </Txt>
-                <Txt variant="name">{culprit ? culprit.name : 'No pick yet'}</Txt>
               </View>
-              <View style={styles.dots}>
-                {room.members.map((m) => (
-                  <View key={m.memberId} style={[styles.dot, locked.has(m.memberId) && styles.dotOn]} />
-                ))}
+            ) : (
+              <View style={styles.summaryRow}>
+                <View style={styles.flex}>
+                  {caption ? (
+                    <Txt variant="small" color={Palette.paperMuted}>
+                      {caption}
+                    </Txt>
+                  ) : null}
+                  <Txt variant="name">{culprit ? culprit.name : 'No pick yet'}</Txt>
+                </View>
+                <View style={styles.dots}>
+                  {room.members.map((m) => (
+                    <View key={m.memberId} style={[styles.dot, locked.has(m.memberId) && styles.dotOn]} />
+                  ))}
+                </View>
               </View>
-              <Txt variant="smallStrong" color={Palette.paperMuted} style={styles.tabular}>
-                {locked.size} of {room.members.length}
-              </Txt>
-            </View>
-          )}
-        </Pressable>
+            )}
+          </PressScale>
+        </View>
         {expanded ? (
           <ScrollView style={fullHeight ? styles.flex : undefined} contentContainerStyle={styles.expanded} showsVerticalScrollIndicator={false}>
             {notice ? <Banner tone={notice.tone} title={notice.title} text={notice.text} /> : null}
@@ -121,14 +151,13 @@ export function TheorySheet({
                   key={s.id}
                   suspect={s}
                   selected={(pendingPick ?? room.theory.culprit) === s.id}
-                  pending={pendingPick === s.id}
                   ruledOutBy={
                     ruledOut && ruledOut.wrongPick === s.id
                       ? ruledOut.holder
                         ? ruledOut.holder.memberId === room.me?.memberId
-                          ? 'You'
+                          ? 'you'
                           : ruledOut.holder.name
-                        : RoleMeta[ruledOut.forRole].label
+                        : `the ${RoleMeta[ruledOut.forRole].label}`
                       : undefined
                   }
                   onPress={() => onPick?.(s.id)}
@@ -138,7 +167,7 @@ export function TheorySheet({
             <View style={styles.seals}>
               {seals(room).map(({ role, member }) => (
                 <View key={member.memberId} style={styles.sealCol}>
-                  <Seal role={role} filled={locked.has(member.memberId)} size={46} initial={member.name.charAt(0).toUpperCase()} />
+                  <Seal role={role} filled={locked.has(member.memberId)} haptic={member.isMe} size={46} initial={member.name.charAt(0).toUpperCase()} />
                   <Txt variant="small" color={Palette.paperMuted} numberOfLines={1}>
                     {member.isMe ? 'You' : member.name}
                   </Txt>
@@ -146,7 +175,7 @@ export function TheorySheet({
               ))}
             </View>
             <Txt variant="small" color={Palette.paperMuted} style={styles.center}>
-              {cooldown > 0 ? 'Wrong pick. Talk it through.' : `${locked.size} of ${room.members.length} locked${meLocked ? '' : ` · ${status.text}`}`}
+              {cooldown > 0 ? 'Wrong pick. Talk it through.' : status.text}
             </Txt>
             {cooldown > 0 ? (
               <Button title={`Try again in 0:${String(cooldown).padStart(2, '0')}`} disabled />
@@ -166,7 +195,6 @@ export function TheorySheet({
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  tabular: { fontVariant: ['tabular-nums'] },
   center: { textAlign: 'center' },
   scrim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(26,25,22,0.25)' },
   sheetHead: { gap: 4, paddingTop: Space.s },
