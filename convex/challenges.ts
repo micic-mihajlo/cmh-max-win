@@ -15,6 +15,7 @@ import {
 import { CONCEPT_LABEL, createSandboxClaimLink } from './bounty';
 import { ELIGIBILITY_STUB_NOTE, resolveIdentity } from './creatorIdentity';
 import { dealPieces, splitSizes } from './drops';
+import { handleProblem, normalizeHandle } from './handles';
 import { mixerTemplate, verifyMixerTeam } from './templates/engine';
 import { listTemplates } from './templates/registry';
 import { checkWhopAccess } from './whopAuth';
@@ -421,9 +422,10 @@ export const saveCreatorProfile = mutation({
   handler: async (ctx, { deviceToken, displayName, handle }): Promise<CreatorProfileView> => {
     const me = await resolveIdentity(ctx, deviceToken);
     const name = displayName.trim().slice(0, 40);
-    const h = handle.trim().replace(/^@/, '').toLowerCase();
+    const h = normalizeHandle(handle);
     if (!name) fail('INVALID_CONFIG', 'Add a display name.');
-    if (!/^[a-z0-9_]{2,20}$/.test(h)) fail('INVALID_CONFIG', 'Handles are 2 to 20 letters, numbers or underscores.');
+    const problem = handleProblem(h);
+    if (problem) fail('INVALID_CONFIG', problem);
     const taken = await ctx.db.query('creators').withIndex('by_handle', (q) => q.eq('handle', h)).first();
     if (taken && taken.deviceToken !== me.deviceToken) fail('HANDLE_TAKEN', 'That handle is taken.');
     const mine = await ctx.db.query('creators').withIndex('by_token', (q) => q.eq('deviceToken', me.deviceToken)).first();

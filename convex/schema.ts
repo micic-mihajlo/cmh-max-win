@@ -326,4 +326,8 @@ export default defineSchema({
     kind: v.union(v.literal('live'), v.literal('starting')),
     sentAt: v.number(),
   }).index('by_device_drop', ['deviceToken', 'dropId']),
+  // ---------- Creator discovery (CAP-45): "Notify me when this starts" on a challenge. Push delivery comes later. ----------
+  challengeReminders: defineTable({ deviceToken: v.string(), challengeId: v.id('challenges'), createdAt: v.number() })
+    .index('by_device', ['deviceToken', 'challengeId'])
+    .index('by_challenge', ['challengeId']),
 });
