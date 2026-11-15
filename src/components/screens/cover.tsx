@@ -55,11 +55,13 @@ export type CoverActions = {
 
 export function CoverScreen({
   active,
+  passphrase,
   join,
   creating,
   on = {},
 }: {
   active: ActiveRoomView | undefined;
+  passphrase?: boolean;
   join?: JoinState;
   creating?: boolean;
   on?: CoverActions;
@@ -67,6 +69,14 @@ export function CoverScreen({
   const banner =
     active === undefined ? (
       <View style={[styles.banner, styles.bannerLoading]} accessibilityLabel="Checking for a case in progress" />
+    ) : active && passphrase ? (
+      <View style={[styles.banner, { borderColor: active.status === 'resolved' ? Palette.ok : Palette.ember }]}>
+        <View style={styles.bannerText}>
+          <Label color={active.status === 'resolved' ? Palette.ok : Palette.paperMuted}>{`${active.status === 'resolved' ? 'Squad solved' : 'Squad in progress'} · ${active.code}`}</Label>
+          <Txt variant="bodyStrong">{active.status === 'resolved' ? 'Your squad cracked the passphrase.' : 'Your squad’s passphrase is still open.'}</Txt>
+        </View>
+        <Button title={active.status === 'resolved' ? 'See the race' : 'Rejoin'} variant={active.status === 'resolved' ? 'secondary' : undefined} style={styles.bannerButton} onPress={on.onRejoin} />
+      </View>
     ) : active && active.status === 'resolved' ? (
       <View style={[styles.banner, { borderColor: Palette.ok }]}>
         <View style={styles.bannerText}>
