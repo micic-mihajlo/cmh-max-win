@@ -10,7 +10,13 @@
     "ios": {
       "icon": "./assets/expo.icon",
       "bundleIdentifier": "r4z33n4l1.cmhmaxwin",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "CFBundleDisplayName": "SIGNAL"
+      },
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -41,6 +47,18 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "e7418053-b72f-4c96-9d50-d13174da4c76"
+      }
+    },
+    "owner": "r4z33n",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/e7418053-b72f-4c96-9d50-d13174da4c76"
     }
   }
 }
