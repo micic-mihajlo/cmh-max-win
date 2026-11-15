@@ -68,8 +68,6 @@ export function TheorySheet({
   const meLocked = !!room.me && locked.has(room.me.memberId);
   const alreadyChecked = room.checkedRevision === room.theory.revision;
   const culprit = room.theory.culprit ? suspectById(room.theory.culprit) : null;
-  const editor = room.theory.lastEditedBy;
-  const editorName = editor ? (editor.memberId === room.me?.memberId ? 'You' : editor.name) : null;
   const status = statusLine(room);
   const ruledOut = room.lastNudge;
   const cooldown = useSecondsUntil(room.cooldownUntil, serverOffset);
@@ -117,15 +115,13 @@ export function TheorySheet({
         {expanded ? (
           <ScrollView style={fullHeight ? styles.flex : undefined} contentContainerStyle={styles.expanded} showsVerticalScrollIndicator={false}>
             {notice ? <Banner tone={notice.tone} title={notice.title} text={notice.text} /> : null}
-            <View style={styles.options}>
+            <View>
               {Suspects.map((s) => (
                 <SuspectOption
                   key={s.id}
                   suspect={s}
                   selected={(pendingPick ?? room.theory.culprit) === s.id}
                   pending={pendingPick === s.id}
-                  pickedBy={!pendingPick && room.theory.culprit === s.id && editorName ? (editorName === 'You' ? 'Your pick' : `${editorName}’s pick`) : undefined}
-                  first={s === Suspects[0]}
                   ruledOutBy={
                     ruledOut && ruledOut.wrongPick === s.id
                       ? ruledOut.holder
@@ -194,7 +190,6 @@ const styles = StyleSheet.create({
   handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: Palette.hairline, marginBottom: Space.s },
   summaryRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Space.m },
   expanded: { gap: Space.m, paddingTop: Space.s, paddingBottom: Space.xs },
-  options: { backgroundColor: Palette.card, borderRadius: Radius.l, borderWidth: 1, borderColor: Palette.hairline, overflow: 'hidden' },
   seals: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', rowGap: Space.s },
   sealCol: { alignItems: 'center', gap: 6, width: 80 },
 });
