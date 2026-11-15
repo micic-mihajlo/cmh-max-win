@@ -2,11 +2,12 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { Screen } from '@/components/signal/backdrop';
-import { Avatar, Banner, Button, Label } from '@/components/signal/primitives';
+import { Avatar, Banner, Button } from '@/components/signal/primitives';
 import { useMotionReduced } from '@/components/signal/settings';
 import { Txt } from '@/components/signal/txt';
 import { FontFamily, Palette, Radius, RoleMeta, Space } from '@/constants/signal';
 import { suspectById } from '@/constants/case01';
+import { Stagger } from '@/motion';
 import type { RevealView, RoomView } from '@/lib/contract';
 
 export type RevealPage = 'reconstruction' | 'credits' | 'choice' | 'next';
@@ -31,7 +32,7 @@ export function RevealScreen({
   const enter = (i: number) => (reduced ? undefined : FadeInDown.duration(220).delay(60 * i));
   const footer = {
     reconstruction: <Button title="What happens next" onPress={() => on.onPage?.('next')} />,
-    credits: <Button title="What happens to Jun" onPress={() => on.onPage?.('choice')} />,
+    credits: <Button title={`See what happens to ${culprit.first}`} onPress={() => on.onPage?.('choice')} />,
     choice: <Button title={choice ? 'Continue' : 'Choose together'} disabled={!choice} onPress={() => on.onPage?.('next')} />,
     next: (
       <>
@@ -43,9 +44,11 @@ export function RevealScreen({
 
   return (
     <Screen footer={footer}>
-      <Txt variant="small" color={Palette.paperMuted}>
-        {room.drop ? `${room.drop.squadLabel} · solved` : `Solved on attempt ${room.attempts + 1}`}
-      </Txt>
+      {page === 'credits' ? null : (
+        <Txt variant="small" color={Palette.paperMuted}>
+          {room.drop ? `${room.drop.squadLabel} · solved` : `Solved on attempt ${room.attempts + 1}`}
+        </Txt>
+      )}
       {late ? <Banner tone="good" title="Your crew solved it." text="You were away when it resolved. Here’s what happened." /> : null}
 
       {page === 'reconstruction' ? (
@@ -75,29 +78,19 @@ export function RevealScreen({
 
       {page === 'credits' ? (
         <>
-          <Txt variant="display">Every clue mattered.</Txt>
-          {reveal.credits.map((c, i) => {
-            const meta = RoleMeta[c.role];
-            const cleared = suspectById(c.cleared);
-            return (
-              <Animated.View key={c.role} entering={enter(i)} style={[styles.credit, { borderLeftColor: meta.color }]}>
-                <View style={styles.creditTop}>
-                  <Label color={meta.color}>{`${meta.docLabel} · ${c.memberName}`}</Label>
-                  <View style={[styles.cleared, { borderColor: meta.color }]}>
-                    <Txt variant="label" color={meta.color}>
-                      Cleared
-                    </Txt>
-                  </View>
-                </View>
-                <Txt variant="name">
-                  {c.memberName}’s {meta.docLabel.toLowerCase()} ruled out {cleared.first}.
+          <Txt variant="display">{`It was ${culprit.first}.`}</Txt>
+          <View style={styles.lines}>
+            <Stagger from={8} stagger={80}>
+              {reveal.credits.map((c) => (
+                <Txt key={c.role} variant="body">
+                  <Txt variant="body" style={styles.creditName}>
+                    {c.memberName}
+                  </Txt>
+                  {`’s ${RoleMeta[c.role].docLabel.toLowerCase()} ruled out ${suspectById(c.cleared).first}.`}
                 </Txt>
-                <Txt variant="small" color={Palette.paperMuted}>
-                  {c.line}
-                </Txt>
-              </Animated.View>
-            );
-          })}
+              ))}
+            </Stagger>
+          </View>
         </>
       ) : null}
 
@@ -191,9 +184,8 @@ const styles = StyleSheet.create({
   tDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: Palette.paper },
   tLine: { flex: 1, width: 1, backgroundColor: Palette.hairline, marginTop: 4 },
   tTime: { width: 48, paddingTop: 2 },
-  credit: { backgroundColor: Palette.panel, borderRadius: Radius.m, borderLeftWidth: 4, padding: Space.l, gap: Space.s },
-  creditTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Space.s },
-  cleared: { borderWidth: 1, borderRadius: Radius.s, paddingHorizontal: 6, paddingVertical: 2, transform: [{ rotate: '-4deg' }] },
+  lines: { gap: Space.l },
+  creditName: { fontFamily: FontFamily.uiMedium, color: Palette.paper },
   previewTag: { alignSelf: 'flex-start', borderWidth: 1, borderColor: Palette.paperMuted, borderRadius: Radius.pill, paddingHorizontal: 10, paddingVertical: 4 },
   choice: { borderWidth: 1, borderColor: Palette.hairline, borderRadius: Radius.m, padding: Space.l, gap: 6, backgroundColor: Palette.panel },
   teaser: {
