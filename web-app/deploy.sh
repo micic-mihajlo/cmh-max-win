@@ -30,6 +30,7 @@ if [ -d dist/assets/node_modules ]; then
   mv dist/assets/node_modules dist/assets/nm
 fi
 cp web-app/vercel.json dist/vercel.json
+cp web-app/expo.html dist/expo.html
 
 cd dist
 vercel link --yes --project signal-app
