@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
 import { FontFamily, Space } from '@/constants/signal';
@@ -6,6 +6,7 @@ import { Txt } from '@/components/signal/txt';
 import { auroraDraft, draftStore } from '@/components/showcase/draft-store';
 import { generatePuzzle, settings } from '@/components/showcase/generate';
 import { Caption, G, PrimaryButton, StudioScreen, studio } from '@/components/showcase/studio-ui';
+import { sampleStudio } from '@/components/studio/sample';
 import { communityCases, type CommunityCase } from '@/mocks/showcase/studio';
 import { Enter, PressScale } from '@/motion';
 
@@ -14,7 +15,7 @@ const load = (c: CommunityCase) => {
   draftStore.set({ ...auroraDraft, ...puzzle, title: c.title, setting: settings.find((s) => s.id === c.setting)!.label });
 };
 
-export default function Community() {
+function Community() {
   return (
     <StudioScreen kicker="Sample data" title="Community cases">
       {communityCases.map((c, i) => (
@@ -64,3 +65,7 @@ const styles = StyleSheet.create({
   cover: { height: 140, borderRadius: 16, padding: Space.l, justifyContent: 'space-between' },
   coverTitle: { fontFamily: FontFamily.display, fontSize: 28, lineHeight: 32, letterSpacing: -0.4, color: G.ink },
 });
+
+export default function CommunityRoute() {
+  return sampleStudio ? <Community /> : <Redirect href="/studio" />;
+}

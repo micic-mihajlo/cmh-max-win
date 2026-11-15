@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
 
@@ -7,6 +7,7 @@ import { Txt } from '@/components/signal/txt';
 import { auroraDraft, blankDraft, draftStore, type Draft } from '@/components/showcase/draft-store';
 import { NecessityCheck } from '@/components/showcase/necessity-check';
 import { Caption, Card, Chip, G, PrimaryButton, RoleCaption, Section, StudioScreen, docName, studio } from '@/components/showcase/studio-ui';
+import { sampleStudio } from '@/components/studio/sample';
 import { splitPieces, validatePuzzle } from '@/components/showcase/validate';
 import { auroraBroken } from '@/mocks/showcase/aurora';
 import { Enter } from '@/motion';
@@ -14,7 +15,7 @@ import { Enter } from '@/motion';
 const steps = ['World', 'Suspects', 'Pieces', 'Answer', 'Squads', 'Bounty', 'Check'] as const;
 const members = ['Kit', 'Lou', 'Ana'];
 
-export default function Builder() {
+function Builder() {
   const params = useLocalSearchParams<{ step?: string; fresh?: string; broken?: string }>();
   const [step, setStep] = useState(() => Math.max(0, steps.findIndex((s) => s.toLowerCase() === params.step)));
   const [draft, setDraftState] = useState<Draft>(() => {
@@ -246,3 +247,7 @@ const styles = StyleSheet.create({
 
 
 
+
+export default function BuilderRoute() {
+  return sampleStudio ? <Builder /> : <Redirect href="/studio" />;
+}
