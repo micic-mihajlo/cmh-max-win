@@ -1,43 +1,43 @@
 import type { TextStyle } from 'react-native';
 
 export const Palette = {
-  ink: '#F7F6F2',
+  ink: '#FAFAF7',
   inkDeep: '#EFEDE7',
   panel: '#FFFFFF',
   panelRaised: '#FFFFFF',
-  hairline: '#E6E3DC',
-  paper: '#1A1916',
+  hairline: '#E8E6E0',
+  paper: '#161513',
   paperShade: '#F1EFEA',
-  paperMuted: '#6B6760',
-  paperFaint: '#6B6760',
+  paperMuted: '#6B6860',
+  paperFaint: '#6B6860',
   card: '#FFFFFF',
-  onAccent: '#1A1916',
-  accentSoft: '#FFF1E6',
+  onAccent: '#FFFFFF',
+  accentSoft: '#F3EDE0',
   disabledText: '#A8A49B',
   conceptBorder: '#C9C5BC',
-  inkOnPaper: '#1A1916',
-  inkOnPaperBody: '#1A1916',
+  inkOnPaper: '#161513',
+  inkOnPaperBody: '#161513',
   inkOnPaperTime: '#6B6760',
   inkOnPaperMuted: '#6B6760',
-  ember: '#F4994C',
+  ember: '#E24C1A',
   emberDeep: '#D97A2B',
   danger: '#C4472F',
   ok: '#3F7A45',
 } as const;
 
 export const RoleColors = {
-  detective: '#1A1916',
-  hacker: '#1A1916',
-  witness: '#1A1916',
+  detective: '#161513',
+  hacker: '#161513',
+  witness: '#161513',
 } as const;
 
 export const RoleInk = {
-  detective: '#1A1916',
-  hacker: '#1A1916',
-  witness: '#1A1916',
+  detective: '#161513',
+  hacker: '#161513',
+  witness: '#161513',
 } as const;
 
-export const EmberInk = '#1A1916';
+export const EmberInk = '#161513';
 
 export const RoleMeta = {
   detective: { label: 'Detective', color: RoleColors.detective, ink: RoleInk.detective, docLabel: 'SCENE NOTES', glyph: 'D' },
