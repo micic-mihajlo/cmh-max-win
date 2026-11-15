@@ -134,6 +134,14 @@ export default defineSchema({
     .index('by_drop', ['dropId'])
     .index('by_drop_token', ['dropId', 'deviceToken'])
     .index('by_token', ['deviceToken']),
+  // One numbered seat (0..DROP_CAPACITY-1) per entrant, so the cap holds without every join reading every entry.
+  dropSeats: defineTable({
+    dropId: v.string(),
+    seat: v.number(),
+    deviceToken: v.string(),
+  })
+    .index('by_drop_seat', ['dropId', 'seat'])
+    .index('by_drop_token', ['dropId', 'deviceToken']),
   solves: defineTable({
     dropId: v.string(),
     roomId: v.id('rooms'),
