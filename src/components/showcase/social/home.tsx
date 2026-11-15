@@ -7,7 +7,7 @@ import { FontFamily, Palette, Space } from '@/constants/signal';
 import { creators, feed } from '@/mocks/showcase/social';
 import { Enter } from '@/motion';
 
-import { Avatar, Card, Hairline, Pill, Screen, Section, showcase } from './kit';
+import { Avatar, BigButton, Screen, Section, TextAction, Wash, showcase } from './kit';
 
 export function HomeScreen() {
   const [reminded, setReminded] = useState(() => new Set(feed.upcoming.filter((u) => u.reminded).map((u) => u.id)));
@@ -30,87 +30,71 @@ export function HomeScreen() {
         {creators.map((c) => (
           <Pressable key={c.id} accessibilityRole="button" style={styles.creator} onPress={() => router.push('/showcase/creator' as Href)}>
             <Avatar initials={c.initials} size={56} live={c.live} />
-            <Txt variant="smallStrong">{c.name}</Txt>
+            <Txt variant="small">{c.name}</Txt>
           </Pressable>
         ))}
       </ScrollView>
 
-      <Section title="Live now">
-        {feed.live.map((l) => (
-          <Enter key={l.id}>
-            <Card style={styles.live}>
-              <View style={showcase.row}>
-                <View style={styles.liveDot} />
-                <Txt variant="smallStrong" style={showcase.flex}>
-                  {l.creator} is live · {l.here} here
-                </Txt>
+      {feed.live.map((l) => (
+        <Enter key={l.id} style={[showcase.gutter, styles.live]}>
+          <View style={showcase.row}>
+            <View style={styles.liveDot} />
+            <Txt variant="small" color={Palette.paperMuted}>
+              {l.creator} is live · {l.here} here
+            </Txt>
+          </View>
+          <Txt variant="title">{l.title}</Txt>
+          <View style={styles.tiles}>
+            {l.code.split('').map((ch, i) => (
+              <View key={i} style={styles.tile}>
+                <Txt style={styles.tileLetter}>{ch}</Txt>
               </View>
-              <Txt variant="title">{l.title}</Txt>
-              <View style={styles.tiles}>
-                {l.code.split('').map((ch, i) => (
-                  <View key={i} style={styles.tile}>
-                    <Txt style={styles.tileLetter}>{ch}</Txt>
-                  </View>
-                ))}
-              </View>
-              <View style={[showcase.row, styles.liveFoot]}>
-                <Txt variant="smallStrong" style={showcase.flex}>
-                  {l.stakes}
-                </Txt>
-                <Pill title="Join" tone="ember" style={styles.join} />
-              </View>
-            </Card>
-          </Enter>
-        ))}
-      </Section>
+            ))}
+          </View>
+          <Txt variant="small" color={Palette.paperMuted}>
+            {l.stakes}
+          </Txt>
+          <BigButton title="Join" style={styles.join} />
+        </Enter>
+      ))}
 
       <Section title="Upcoming">
-        <Card style={styles.list}>
-          {feed.upcoming.map((u, i) => {
+        <View style={showcase.list}>
+          {feed.upcoming.map((u) => {
             const on = reminded.has(u.id);
             return (
-              <View key={u.id}>
-                {i > 0 ? <Hairline style={styles.gap} /> : null}
-                <View style={showcase.row}>
-                  <Avatar initials={u.initials} size={36} />
-                  <View style={showcase.flex}>
-                    <Txt variant="bodyStrong" numberOfLines={1}>
-                      {u.title}
-                    </Txt>
-                    <Txt variant="small" color={Palette.paperMuted}>
-                      {u.when} · {u.stakes}
-                    </Txt>
-                  </View>
-                  <Pill title={on ? 'Reminded' : 'Remind me'} tone={on ? 'soft' : 'line'} onPress={() => toggle(u.id)} />
+              <View key={u.id} style={showcase.row}>
+                <Avatar initials={u.initials} size={36} />
+                <View style={showcase.flex}>
+                  <Txt variant="bodyStrong" numberOfLines={1}>
+                    {u.title}
+                  </Txt>
+                  <Txt variant="small" color={Palette.paperMuted}>
+                    {u.when} · {u.stakes}
+                  </Txt>
                 </View>
+                <TextAction title={on ? 'Reminded' : 'Remind me'} muted={on} onPress={() => toggle(u.id)} />
               </View>
             );
           })}
-        </Card>
+        </View>
       </Section>
 
       <Section title="Results">
-        <Card style={styles.list}>
-          {feed.results.map((r, i) => (
-            <View key={r.id}>
-              {i > 0 ? <Hairline style={styles.gap} /> : null}
-              <View style={showcase.row}>
-                <Avatar initials={r.initials} size={36} tone="card" />
-                <View style={showcase.flex}>
-                  <Txt variant="bodyStrong">{r.title}</Txt>
-                  <Txt variant="small" color={Palette.paperMuted}>
-                    {r.creator} · {r.line}
-                  </Txt>
-                  {r.you ? (
-                    <Txt variant="smallStrong" color={Palette.emberDeep}>
-                      {r.you}
-                    </Txt>
-                  ) : null}
-                </View>
+        <View style={showcase.list}>
+          {feed.results.map((r) => (
+            <View key={r.id} style={showcase.row}>
+              <Avatar initials={r.initials} size={36} />
+              <View style={showcase.flex}>
+                <Txt variant="bodyStrong">{r.title}</Txt>
+                <Txt variant="small" color={Palette.paperMuted}>
+                  {r.line}
+                  {r.you ? ` · ${r.you}` : ''}
+                </Txt>
               </View>
             </View>
           ))}
-        </Card>
+        </View>
       </Section>
     </Screen>
   );
@@ -119,22 +103,10 @@ export function HomeScreen() {
 const styles = StyleSheet.create({
   creators: { paddingHorizontal: Space.xl, gap: Space.l, paddingTop: Space.s },
   creator: { alignItems: 'center', gap: Space.xs },
-  live: { gap: Space.s, padding: Space.xl, borderColor: Palette.ember },
+  live: { gap: Space.m, marginTop: Space.xxl },
   liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Palette.danger },
-  tiles: { flexDirection: 'row', gap: Space.s, marginTop: Space.xs },
-  tile: {
-    width: 48,
-    height: 56,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Palette.hairline,
-    backgroundColor: Palette.ink,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tileLetter: { fontFamily: FontFamily.uiBold, fontSize: 26, lineHeight: 30, color: Palette.paper },
-  liveFoot: { marginTop: Space.s },
-  join: { minWidth: 96 },
-  list: { paddingVertical: Space.l },
-  gap: { marginVertical: Space.m },
+  tiles: { flexDirection: 'row', gap: Space.s },
+  tile: { width: 56, height: 64, borderRadius: 12, backgroundColor: Wash.neutral, alignItems: 'center', justifyContent: 'center' },
+  tileLetter: { fontFamily: FontFamily.displayBold, fontSize: 32, lineHeight: 38, color: Palette.paper },
+  join: { marginTop: Space.xs },
 });
