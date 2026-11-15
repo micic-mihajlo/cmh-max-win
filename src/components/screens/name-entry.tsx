@@ -18,10 +18,7 @@ export function NameEntryScreen({
     <Screen footer={<Button title="Continue" disabled={!name.trim()} onPress={onContinue} />}>
       <View style={styles.top}>
         <Label color={Palette.paperMuted}>Signal</Label>
-        <Txt variant="display">What should your crew call you?</Txt>
-        <Txt variant="body" color={Palette.paperMuted}>
-          Your crew sees this name next to your role. Nobody else does.
-        </Txt>
+        <Txt variant="display">What should your squad call you?</Txt>
       </View>
       <TextInput
         value={name}
@@ -52,8 +49,8 @@ const styles = StyleSheet.create({
     paddingVertical: Space.l,
     paddingHorizontal: Space.l,
     borderRadius: Radius.m,
-    borderWidth: 1,
-    borderColor: Palette.ember,
+    borderWidth: 2,
+    borderColor: Palette.paper,
     backgroundColor: Palette.panel,
   },
 });
