@@ -313,11 +313,15 @@ export type WhopAccountView = {
 export type WhopAccountState = { available: boolean; account: WhopAccountView | null };
 // unavailable: no Whop OAuth app configured · not_winner: this device holds no winning seat for that
 // code · no_profile: creator sign-in without a creator profile · cancelled: the person closed the sheet.
-export type WhopSignInResult = 'linked' | 'cancelled' | 'error' | 'unavailable' | 'not_winner' | 'no_profile';
+// not_required: useSignInToJoin on a challenge that doesn't need Whop to join (or isn't open), so just join.
+export type WhopSignInResult = 'linked' | 'cancelled' | 'error' | 'unavailable' | 'not_winner' | 'no_profile' | 'not_required';
 export type UseWhopAccount = () => WhopAccountState | undefined; // undefined while loading
 // From the win screen: code is the squad's or challenge team's room code (same as UseMyAward); returnPath is the app
 // route the sheet returns to (e.g. 'drop/abc/win'). Show the button only when useMyAward returns an award.
 export type UseLinkForClaim = (code: string | null, returnPath: string) => () => Promise<WhopSignInResult>;
+// From a join screen when joinChallenge fails with WHOP_SIGN_IN_REQUIRED: code is the challenge's join code, returnPath
+// the route to come back to (e.g. 'c/K7QM'). Once it resolves 'linked', call join again.
+export type UseSignInToJoin = (code: string | null, returnPath: string) => () => Promise<WhopSignInResult>;
 export type UseSignOutWhop = () => () => Promise<void>;
 
 export type UseDrops = () => DropSummaryView[] | undefined; // scheduled and live drops, soonest first
@@ -453,6 +457,8 @@ export type ChallengeSummaryView = {
   config: ChallengeConfig;
   joinCode: string | null; // set at publish
   creator: { displayName: string; handle: string };
+  slug: string | null; // 'nova-fridays-trivia-k7qm' (discovery.slugOf); null before publish
+  shareUrl: string | null; // 'https://signal-app-wine.vercel.app/c/K7QM'; null before publish
   entrantCount: number;
   teamCount: number;
   createdAt: number;

@@ -107,7 +107,7 @@ function LiveStreamer({ id }: { id: string | null }) {
 }
 
 export function Notifications() {
-  if (fx) return <NotificationsScreen items={inboxFromFeed(fx.feed).map((n) => (n.kind === 'starting' ? { ...n, squadmates: fx.squadmates } : n))} onOpen={() => {}} sample />;
+  if (fx) return <NotificationsScreen items={inboxFromFeed(fx.feed)} onOpen={() => {}} sample />;
   return (
     <LiveBoundary title="Notifications">
       <LiveNotifications />

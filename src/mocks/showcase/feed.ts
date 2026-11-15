@@ -23,7 +23,7 @@ const live: FeedLiveRow[] = [
 ];
 
 const upcoming: FeedUpcomingRow[] = [
-  { streamerId: 'juno', streamerName: 'Juno', dropId: 'u-juno', title: 'The Cold Room', joinCode: 'COLD', startsAt: serverNow + 120_000, bounty: bounty(120, 2), reminded: true },
+  { streamerId: 'juno', streamerName: 'Juno', dropId: 'u-juno', title: 'The Cold Room', joinCode: 'COLD', startsAt: serverNow + 120_000, bounty: bounty(120, 2), reminded: true, squadmates: ['Lou', 'Ana'] },
   { streamerId: 'rook', streamerName: 'Rook', dropId: 'u-rook', title: 'Glass Harbor II', joinCode: 'HRBR', startsAt: at(17, 20), bounty: bounty(150, 3), reminded: false },
   { streamerId: 'nova', streamerName: 'Nova', dropId: 'u-nova', title: 'The Second Seed', joinCode: 'SEED', startsAt: at(20, 21), bounty: bounty(500, 5), reminded: false },
 ];
@@ -49,7 +49,6 @@ const past: Record<string, FeedResultRow[]> = {
 export const feed: FollowingFeedView = { following: cards, live, upcoming, results: Object.values(past).flat().slice(0, 5), serverNow };
 
 export const streamers = cards;
-export const squadmates = ['Lou', 'Ana'];
 
 export function streamerPage(id: string): StreamerPageView | null {
   const card = cards.find((c) => c.streamerId === id);
