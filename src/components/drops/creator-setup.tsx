@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/signal/backdrop';
@@ -37,6 +38,7 @@ export function CreatorSetupScreen({
   onChallenge,
   error,
   onOpen,
+  account,
 }: {
   drop: CreatorDrop;
   live?: { entrantCount: number; shareUrl: string };
@@ -46,6 +48,7 @@ export function CreatorSetupScreen({
   onChallenge?: (challenge: Challenge) => void;
   error?: string | null;
   onOpen?: () => void;
+  account?: ReactNode;
 }) {
   return (
     <Screen
@@ -105,6 +108,7 @@ export function CreatorSetupScreen({
         ) : null}
         {!live && pot && onPot ? <Picker label="Bounty" options={POTS} selected={pot.key} onPick={onPot} /> : null}
       </View>
+      {account}
       {error ? (
         <Txt variant="body" color={Palette.danger}>
           {error}
