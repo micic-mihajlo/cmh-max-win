@@ -19,7 +19,10 @@ export function whopEnvironment(): 'sandbox' | 'production' {
   return process.env.WHOP_ENVIRONMENT === 'production' ? 'production' : 'sandbox';
 }
 
-export async function whopRequest<T>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
+export async function whopRequest<T>(
+  path: string,
+  init: { method?: string; body?: unknown; headers?: Record<string, string> } = {},
+): Promise<T> {
   const apiKey = process.env.WHOP_API_KEY;
   if (!apiKey) {
     throw new ConvexError({ code: 'WHOP_NOT_CONFIGURED', message: 'Whop is not configured on this deployment.' });
@@ -31,11 +34,13 @@ export async function whopRequest<T>(path: string, init: { method?: string; body
       Authorization: `Bearer ${apiKey}`,
       'Api-Version-Date': API_VERSION_DATE,
       'Content-Type': 'application/json',
+      ...init.headers,
     },
     body: init.body === undefined ? undefined : JSON.stringify(init.body),
   });
   if (!response.ok) {
-    throw new ConvexError({ code: 'WHOP_REQUEST_FAILED', message: `Whop returned ${response.status} for ${path}` });
+    const detail = (await response.text()).slice(0, 300);
+    throw new ConvexError({ code: 'WHOP_REQUEST_FAILED', message: `Whop returned ${response.status} for ${path}: ${detail}` });
   }
   return (await response.json()) as T;
 }

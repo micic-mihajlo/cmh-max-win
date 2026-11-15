@@ -13,6 +13,7 @@ import type {
   UseLeaveRoom,
   UseLockIn,
   UseMyDossier,
+  UseMyEvidence,
   UseReclaimRole,
   UseReveal,
   UseRestart,
@@ -43,6 +44,11 @@ export const useConnection: UseConnection = () => {
 export const useMyDossier: UseMyDossier = (code) => {
   const deviceToken = useDeviceToken();
   return useQuery(api.signal.myDossier, deviceToken && code ? { deviceToken, code } : 'skip');
+};
+
+export const useMyEvidence: UseMyEvidence = (code) => {
+  const deviceToken = useDeviceToken();
+  return useQuery(api.signal.myEvidence, deviceToken && code ? { deviceToken, code } : 'skip');
 };
 
 export const useReveal: UseReveal = (code) => {

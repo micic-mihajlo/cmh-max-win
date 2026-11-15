@@ -18,6 +18,10 @@ import type {
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const MAX_MEMBERS = 3;
 
+export function rolesOf(m: Doc<'members'>): Role[] {
+  return m.roles ?? (m.role ? [m.role] : []);
+}
+
 function fail(code: SignalErrorCode, message: string): never {
   throw new ConvexError({ code, message });
 }
@@ -143,12 +147,16 @@ export const room = query({
       code: room.code,
       status: room.status,
       caseId: room.caseId,
+      squadSize: 3,
+      drop: null,
+      cooldownUntil: null,
       isHost: room.hostToken === deviceToken,
       me: me ? { memberId: me._id, role: me.role, name: me.name } : null,
       members: all.map((m) => ({
         memberId: m._id,
         name: m.name,
         role: m.role,
+        roles: rolesOf(m),
         presence: !online.has(m._id)
           ? 'offline'
           : room.status === 'playing' && locked.has(m._id)
@@ -164,7 +172,7 @@ export const room = query({
       },
       lockIns: locks.map((l) => ({ memberId: l.memberId, revision: l.revision })),
       attempts: room.attempts,
-      lastNudge: room.lastNudge,
+      lastNudge: room.lastNudge ? { ...room.lastNudge, holder: null } : null,
       checkedRevision: room.checkedRevision,
       checkSeq: room.checkSeq,
       lastCheck: room.lastCheck,
@@ -184,6 +192,18 @@ export const myDossier = query({
   },
 });
 
+// Every dossier the caller holds (1 in a private room or a squad of 3, 1 or 2 in a squad of 2). Same gating as myDossier.
+export const myEvidence = query({
+  args: { deviceToken: v.string(), code: v.string() },
+  handler: async (ctx, { deviceToken, code }): Promise<DossierView[] | null> => {
+    const room = await findRoom(ctx, code);
+    if (!room || room.status === 'lobby') return null;
+    const me = await findMember(ctx, room._id, deviceToken);
+    if (!me?.role) return null;
+    return rolesOf(me).map((r) => DOSSIERS[r]);
+  },
+});
+
 export const reveal = query({
   args: { deviceToken: v.string(), code: v.string() },
   handler: async (ctx, { deviceToken, code }): Promise<RevealView | null> => {
@@ -193,6 +213,7 @@ export const reveal = query({
     const all = await members(ctx, room._id);
     return {
       culprit: REVEAL.culprit,
+      headline: 'Jun took the seed.',
       timeline: REVEAL.timeline,
       why: REVEAL.why,
       credits: REVEAL.credits.map((c) => ({
@@ -362,7 +383,7 @@ export const lockIn = mutation({
       checkSeq: seq,
       lastCheck: { seq, result: 'wrong', at: Date.now() },
     });
-    return { outcome: 'wrong', nudge, attempts };
+    return { outcome: 'wrong', nudge: { ...nudge, holder: null }, attempts };
   },
 });
 
