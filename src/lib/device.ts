@@ -8,7 +8,8 @@ const KEY = 'signal.deviceToken';
 
 async function readStored(): Promise<string | null> {
   if (Platform.OS === 'web') return globalThis.localStorage?.getItem(KEY) ?? null;
-  return SecureStore.getItemAsync(KEY);
+  const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500));
+  return Promise.race([SecureStore.getItemAsync(KEY).catch(() => null), timeout]);
 }
 
 async function writeStored(token: string): Promise<void> {
@@ -16,7 +17,7 @@ async function writeStored(token: string): Promise<void> {
     globalThis.localStorage?.setItem(KEY, token);
     return;
   }
-  await SecureStore.setItemAsync(KEY, token);
+  await SecureStore.setItemAsync(KEY, token).catch(() => {});
 }
 
 let pending: Promise<string> | null = null;
