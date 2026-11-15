@@ -40,7 +40,7 @@ export default function RaceRoute() {
             }
           : undefined
       }
-      roles={room?.members.flatMap((m) => m.roles)}
+      roles={room?.members.map((m) => m.role ?? m.roles[0]).filter((r) => r !== undefined)}
       on={{
         onCase: () => code && router.push({ pathname: '/room/[code]', params: { code } }),
         onShare: () => router.push({ pathname: '/drop/[id]/win', params: { id } }),

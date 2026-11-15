@@ -85,8 +85,8 @@ export function LeaderboardScreen({
         ) : inMoney ? (
           <>
             <View style={styles.seals}>
-              {(roles ?? []).map((r) => (
-                <Seal key={r} locked color={RoleColors[r]} initial={r.charAt(0).toUpperCase()} size={44} />
+              {(roles ?? []).map((r, i) => (
+                <Seal key={i} locked color={RoleColors[r]} initial={r.charAt(0).toUpperCase()} size={44} />
               ))}
             </View>
             <Txt variant="small" color={Palette.paperMuted} style={styles.center}>
