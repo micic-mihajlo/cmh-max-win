@@ -512,6 +512,16 @@ const HOSTED_DROP_HOLD_MS = 24 * 60 * 60 * 1000;
 
 // Host screen: creates a drop this device runs and deals by hand. Public, so it always pays in concept mode;
 // no client can create a drop that spends real money. The bounty is display only.
+// The newest name this device has played or entered a drop under, from squad seats and drop entries.
+async function lastNameOf(ctx: MutationCtx, deviceToken: string): Promise<string | null> {
+  const [member, entry] = await Promise.all([
+    ctx.db.query('members').withIndex('by_token', (q) => q.eq('deviceToken', deviceToken)).order('desc').first(),
+    ctx.db.query('dropEntries').withIndex('by_token', (q) => q.eq('deviceToken', deviceToken)).order('desc').first(),
+  ]);
+  const latest = [member, entry].filter((d) => d !== null).sort((a, b) => b._creationTime - a._creationTime)[0];
+  return latest?.name.trim() || null;
+}
+
 export const hostDrop = mutation({
   args: {
     deviceToken: v.string(),
@@ -525,7 +535,7 @@ export const hostDrop = mutation({
     return insertDrop(ctx, {
       dropId: `host-${Date.now().toString(36)}-${Math.floor(Math.random() * 46656).toString(36)}`,
       title: (title ?? 'The Aurora Seed').trim().slice(0, 60) || 'The Aurora Seed',
-      creatorName: (creatorName ?? '').trim().slice(0, 24) || 'Host',
+      creatorName: (creatorName ?? '').trim().slice(0, 24) || (await lastNameOf(ctx, deviceToken)) || 'Host',
       squadSize: 3,
       startsAt: Date.now() + HOSTED_DROP_HOLD_MS,
       bounty: { totalCents: totalCents ?? 30_000, winnerSlots: winnerSlots ?? 3 },

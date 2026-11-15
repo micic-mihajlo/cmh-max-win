@@ -3,7 +3,6 @@ import { useMutation, useQuery } from 'convex/react';
 import { useCallback, useEffect, useState } from 'react';
 
 import { useDeviceToken } from '@/hooks/use-device-token';
-import { PLAYER_NAME_KEY } from '@/hooks/use-player-name';
 import type {
   UseDrop,
   UseDealSquads,
@@ -18,7 +17,7 @@ import type {
   UseMyAward,
   UseServerOffset,
 } from '@/lib/contract';
-import { getDeviceToken, readStored } from '@/lib/device';
+import { getDeviceToken } from '@/lib/device';
 
 export const useDrops: UseDrops = () => useQuery(api.drops.listDrops, {});
 
@@ -44,13 +43,7 @@ export const useHostView: UseHostView = (dropId) => {
 
 export const useHostDrop: UseHostDrop = () => {
   const host = useMutation(api.drops.hostDrop);
-  return useCallback(
-    async (args) => {
-      const creatorName = args.creatorName ?? (await readStored(PLAYER_NAME_KEY)).value ?? undefined;
-      return host({ deviceToken: await getDeviceToken(), ...args, creatorName });
-    },
-    [host],
-  );
+  return useCallback(async (args) => host({ deviceToken: await getDeviceToken(), ...args }), [host]);
 };
 
 export const useDealSquads: UseDealSquads = (dropId) => {

@@ -92,7 +92,8 @@ export default defineSchema({
     unmatched: v.boolean(),
   })
     .index('by_drop', ['dropId'])
-    .index('by_drop_token', ['dropId', 'deviceToken']),
+    .index('by_drop_token', ['dropId', 'deviceToken'])
+    .index('by_token', ['deviceToken']),
   solves: defineTable({
     dropId: v.string(),
     roomId: v.id('rooms'),

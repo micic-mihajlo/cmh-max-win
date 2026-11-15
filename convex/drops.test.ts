@@ -518,12 +518,19 @@ describe('host screen', () => {
     ]);
   });
 
-  test('hostDrop names the drop after creatorName, else Host', async () => {
+  test('hostDrop names the drop after creatorName, else the newest name the host token used, else Host', async () => {
     const t = newTest();
-    const named = await t.mutation(api.drops.hostDrop, { deviceToken: 'h1', creatorName: '  Nova ' });
-    const plain = await t.mutation(api.drops.hostDrop, { deviceToken: 'h2', creatorName: ' ' });
-    expect(await t.query(api.drops.dropByCode, { deviceToken: 'p1', code: named.joinCode })).toMatchObject({ creatorName: 'Nova' });
-    expect(await t.query(api.drops.dropByCode, { deviceToken: 'p1', code: plain.joinCode })).toMatchObject({ creatorName: 'Host' });
+    const creator = async (args: { deviceToken: string; creatorName?: string }) => {
+      const { joinCode } = await t.mutation(api.drops.hostDrop, args);
+      return (await t.query(api.drops.dropByCode, { deviceToken: 'x', code: joinCode }))!.creatorName;
+    };
+    expect(await creator({ deviceToken: 'h1', creatorName: '  Nova ' })).toBe('Nova');
+    expect(await creator({ deviceToken: 'h2' })).toBe('Host');
+    await t.mutation(api.signal.createRoom, { deviceToken: 'h2', name: 'Orion' });
+    expect(await creator({ deviceToken: 'h2' })).toBe('Orion');
+    const { joinCode } = await t.mutation(api.drops.hostDrop, { deviceToken: 'other' });
+    await t.mutation(api.drops.enterDropByCode, { deviceToken: 'h2', code: joinCode, name: 'Nova' });
+    expect(await creator({ deviceToken: 'h2' })).toBe('Nova');
   });
 
   test('hosted drops stay out of listDrops but answer to their code', async () => {

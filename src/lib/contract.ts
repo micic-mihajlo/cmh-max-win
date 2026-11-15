@@ -277,7 +277,7 @@ export type HostView = {
 };
 
 export type UseHostView = (dropId: string | null) => HostView | null | undefined; // null = not the host, or no such drop
-// creatorName heads the race ("Nova's drop"). Omitted: the host's stored player name, else "Host".
+// creatorName heads the race ("Nova's drop"). Omitted: the newest name this device token used server-side, else "Host".
 export type UseHostDrop = () => (args: { title?: string; winnerSlots?: number; totalCents?: number; creatorName?: string }) => Promise<{ dropId: string; joinCode: string }>;
 export type UseDealSquads = (dropId: string) => () => Promise<void>; // host only; NOT_ENOUGH_PLAYERS below 4
 
