@@ -4,6 +4,7 @@ import { convexTest } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { api } from './_generated/api';
+import { DEFAULT_CONFIG, validateConfig } from './challenges';
 import { counterTemplate } from './liveTemplates';
 import schema from './schema';
 import type { ChallengeConfigPatch } from '../src/lib/contract';
@@ -175,5 +176,116 @@ describe('public live view', () => {
       if (mixer.fragment) secrets.push(mixer.fragment.text);
       for (const s of secrets) expect(json).not.toContain(s);
     }
+  });
+});
+
+const QUIZ = {
+  questions: [
+    { prompt: 'Capital of France?', choices: ['Paris', 'Rome', 'Oslo'], correct: 0, timeLimitMs: 10_000 },
+    { prompt: 'What is 2 + 2?', choices: ['Three', 'Four'], correct: 1, timeLimitMs: 10_000 },
+    { prompt: 'Largest planet?', choices: ['Mars', 'Jupiter', 'Venus', 'Earth'], correct: 1, timeLimitMs: 10_000 },
+  ],
+};
+
+describe('quick-quiz on the live layer', () => {
+  test('a dealt quiz publishes; bad questions and non-live start modes are refused', async () => {
+    const fields = (patch: ChallengeConfigPatch) =>
+      validateConfig({ ...DEFAULT_CONFIG, title: 'Quiz night', templateId: 'quick-quiz', teamSize: 2, templateConfig: QUIZ, ...patch }, false, Date.now()).map((i) => i.field);
+    expect(fields({})).toEqual([]);
+    expect(fields({ teamSize: 1 })).toEqual([]);
+    expect(fields({ templateConfig: { questions: QUIZ.questions.slice(0, 2) } })).toEqual(['templateConfig']);
+    expect(fields({ templateConfig: undefined })).toEqual(['templateConfig']);
+    expect(fields({ startMode: 'window', endsAt: Date.now() + 60_000 })).toEqual(['startMode']);
+    const { joinCode } = await published({ templateId: 'quick-quiz', teamSize: 2, templateConfig: QUIZ });
+    expect(joinCode).toMatch(/^[A-Z0-9]{4}$/);
+  });
+
+  test('end to end: two teams answer, the host advances, a timeout closes a question, places feed the payout', async () => {
+    const { t, challengeId, joinCode } = await published({ templateId: 'quick-quiz', teamSize: 2, templateConfig: QUIZ, reward: { kind: 'placement', percents: [60, 40] } });
+    const players = tokens(4);
+    for (const p of players) await join(t, joinCode, p);
+    await t.mutation(api.live.startLive, { deviceToken: HOST, challengeId });
+
+    const teamOf = async (deviceToken: string) => (await t.query(api.live.teamSessionView, { deviceToken, challengeId }))!.teamLabel;
+    const labels = await Promise.all(players.map(teamOf));
+    const [teamA, teamB] = [...new Set(labels)];
+    const a = players.filter((_, i) => labels[i] === teamA);
+    const b = players.filter((_, i) => labels[i] === teamB);
+    expect([a.length, b.length]).toEqual([2, 2]);
+
+    type Q = { choices: string[]; closed: boolean; correctChoice: number | null };
+    const question = async (deviceToken: string, index: number) =>
+      ((await t.query(api.live.teamSessionView, { deviceToken, challengeId }))!.shared as { questions: Q[] }).questions[index];
+    const answer = async (deviceToken: string, index: number, text: string) => {
+      const choice = (await question(deviceToken, index)).choices.indexOf(text);
+      return t.mutation(api.live.playerAction, { deviceToken, challengeId, action: { type: 'answer', questionIndex: index, choice } });
+    };
+    const next = () => t.mutation(api.live.runHostAction, { deviceToken: HOST, challengeId, action: 'next' });
+    const board = async () => (await t.query(api.live.liveView, { code: joinCode }))!;
+    const step = (ms = 1_000) => vi.advanceTimersByTime(ms);
+
+    // The Aurora room a quiz team is seated in never plays.
+    const roomCode = (await t.query(api.challenges.myChallenge, { deviceToken: a[0], challengeId }))!.me.team!.roomCode;
+    for (const deviceToken of a) await t.mutation(api.signal.setPresence, { deviceToken, code: roomCode, presence: 'ready' });
+    const { revision } = await t.mutation(api.signal.setTheory, { deviceToken: a[0], code: roomCode, culprit: 'jun' });
+    expect(await errorCode(t.mutation(api.signal.lockIn, { deviceToken: a[0], code: roomCode, revision }))).toBe('CHALLENGE_CLOSED');
+    const early = t.mutation(api.live.playerAction, { deviceToken: a[0], challengeId, action: { type: 'answer', questionIndex: 0, choice: 0 } });
+    expect(await errorCode(early)).toBe('NOT_OPEN');
+
+    // Q1: A right, B wrong; the host closes it early. The board shows no choices, and points only once closed.
+    await next();
+    step();
+    await answer(a[0], 0, 'Paris');
+    step();
+    await answer(b[1], 0, 'Rome');
+    expect(await errorCode(answer(a[1], 0, 'Oslo'))).toBe('ALREADY_ANSWERED');
+    let view = await board();
+    expect(view).toMatchObject({ phase: 'live', hostActions: ['next'] });
+    expect(JSON.stringify(view)).not.toMatch(/Paris|Rome|Oslo/);
+    expect((view.view as { rows: { points: number }[] }).rows.every((r) => r.points === 0)).toBe(true);
+    step();
+    await next();
+    view = await board();
+    expect(view.view).toMatchObject({ round: { phase: 'leaderboard', index: 0, correctText: 'Paris' } });
+    const pointsOf = (v: typeof view, label: string) => (v.view as { rows: { label: string; points: number }[] }).rows.find((r) => r.label === label)!.points;
+    expect(pointsOf(view, teamA)).toBeGreaterThan(500);
+    expect(pointsOf(view, teamB)).toBe(0);
+
+    // Q2: both right; nobody presses Next, so the time limit closes it through the scheduled tick.
+    step();
+    await next();
+    step();
+    await answer(a[1], 1, 'Four');
+    step(3_000);
+    await answer(b[0], 1, 'Four');
+    vi.advanceTimersByTime(10_000);
+    await t.finishInProgressScheduledFunctions();
+    expect((await question(a[0], 1)).closed).toBe(true);
+    expect(await errorCode(answer(b[1], 1, 'Three'))).toBe('CLOSED');
+    expect(pointsOf(await board(), teamB)).toBeGreaterThan(0);
+
+    // Q3: A right, B wrong; closing the last question ends the challenge.
+    step();
+    await next();
+    step();
+    await answer(a[0], 2, 'Jupiter');
+    await answer(b[0], 2, 'Mars');
+    step();
+    await next();
+    view = await board();
+    expect(view).toMatchObject({ status: 'ended', phase: 'ended' });
+    expect(view.leaderboard!.map((r) => [r.place, r.label, r.inMoney])).toEqual([
+      [1, teamA, true],
+      [2, teamB, true],
+    ]);
+    const json = JSON.stringify(view);
+    for (const secret of [HOST, ...players, roomCode]) expect(json).not.toContain(secret);
+
+    // The placement feeds #58's payout: 60/40 of $100, split per player, summing to the pool.
+    expect(await t.mutation(api.challenges.approvePayouts, { deviceToken: HOST, challengeId })).toEqual({ approved: 4, alreadyApproved: 0 });
+    const cents = await Promise.all(players.map(async (deviceToken) => (await t.query(api.challenges.myPayout, { deviceToken, challengeId }))!.cents));
+    expect(a.map((p) => cents[players.indexOf(p)])).toEqual([3000, 3000]);
+    expect(b.map((p) => cents[players.indexOf(p)])).toEqual([2000, 2000]);
+    expect(cents.reduce((x, y) => x + y, 0)).toBe(10_000);
   });
 });

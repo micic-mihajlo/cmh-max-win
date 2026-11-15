@@ -12,7 +12,8 @@ export const mixerColor = v.union(v.literal('red'), v.literal('blue'), v.literal
 export const challengeConfig = v.object({
   title: v.string(),
   blurb: v.string(),
-  templateId: v.union(v.literal('mystery-aurora'), v.literal('split-passphrase')),
+  templateId: v.union(v.literal('mystery-aurora'), v.literal('split-passphrase'), v.literal('quick-quiz')),
+  templateConfig: v.optional(v.any()), // the template's own creator content (quick-quiz: its questions), checked at publish
   teamFormation: v.union(v.literal('dealt'), v.literal('mixer')),
   teamSize: v.union(v.literal(1), v.literal(2), v.literal(3), v.literal(4)),
   mixerColors: v.array(mixerColor),
@@ -269,6 +270,16 @@ export default defineSchema({
     lockedAt: v.optional(v.number()),
     lastActionAt: v.optional(v.record(v.string(), v.number())), // per host action, for its minimum interval
   }).index('by_challenge', ['challengeId']),
+  // A dealt team's engine session, for templates that run on the template engine (quick-quiz).
+  teamSessions: defineTable({
+    challengeId: v.id('challenges'),
+    teamId: v.id('challengeTeams'),
+    label: v.string(),
+    session: v.any(), // engine Session: { templateId, seed, players (entry ids), state }
+    finishedAt: v.optional(v.number()),
+  })
+    .index('by_challenge', ['challengeId'])
+    .index('by_team', ['teamId']),
   identities: defineTable({
     deviceToken: v.string(),
     whopUserId: v.string(),

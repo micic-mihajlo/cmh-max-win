@@ -2,7 +2,7 @@
 // The host console's live controls, generic over the template, and one public live view by join code.
 // - lockEntries: entries close now, on the server clock (ENTRIES_LOCKED for later joins).
 // - startLive: locks entries and starts (dealt: deals teams; mixer: goes live). Live start mode only.
-// - runHostAction(action, payload): dispatches to the template's hostActions (Template SDK v2), host only.
+// - runHostAction(action, payload): dispatches to the template's host actions, host only.
 // - endChallenge (#58) ends and resolves; approvePayouts, myPayout and claimPayout are unchanged.
 // Entry stays free and nothing purchasable affects play.
 import type { ChallengeStatus, PayoutAdapterId, RewardPolicy } from './contract';
@@ -41,7 +41,19 @@ export type LiveView = {
   leaderboard: LiveLeaderboardRow[] | null; // top 10 once ended; null before
 };
 
+// Engine-session templates (quick-quiz): the host's runHostAction('next') opens or closes the next question for every
+// team at once, a scheduled tick closes it at its time limit, and play ends when the last question closes.
+// view is the template's publicBoard: { round, rows: [{ label, points, answeredCurrent, rank }] }.
+export type TeamSessionView = {
+  teamLabel: string;
+  serverNow: number;
+  shared: unknown; // the template's shared view for the team (quick-quiz: opened questions, correct ones once closed)
+  mine: unknown; // this player's private view
+};
+
 export type UseLiveView = (code: string | null) => LiveView | null | undefined; // null = no such challenge
 export type UseLockEntries = (challengeId: string) => () => Promise<void>; // host only
 export type UseStartLive = (challengeId: string) => () => Promise<void>; // host only; NOT_ENOUGH_PLAYERS
 export type UseRunHostAction = (challengeId: string) => (action: string, payload?: unknown) => Promise<{ view: unknown }>; // host only
+export type UseTeamSessionView = (challengeId: string | null) => TeamSessionView | null | undefined; // null = not on a dealt team
+export type UsePlayerAction = (challengeId: string) => (action: { type: string; [key: string]: unknown }) => Promise<void>; // the template's refusal codes

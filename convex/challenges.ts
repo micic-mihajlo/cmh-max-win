@@ -15,10 +15,11 @@ import {
 import { CONCEPT_LABEL, createSandboxClaimLink } from './bounty';
 import { ELIGIBILITY_STUB_NOTE, resolveIdentity } from './creatorIdentity';
 import { dealPieces, splitSizes } from './drops';
-import { mixerTemplate, verifyMixerTeam } from './templates/engine';
+import { mixerTemplate, publishIssues, verifyMixerTeam } from './templates/engine';
 import { listTemplates } from './templates/registry';
 import { checkWhopAccess } from './whopAuth';
 import { challengeConfig } from './schema';
+import { isSessionTemplate, placeTeamSessions, startTeamSessions } from './teamSessions';
 import { CODE_ALPHABET, generateCode } from './signal';
 import { whopEnvironment, whopRequest } from './whop';
 import type {
@@ -154,7 +155,12 @@ export function validateConfig(c: ChallengeConfig, serverCreated: boolean, now: 
   const template = TEMPLATES.find((t) => t.id === c.templateId);
   if (!template) add('templateId', 'Unknown template.');
   else if (!template.formations.includes(c.teamFormation)) add('templateId', template.name + ' does not support ' + c.teamFormation + ' teams.');
-  else if (c.teamFormation === 'dealt' && c.templateId !== 'mystery-aurora') add('templateId', 'Dealt teams play Aurora for now.');
+  else if (c.teamFormation === 'dealt' && c.templateId !== 'mystery-aurora' && !isSessionTemplate(c.templateId)) add('templateId', 'Dealt teams play Aurora for now.');
+  if (template && isSessionTemplate(c.templateId)) {
+    if (c.startMode !== 'live') add('startMode', template.name + ' runs live: the host starts it and paces it.');
+    const content = publishIssues(c.templateId, c.templateConfig);
+    if (content.length) add('templateConfig', content[0].message);
+  }
   if (!Number.isInteger(c.teamSize) || c.teamSize < 1 || c.teamSize > MAX_TEAM_SIZE) add('teamSize', 'Teams are 1 to ' + MAX_TEAM_SIZE + ' players.');
   else if (c.teamFormation === 'dealt' && template && !template.teamSizes.includes(c.teamSize)) {
     add('teamSize', template.name + ' plays in teams of ' + template.teamSizes.join(' or ') + ' for now.');
@@ -376,8 +382,9 @@ async function formTeams(ctx: MutationCtx, c: Challenge, final: boolean) {
   return sizes.length;
 }
 
-async function endNow(ctx: MutationCtx, c: Challenge) {
+export async function endNow(ctx: MutationCtx, c: Challenge) {
   if (c.status !== 'published' && c.status !== 'live') return;
+  if (c.status === 'live' && isSessionTemplate(c.config.templateId)) await placeTeamSessions(ctx, c, Date.now());
   const entries = await entriesOf(ctx, c._id);
   await Promise.all(entries.filter((e) => !e.teamId && !e.waitingNextRound).map((e) => ctx.db.patch(e._id, { waitingNextRound: true })));
   await ctx.db.patch(c._id, { status: 'ended', endedAt: Date.now() });
@@ -399,7 +406,8 @@ export async function recordChallengeFinish(ctx: MutationCtx, room: Doc<'rooms'>
 
 // lockIn refuses play in a challenge room unless the challenge is live.
 export async function challengeIsPlayable(ctx: QueryCtx, challengeId: Id<'challenges'>) {
-  return (await ctx.db.get(challengeId))?.status === 'live';
+  const c = await ctx.db.get(challengeId);
+  return c?.status === 'live' && !isSessionTemplate(c.config.templateId);
 }
 
 // ---------- Creator profile ----------
@@ -734,6 +742,7 @@ export async function dealLive(ctx: MutationCtx, c: Challenge) {
   const minimum = c.config.leftover === 'smaller_teams' ? Math.min(2, c.config.teamSize) : c.config.teamSize;
   if (waiting < minimum) fail('NOT_ENOUGH_PLAYERS', 'Not enough players for a team yet.');
   await formTeams(ctx, c, true);
+  if (isSessionTemplate(c.config.templateId)) await startTeamSessions(ctx, c, Date.now());
 }
 
 export const endChallenge = mutation({
