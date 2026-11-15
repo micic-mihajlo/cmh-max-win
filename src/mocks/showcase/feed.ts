@@ -1,30 +1,64 @@
-export type Streamer = { id: string; name: string; initials: string; bio: string; nextDrop: string; past: string[] };
-export type LiveRoom = { streamerId: string; challenge: string; code: string };
-export type ScheduledDrop = { id: string; streamerId: string; when: string; challenge: string; reminded: boolean };
-export type FeedNotification =
-  | { id: string; kind: 'live'; streamerId: string; challenge: string; code: string; when: string }
-  | { id: string; kind: 'starting'; streamerId: string; minutes: number; when: string };
+import type { BountyView, FeedLiveRow, FeedResultRow, FeedUpcomingRow, FollowingFeedView, StreamerCardView, StreamerPageView } from '@/lib/contract';
 
-export const streamers: Streamer[] = [
-  { id: 'nova', name: 'Nova', initials: 'N', bio: 'Mystery drops for squads of three.', nextDrop: 'Friday 9 pm', past: ['The Aurora Seed', 'Orchard Lights', 'Night Ferry'] },
-  { id: 'rook', name: 'Rook', initials: 'R', bio: 'Harbor noir, one case a week.', nextDrop: 'Tuesday 8 pm', past: ['Glass Harbor', 'Low Water', 'The Lamplighter'] },
-  { id: 'juno', name: 'Juno', initials: 'J', bio: 'Cold cases, warm rooms.', nextDrop: 'Thursday 6 pm', past: ['The Cold Room', 'Paper Moon', 'Static'] },
-  { id: 'pax', name: 'Pax', initials: 'P', bio: 'Short puzzles, loud squads.', nextDrop: 'Sunday 7 pm', past: ['Signal Fire', 'Blue Hour', 'Tin Can'] },
+const at = (day: number, hour: number) => new Date(2026, 10, day, hour).getTime();
+const serverNow = at(15, 14);
+const bounty = (dollars: number, slots: number): BountyView => ({
+  totalCents: dollars * 100,
+  currency: 'usd',
+  winnerSlots: slots,
+  perSquadCents: Math.floor((dollars * 100) / slots),
+  mode: 'concept',
+});
+
+const cards: StreamerCardView[] = [
+  { streamerId: 'nova', name: 'Nova', followerCount: 12400, live: true, following: true },
+  { streamerId: 'pax', name: 'Pax', followerCount: 3200, live: true, following: true },
+  { streamerId: 'rook', name: 'Rook', followerCount: 8100, live: false, following: true },
+  { streamerId: 'juno', name: 'Juno', followerCount: 5600, live: false, following: true },
 ];
 
-export const live: LiveRoom[] = [
-  { streamerId: 'nova', challenge: 'The Aurora Seed', code: 'K7QX' },
-  { streamerId: 'pax', challenge: 'Signal Fire', code: 'MBRT' },
+const live: FeedLiveRow[] = [
+  { streamerId: 'nova', streamerName: 'Nova', dropId: 'd-nova', title: 'The Aurora Seed', joinCode: 'K7QX', dropStatus: 'scheduled', entrantCount: 38, bounty: bounty(300, 3), liveSince: serverNow - 120_000 },
+  { streamerId: 'pax', streamerName: 'Pax', dropId: 'd-pax', title: 'Signal Fire', joinCode: 'MBRT', dropStatus: 'live', entrantCount: 21, bounty: bounty(100, 2), liveSince: serverNow - 3_600_000 },
 ];
 
-export const upcoming: ScheduledDrop[] = [
-  { id: 'd1', streamerId: 'nova', when: 'Friday 9 pm', challenge: 'The Second Seed', reminded: true },
-  { id: 'd2', streamerId: 'rook', when: 'Tuesday 8 pm', challenge: 'Glass Harbor II', reminded: false },
-  { id: 'd3', streamerId: 'juno', when: 'Thursday 6 pm', challenge: 'The Cold Room', reminded: false },
+const upcoming: FeedUpcomingRow[] = [
+  { streamerId: 'juno', streamerName: 'Juno', dropId: 'u-juno', title: 'The Cold Room', joinCode: 'COLD', startsAt: serverNow + 120_000, bounty: bounty(120, 2), reminded: true },
+  { streamerId: 'rook', streamerName: 'Rook', dropId: 'u-rook', title: 'Glass Harbor II', joinCode: 'HRBR', startsAt: at(17, 20), bounty: bounty(150, 3), reminded: false },
+  { streamerId: 'nova', streamerName: 'Nova', dropId: 'u-nova', title: 'The Second Seed', joinCode: 'SEED', startsAt: at(20, 21), bounty: bounty(500, 5), reminded: false },
 ];
 
-export const notifications: FeedNotification[] = [
-  { id: 'n1', kind: 'live', streamerId: 'nova', challenge: 'The Aurora Seed', code: 'K7QX', when: 'Now' },
-  { id: 'n2', kind: 'starting', streamerId: 'nova', minutes: 2, when: '2 min ago' },
-  { id: 'n3', kind: 'live', streamerId: 'pax', challenge: 'Signal Fire', code: 'MBRT', when: '1 h ago' },
-];
+const result = (streamerId: string, streamerName: string, title: string, day: number, squad: string, names: string[]): FeedResultRow => ({
+  streamerId,
+  streamerName,
+  dropId: `r-${streamerId}-${day}`,
+  title,
+  playerCount: 48,
+  endedAt: at(day, 21),
+  winner: { squadLabel: squad, memberNames: names, solveMs: 161_000 },
+  mine: null,
+});
+
+const past: Record<string, FeedResultRow[]> = {
+  nova: [result('nova', 'Nova', 'Orchard Lights', 8, 'Squad 3', ['Mae', 'Theo', 'Ivy']), result('nova', 'Nova', 'Night Ferry', 1, 'Squad 2', ['Lou', 'Ana', 'Rae'])],
+  pax: [result('pax', 'Pax', 'Blue Hour', 9, 'Squad 5', ['Kit', 'Mae'])],
+  rook: [result('rook', 'Rook', 'Glass Harbor', 10, 'Squad 9', ['Kit', 'Mae']), result('rook', 'Rook', 'Low Water', 3, 'Squad 1', ['Ivy', 'Theo'])],
+  juno: [result('juno', 'Juno', 'Paper Moon', 7, 'Squad 4', ['Ana', 'Lou', 'Rae'])],
+};
+
+export const feed: FollowingFeedView = { following: cards, live, upcoming, results: Object.values(past).flat().slice(0, 5), serverNow };
+
+export const streamers = cards;
+export const squadmates = ['Lou', 'Ana'];
+
+export function streamerPage(id: string): StreamerPageView | null {
+  const card = cards.find((c) => c.streamerId === id);
+  if (!card) return null;
+  return {
+    ...card,
+    liveDrop: live.find((l) => l.streamerId === id) ?? null,
+    nextDrop: upcoming.find((u) => u.streamerId === id) ?? null,
+    past: past[id] ?? [],
+    serverNow,
+  };
+}

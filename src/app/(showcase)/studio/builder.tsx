@@ -160,7 +160,7 @@ export default function Builder() {
                 </View>
                 <View style={studio.wrap}>
                   {[1, 3, 5].map((v) => (
-                    <Chip key={v} label={`First ${v} squad${v > 1 ? 's' : ''}`} selected={draft.winners === v} onPress={() => setDraft({ ...draft, winners: v })} />
+                    <Chip key={v} label={`${v} squad${v > 1 ? 's' : ''}`} selected={draft.winners === v} onPress={() => setDraft({ ...draft, winners: v })} />
                   ))}
                 </View>
                 <Card>
@@ -185,7 +185,7 @@ export default function Builder() {
               </View>
               <Section title="Goes live">
                 <View style={studio.wrap}>
-                  {['Tonight · 9:00 PM', 'Fri · 8:00 PM', 'Sat · 2:00 PM'].map((v) => (
+                  {['Tonight 9 PM', 'Fri 8 PM', 'Sat 2 PM'].map((v) => (
                     <Chip key={v} label={v} selected={draft.when === v} onPress={() => setDraft({ ...draft, when: v })} />
                   ))}
                 </View>

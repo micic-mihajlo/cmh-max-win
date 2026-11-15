@@ -15,12 +15,14 @@ import {
 import { CONCEPT_LABEL, createSandboxClaimLink } from './bounty';
 import { ELIGIBILITY_STUB_NOTE, resolveIdentity } from './creatorIdentity';
 import { dealPieces, splitSizes } from './drops';
-import { mixerTemplate, verifyMixerTeam } from './templates/engine';
+import { handleProblem, normalizeHandle } from './handles';
+import { mixerTemplate, publishIssues, verifyMixerTeam } from './templates/engine';
 import { listTemplates } from './templates/registry';
 import { checkWhopAccess } from './whopAuth';
 import { challengeConfig } from './schema';
 import { releaseChallengeSeat, takeChallengeSeat } from './hardening';
 import { enforceRateLimit } from './rateLimits';
+import { isSessionTemplate, placeTeamSessions, startTeamSessions } from './teamSessions';
 import { CODE_ALPHABET, generateCode } from './signal';
 import { whopEnvironment, whopRequest } from './whop';
 import type {
@@ -37,6 +39,7 @@ import type {
   CreatorProfileView,
   EligibilityView,
   HostConsoleView,
+  LiveErrorCode,
   MixerColor,
   MixerMeView,
   MixerStandingsView,
@@ -55,7 +58,7 @@ import type {
 type Ctx = QueryCtx;
 type Challenge = Doc<'challenges'>;
 
-function fail(code: SignalErrorCode, message: string, extra?: Record<string, unknown>): never {
+function fail(code: SignalErrorCode | LiveErrorCode, message: string, extra?: Record<string, unknown>): never {
   throw new ConvexError({ code, message, ...extra });
 }
 
@@ -155,7 +158,12 @@ export function validateConfig(c: ChallengeConfig, serverCreated: boolean, now: 
   const template = TEMPLATES.find((t) => t.id === c.templateId);
   if (!template) add('templateId', 'Unknown template.');
   else if (!template.formations.includes(c.teamFormation)) add('templateId', template.name + ' does not support ' + c.teamFormation + ' teams.');
-  else if (c.teamFormation === 'dealt' && c.templateId !== 'mystery-aurora') add('templateId', 'Dealt teams play Aurora for now.');
+  else if (c.teamFormation === 'dealt' && c.templateId !== 'mystery-aurora' && !isSessionTemplate(c.templateId)) add('templateId', 'Dealt teams play Aurora for now.');
+  if (template && isSessionTemplate(c.templateId)) {
+    if (c.startMode !== 'live') add('startMode', template.name + ' runs live: the host starts it and paces it.');
+    const content = publishIssues(c.templateId, c.templateConfig);
+    if (content.length) add('templateConfig', content[0].message);
+  }
   if (!Number.isInteger(c.teamSize) || c.teamSize < 1 || c.teamSize > MAX_TEAM_SIZE) add('teamSize', 'Teams are 1 to ' + MAX_TEAM_SIZE + ' players.');
   else if (c.teamFormation === 'dealt' && template && !template.teamSizes.includes(c.teamSize)) {
     add('teamSize', template.name + ' plays in teams of ' + template.teamSizes.join(' or ') + ' for now.');
@@ -196,12 +204,12 @@ function asChallengeId(ctx: Ctx, id: string) {
   return ctx.db.normalizeId('challenges', id);
 }
 
-async function getChallenge(ctx: Ctx, id: string) {
+export async function getChallenge(ctx: Ctx, id: string) {
   const cid = asChallengeId(ctx, id);
   return cid ? ctx.db.get(cid) : null;
 }
 
-async function requireOwned(ctx: Ctx, deviceToken: string, id: string) {
+export async function requireOwned(ctx: Ctx, deviceToken: string, id: string) {
   const c = await getChallenge(ctx, id);
   if (!c) fail('CHALLENGE_NOT_FOUND', 'No such challenge.');
   const me = await resolveIdentity(ctx, deviceToken);
@@ -209,7 +217,7 @@ async function requireOwned(ctx: Ctx, deviceToken: string, id: string) {
   return c;
 }
 
-async function findByCode(ctx: Ctx, code: string) {
+export async function findByCode(ctx: Ctx, code: string) {
   const matches = await ctx.db
     .query('challenges')
     .withIndex('by_joinCode', (q) => q.eq('joinCode', code.trim().toUpperCase()))
@@ -227,9 +235,9 @@ async function generateChallengeCode(ctx: MutationCtx) {
   }
 }
 
-const entriesOf = (ctx: Ctx, challengeId: Id<'challenges'>) =>
+export const entriesOf = (ctx: Ctx, challengeId: Id<'challenges'>) =>
   ctx.db.query('challengeEntries').withIndex('by_challenge', (q) => q.eq('challengeId', challengeId)).collect();
-const teamsOf = (ctx: Ctx, challengeId: Id<'challenges'>) =>
+export const teamsOf = (ctx: Ctx, challengeId: Id<'challenges'>) =>
   ctx.db.query('challengeTeams').withIndex('by_challenge', (q) => q.eq('challengeId', challengeId)).collect();
 const payoutsOf = (ctx: Ctx, challengeId: Id<'challenges'>) =>
   ctx.db.query('payouts').withIndex('by_challenge', (q) => q.eq('challengeId', challengeId)).collect();
@@ -239,7 +247,7 @@ const findEntry = (ctx: Ctx, challengeId: Id<'challenges'>, deviceToken: string)
     .withIndex('by_challenge_token', (q) => q.eq('challengeId', challengeId).eq('deviceToken', deviceToken))
     .unique();
 
-async function creatorOf(ctx: Ctx, deviceToken: string) {
+export async function creatorOf(ctx: Ctx, deviceToken: string) {
   const p = await ctx.db.query('creators').withIndex('by_token', (q) => q.eq('deviceToken', deviceToken)).first();
   return { displayName: p?.displayName ?? 'Host', handle: p ? '@' + p.handle : '' };
 }
@@ -286,7 +294,7 @@ async function teamViews(ctx: Ctx, c: Challenge, teams: Doc<'challengeTeams'>[],
   }));
 }
 
-async function finishersOf(ctx: Ctx, c: Challenge, teams: Doc<'challengeTeams'>[], entries: Doc<'challengeEntries'>[]) {
+export async function finishersOf(ctx: Ctx, c: Challenge, teams: Doc<'challengeTeams'>[], entries: Doc<'challengeEntries'>[]) {
   if (c.config.teamFormation === 'mixer') {
     const byId = new Map(entries.map((e) => [e._id, e]));
     return (await mixerTeamsOf(ctx, c._id))
@@ -377,8 +385,9 @@ async function formTeams(ctx: MutationCtx, c: Challenge, final: boolean) {
   return sizes.length;
 }
 
-async function endNow(ctx: MutationCtx, c: Challenge) {
+export async function endNow(ctx: MutationCtx, c: Challenge) {
   if (c.status !== 'published' && c.status !== 'live') return;
+  if (c.status === 'live' && isSessionTemplate(c.config.templateId)) await placeTeamSessions(ctx, c, Date.now());
   const entries = await entriesOf(ctx, c._id);
   await Promise.all(entries.filter((e) => !e.teamId && !e.waitingNextRound).map((e) => ctx.db.patch(e._id, { waitingNextRound: true })));
   await ctx.db.patch(c._id, { status: 'ended', endedAt: Date.now() });
@@ -400,7 +409,8 @@ export async function recordChallengeFinish(ctx: MutationCtx, room: Doc<'rooms'>
 
 // lockIn refuses play in a challenge room unless the challenge is live.
 export async function challengeIsPlayable(ctx: QueryCtx, challengeId: Id<'challenges'>) {
-  return (await ctx.db.get(challengeId))?.status === 'live';
+  const c = await ctx.db.get(challengeId);
+  return c?.status === 'live' && !isSessionTemplate(c.config.templateId);
 }
 
 // ---------- Creator profile ----------
@@ -423,9 +433,10 @@ export const saveCreatorProfile = mutation({
   handler: async (ctx, { deviceToken, displayName, handle }): Promise<CreatorProfileView> => {
     const me = await resolveIdentity(ctx, deviceToken);
     const name = displayName.trim().slice(0, 40);
-    const h = handle.trim().replace(/^@/, '').toLowerCase();
+    const h = normalizeHandle(handle);
     if (!name) fail('INVALID_CONFIG', 'Add a display name.');
-    if (!/^[a-z0-9_]{2,20}$/.test(h)) fail('INVALID_CONFIG', 'Handles are 2 to 20 letters, numbers or underscores.');
+    const problem = handleProblem(h);
+    if (problem) fail('INVALID_CONFIG', problem);
     const taken = await ctx.db.query('creators').withIndex('by_handle', (q) => q.eq('handle', h)).first();
     if (taken && taken.deviceToken !== me.deviceToken) fail('HANDLE_TAKEN', 'That handle is taken.');
     const mine = await ctx.db.query('creators').withIndex('by_token', (q) => q.eq('deviceToken', me.deviceToken)).first();
@@ -636,6 +647,8 @@ export const enterChallenge = internalMutation({
     if (existing) return { challengeId: c._id as string };
     const open = c.status === 'published' || (c.status === 'live' && (c.config.startMode === 'window' || c.config.teamFormation === 'mixer'));
     if (!open || (c.config.endsAt !== null && Date.now() >= c.config.endsAt)) fail('CHALLENGE_CLOSED', 'Entry is closed.');
+    const session = await ctx.db.query('liveSessions').withIndex('by_challenge', (q) => q.eq('challengeId', c._id)).unique();
+    if (session?.lockedAt !== undefined && Date.now() >= session.lockedAt) fail('ENTRIES_LOCKED', 'Entries are locked.');
     const me = await resolveIdentity(ctx, deviceToken);
     if (c.config.requireWhopToJoin && !me.whopUserId) fail('WHOP_SIGN_IN_REQUIRED', 'Sign in with Whop to join this challenge.');
     const clean = name.trim().slice(0, 24);
@@ -735,12 +748,18 @@ export const dealTeams = mutation({
     if (c.status !== 'published' || c.config.startMode !== 'live' || c.config.teamFormation !== 'dealt') {
       fail('CHALLENGE_CLOSED', 'Only an open live-mode challenge with dealt teams can be dealt.');
     }
-    const waiting = (await entriesOf(ctx, c._id)).filter((e) => !e.teamId && !e.waitingNextRound).length;
-    const minimum = c.config.leftover === 'smaller_teams' ? Math.min(2, c.config.teamSize) : c.config.teamSize;
-    if (waiting < minimum) fail('NOT_ENOUGH_PLAYERS', 'Not enough players for a team yet.');
-    await formTeams(ctx, c, true);
+    await dealLive(ctx, c);
   },
 });
+
+// Live start mode, dealt teams: deal everyone waiting now, the leftover policy included.
+export async function dealLive(ctx: MutationCtx, c: Challenge) {
+  const waiting = (await entriesOf(ctx, c._id)).filter((e) => !e.teamId && !e.waitingNextRound).length;
+  const minimum = c.config.leftover === 'smaller_teams' ? Math.min(2, c.config.teamSize) : c.config.teamSize;
+  if (waiting < minimum) fail('NOT_ENOUGH_PLAYERS', 'Not enough players for a team yet.');
+  await formTeams(ctx, c, true);
+  if (isSessionTemplate(c.config.templateId)) await startTeamSessions(ctx, c, Date.now());
+}
 
 export const endChallenge = mutation({
   args: { deviceToken: v.string(), challengeId: v.string() },

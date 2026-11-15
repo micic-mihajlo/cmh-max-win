@@ -11,6 +11,7 @@ import type { HostView } from '@/lib/contract';
 import { money, short } from './ui';
 
 export const MIN_TO_DEAL = 4;
+const CHIP_LIMIT = 12;
 
 // The shared big screen before the deal: the code is the hero, the QR (code only) is secondary.
 export function HostScreen({ view, hostName, dealing, onDeal }: { view: HostView; hostName: string; dealing?: boolean; onDeal?: () => void }) {
@@ -23,7 +24,7 @@ export function HostScreen({ view, hostName, dealing, onDeal }: { view: HostView
           <Txt variant="bodyStrong" style={styles.flex}>
             {`${money(view.bounty.totalCents)} · first ${view.bounty.winnerSlots} squads`}
           </Txt>
-          <PressScale disabled={!canDeal} onPress={onDeal} style={[styles.deal, !canDeal && styles.dealOff]}>
+          <PressScale disabled={!canDeal} onPress={onDeal} haptic="tap" style={[styles.deal, !canDeal && styles.dealOff]}>
             <Txt variant="button" color={canDeal ? Palette.onAccent : Palette.disabledText}>
               {dealing ? 'Dealing…' : 'Deal squads'}
             </Txt>
@@ -57,13 +58,18 @@ export function HostScreen({ view, hostName, dealing, onDeal }: { view: HostView
       <View style={styles.here}>
         <Txt variant="title">{`${view.entrantCount} here`}</Txt>
         <View style={styles.chips}>
-          {view.entrants.map((e, i) => (
-            <Enter key={`${e.name}-${i}`} from={4}>
+          {view.entrants.slice(-CHIP_LIMIT).map((e, i) => (
+            <Enter key={`${e.name}-${e.joinedAt}`} from={4}>
               <View style={styles.chip}>
                 <Txt variant="body">{e.name}</Txt>
               </View>
             </Enter>
           ))}
+          {view.entrantCount > CHIP_LIMIT ? (
+            <View style={[styles.chip, styles.more]}>
+              <Txt variant="body" color={Palette.paperMuted}>{`+${view.entrantCount - CHIP_LIMIT} more`}</Txt>
+            </View>
+          ) : null}
         </View>
       </View>
     </Screen>
@@ -95,7 +101,7 @@ function HostBoard({ view }: { view: HostView }) {
         ))}
       </View>
       <View style={styles.squads}>
-        <Stagger stagger={30}>
+        <Stagger stagger={30} itemStyle={styles.squadCell}>
           {order.map((s) => {
             const solved = solve.get(s.squadLabel);
             return (
@@ -132,7 +138,8 @@ const styles = StyleSheet.create({
   bars: { flexDirection: 'row', gap: Space.s },
   bar: { flex: 1, height: 10, borderRadius: Radius.pill, backgroundColor: Palette.hairline, overflow: 'hidden' },
   barFill: { flex: 1, backgroundColor: Palette.ember },
-  squads: { gap: Space.s },
+  squads: { flexDirection: 'row', flexWrap: 'wrap', gap: Space.s },
+  squadCell: { flexGrow: 1, flexBasis: 280 },
   squad: {
     gap: Space.s,
     padding: Space.l,
@@ -162,6 +169,7 @@ const styles = StyleSheet.create({
   qrCard: { alignSelf: 'center', alignItems: 'center', gap: Space.s, padding: Space.m, borderRadius: Radius.m, backgroundColor: Palette.card },
   here: { gap: Space.m },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Space.s },
+  more: { backgroundColor: 'transparent' },
   chip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: Radius.pill, backgroundColor: Palette.accentSoft },
   footer: { flexDirection: 'row', alignItems: 'center', gap: Space.l },
   deal: { height: 54, paddingHorizontal: Space.xl, borderRadius: 16, backgroundColor: Palette.ember, alignItems: 'center', justifyContent: 'center' },

@@ -219,17 +219,35 @@ export type LeaderboardView = {
   rows: LeaderboardRow[]; // solved squads by rank, then solving squads by squad label
 };
 
+// This device's own cut of a squad award (CMHM-11). Real payouts are a Whop balance transfer to the
+// player's linked whopUserId, behind SIGNAL_REAL_PAYOUTS=on; with the flag off every row is 'concept'.
+// concept: no real money moves · sign_in_required: sign in with Whop (useLinkForClaim) and the transfer
+// fires on link · sending: transfer in flight or retrying · sent: Whop accepted it · failed: see failureCode.
+export type AwardPayoutStatus = 'concept' | 'sign_in_required' | 'sending' | 'sent' | 'failed';
+export type AwardPayoutView = {
+  status: AwardPayoutStatus;
+  amountCents: number; // this device's share; equals its row in split
+  // Set only when failed: Whop's error code, e.g. 'kyc_required' (the business isn't verified),
+  // 'transfer_unavailable' (balance held or too low), or 'unknown'.
+  failureCode?: string;
+};
+export type AwardSplitRow = { name: string; cents: number; isMe: boolean };
+
 // Only the members of the winning squad ever receive this; everyone else gets null.
 export type SquadAwardView = {
   place: number;
-  amountCents: number; // the squad's share = perPlayerCents * redeemableCount
+  amountCents: number; // the squad's share = sum of split = perPlayerCents * redeemableCount
   perPlayerCents: number; // floor(totalCents / winnerSlots / squadSize)
   currency: 'usd';
   mode: BountyMode;
-  status: 'pending' | 'ready' | 'failed';
-  claimUrl: string | null; // a Whop claim link, one claim per player; null in concept mode
+  status: 'pending' | 'ready' | 'failed'; // the award as a whole
+  myPayout: AwardPayoutView;
+  split: AwardSplitRow[]; // every squad member's cut, seat order
+  /** @deprecated Claim links are KYC-blocked; real payouts are transfers (myPayout). Always null from now on. */
+  claimUrl?: string | null;
   redeemableCount: number; // = squad size
-  expiresAt: number | null; // ms epoch the claim link expires (Whop default 24h); null in concept mode
+  /** @deprecated Claim-link expiry; unused by transfers. */
+  expiresAt?: number | null;
   label: string; // e.g. 'Concept payout — no real money moves'
 };
 
@@ -321,7 +339,9 @@ export type HostView = {
 
 export type UseHostView = (dropId: string | null) => HostView | null | undefined; // null = not the host, or no such drop
 // creatorName heads the race ("Nova's drop"). Omitted: the newest name this device token used server-side, else "Host".
-export type UseHostDrop = () => (args: { title?: string; winnerSlots?: number; totalCents?: number; creatorName?: string }) => Promise<{ dropId: string; joinCode: string }>;
+// startsAt (ms epoch, 2 minutes to 30 days ahead): a scheduled drop, listed under "Coming up" with Remind me until it opens.
+// Omitted: the drop opens now and the streamer goes live, as before.
+export type UseHostDrop = () => (args: { title?: string; winnerSlots?: number; totalCents?: number; creatorName?: string; startsAt?: number }) => Promise<{ dropId: string; joinCode: string }>;
 export type UseDealSquads = (dropId: string) => () => Promise<void>; // host only; NOT_ENOUGH_PLAYERS below 4
 
 export type UseDropByCode = (code: string | null) => DropView | null | undefined; // null = no open drop with that code
@@ -337,7 +357,7 @@ export type UseServerOffset = () => number | null;
 // (teams dealt) -> ended (results final) or cancelled. Drops above keep working unchanged.
 // Identity is the device token for now, behind one server helper (resolveIdentity) that Sign in with Whop replaces.
 
-export type ChallengeTemplateId = 'mystery-aurora' | 'split-passphrase'; // ids from the CAP-32 template registry
+export type ChallengeTemplateId = 'mystery-aurora' | 'split-passphrase' | 'quick-quiz'; // ids from the CAP-32 template registry
 export type ChallengeTemplateView = {
   id: ChallengeTemplateId;
   name: string; // 'The Aurora Seed'
@@ -394,6 +414,7 @@ export type ChallengeConfig = {
   payoutAdapter: PayoutAdapterId;
   requireWhopToJoin: boolean; // forced true for whop_members; recommended for large pools. Otherwise Whop is needed only to claim
   claimWindowMs: number; // how long a winner has to claim after approval; default 7 days. Unclaimed shares return to the pool
+  templateConfig?: unknown; // the template's own content, checked at publish (quick-quiz: { questions }; see templates.md)
 };
 export type ChallengeConfigPatch = Partial<ChallengeConfig>;
 export type ConfigIssue = { field: keyof ChallengeConfig; message: string }; // why publish would be refused
@@ -679,6 +700,9 @@ export type UseSubmitMixerAnswer = (challengeId: string) => (answer: string) => 
 
 export type UseChallengeRecap = (challengeId: string | null) => ChallengeRecapView | null | undefined; // null until ended
 
+export * from './contract-feed';
+export * from './contract-discovery';
 export * from './contract-growth';
 export * from './contract-hardening';
 export * from './contract-whop';
+export * from './contract-live'; // live layer: host start, lock and actions, public live view (CAP-40)

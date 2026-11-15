@@ -42,7 +42,6 @@ export default function Generate() {
 
   return (
     <StudioScreen
-      kicker="From templates"
       title="Generate a puzzle"
       footer={
         !picked.ready ? undefined : (
@@ -107,7 +106,7 @@ export default function Generate() {
               {difficulties.map((d) => (
                 <Chip
                   key={d.id}
-                  label={`${d.label} · ${d.suspects} suspects`}
+                  label={`${d.label} · ${d.suspects}`}
                   selected={difficulty === d.id}
                   onPress={() => setDifficulty(d.id)}
                 />
