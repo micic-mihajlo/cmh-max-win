@@ -35,6 +35,24 @@ export const isTestLabel = (label: string) => TEST_LABELS.some((p) => p.test(lab
 // Lists also skip flagged hosts and hostDrop's default name "Host" (a host that never set a name). Neither counts as a
 // test for the cron: a real live room can still be run by an unnamed host.
 export const isHiddenStreamer = (s: Doc<'streamers'>) => !!s.hidden || isTestLabel(s.name) || /^host$/i.test(s.name.trim());
+// Rehearsal and QA hosts by name ("Capy QA", "PP Host", "Rehearsal Nova"): kept out of Find streamers and the following
+// feed only. Pages, follows and the cron still treat them as real.
+const REHEARSAL_NAME = /\b(capy|qa|test|pp host|rehearsal)\b/i;
+export const isRehearsalHost = (s: Doc<'streamers'>) => REHEARSAL_NAME.test(s.name);
+export const normalizedName = (name: string) => name.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
+// scripts/demo/seed-streamers.mjs hosts as 'seed-host-…' device tokens.
+const isSeeded = (s: Doc<'streamers'>) => s.hostToken.startsWith('seed-host-');
+
+// One streamer per display name: a seeded streamer beats ad-hoc hosts of the same name, else the first in the list wins.
+export function dedupeByName(list: Doc<'streamers'>[]) {
+  const byName = new Map<string, Doc<'streamers'>>();
+  for (const s of list) {
+    const key = normalizedName(s.name);
+    const kept = byName.get(key);
+    if (!kept || (isSeeded(s) && !isSeeded(kept))) byName.set(key, s);
+  }
+  return [...byName.values()];
+}
 
 // "Demo · Rio" -> "Rio", "Ana Lima" -> "Ana".
 export function firstName(name: string) {
@@ -74,7 +92,7 @@ export function checkScheduledStart(startsAt: number, now: number) {
 
 export async function noteHostedDrop(
   ctx: MutationCtx,
-  args: { hostToken: string; name: string; dropId: string; scheduledFor: number | null; avatarUrl?: string },
+  args: { hostToken: string; name: string; dropId: string; scheduledFor: number | null; avatarUrl?: string; rehearsal?: boolean },
 ) {
   const now = Date.now();
   const existing = await ctx.db
@@ -91,6 +109,7 @@ export async function noteHostedDrop(
     createdAt: now,
     scheduledFor: args.scheduledFor,
     openedAt: args.scheduledFor === null ? now : null,
+    ...(args.rehearsal ? { rehearsal: true } : {}),
   });
   if (args.scheduledFor === null) {
     await queueLivePush(ctx, args.dropId);
@@ -230,7 +249,7 @@ async function hostedDropsOf(ctx: QueryCtx, streamerId: Id<'streamers'>): Promis
     .take(RECENT_DROPS);
   const rows: HostedDrop[] = [];
   for (const sd of sds) {
-    if (sd.expiredAt !== undefined) continue;
+    if (sd.expiredAt !== undefined || sd.rehearsal) continue;
     const drop = await dropById(ctx, sd.dropId);
     if (drop && !isTestLabel(drop.title)) rows.push({ sd, drop });
   }
@@ -410,6 +429,23 @@ async function card(ctx: QueryCtx, me: ResolvedIdentity, streamer: Doc<'streamer
   };
 }
 
+// Find streamers and the following feed: no hidden or rehearsal-named hosts, no host whose recent drops are all
+// rehearsals, and one streamer per display name.
+async function discoverable(ctx: QueryCtx, list: Doc<'streamers'>[]) {
+  const kept: Doc<'streamers'>[] = [];
+  for (const s of list) {
+    if (isHiddenStreamer(s) || isRehearsalHost(s)) continue;
+    const sds = await ctx.db
+      .query('streamerDrops')
+      .withIndex('by_streamer', (q) => q.eq('streamerId', s._id))
+      .order('desc')
+      .take(RECENT_DROPS);
+    if (sds.length && sds.every((sd) => sd.rehearsal)) continue;
+    kept.push(s);
+  }
+  return dedupeByName(kept);
+}
+
 // Hidden (test) streamers read as missing everywhere public.
 async function getStreamer(ctx: QueryCtx, streamerId: string) {
   const id = ctx.db.normalizeId('streamers', streamerId);
@@ -435,10 +471,9 @@ export const followingFeed = query({
         : [],
     ]);
     const view: FollowingFeedView = { following: [], live: [], upcoming: [], results: [], serverNow: now };
-    for (const streamerId of new Set([...byDevice, ...byWhop].map((f) => f.streamerId))) {
-      const streamer = await ctx.db.get(streamerId);
-      if (!streamer || isHiddenStreamer(streamer)) continue;
-      const hosted = await hostedDropsOf(ctx, streamerId);
+    const followed = await Promise.all([...new Set([...byDevice, ...byWhop].map((f) => f.streamerId))].map((id) => ctx.db.get(id)));
+    for (const streamer of await discoverable(ctx, followed.filter((s) => s !== null))) {
+      const hosted = await hostedDropsOf(ctx, streamer._id);
       view.following.push(await card(ctx, me, streamer, hosted, now));
       for (const h of hosted) {
         const since = await liveSince(ctx, h, now);
@@ -482,7 +517,7 @@ export const streamers = query({
   handler: async (ctx, { deviceToken }): Promise<StreamerCardView[]> => {
     const now = Date.now();
     const me = await resolveIdentity(ctx, deviceToken);
-    const recent = (await ctx.db.query('streamers').withIndex('by_updated').order('desc').take(100)).filter((s) => !isHiddenStreamer(s)).slice(0, 50);
+    const recent = (await discoverable(ctx, await ctx.db.query('streamers').withIndex('by_updated').order('desc').take(100))).slice(0, 50);
     const cards = await Promise.all(recent.map(async (s) => card(ctx, me, s, await hostedDropsOf(ctx, s._id), now)));
     return cards.sort((a, b) => Number(b.live) - Number(a.live) || b.followerCount - a.followerCount);
   },

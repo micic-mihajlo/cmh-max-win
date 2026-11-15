@@ -605,8 +605,9 @@ export const hostDrop = mutation({
     startsAt: v.optional(v.number()), // a scheduled drop (feed.ts); omitted, the drop opens now
     avatarUrl: v.optional(v.string()), // https only; shown on the streamer's card
     template: v.optional(v.literal('split-passphrase')), // omitted: the Case 01 mystery
+    rehearsal: v.optional(v.boolean()), // a rehearsal: plays as usual, but stays out of discovery and the feed (feed.ts)
   },
-  handler: async (ctx, { deviceToken, title, winnerSlots, totalCents, creatorName, startsAt, avatarUrl, template }) => {
+  handler: async (ctx, { deviceToken, title, winnerSlots, totalCents, creatorName, startsAt, avatarUrl, template, rehearsal }) => {
     if (!deviceToken) fail('WRONG_STATUS', 'Missing device token.');
     await enforceRateLimit(ctx, 'hostDrop', deviceToken);
     if (startsAt !== undefined) checkScheduledStart(startsAt, Date.now());
@@ -621,7 +622,7 @@ export const hostDrop = mutation({
       hostToken: deviceToken,
       ...(template ? { template } : {}),
     });
-    await noteHostedDrop(ctx, { hostToken: deviceToken, name, dropId: hosted.dropId, scheduledFor: startsAt ?? null, avatarUrl });
+    await noteHostedDrop(ctx, { hostToken: deviceToken, name, dropId: hosted.dropId, scheduledFor: startsAt ?? null, avatarUrl, rehearsal });
     return hosted;
   },
 });
