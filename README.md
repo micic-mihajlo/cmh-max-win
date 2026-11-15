@@ -10,3 +10,5 @@ corepack yarn start           # Expo dev server
 ```
 
 Checks: `corepack yarn typecheck`, `corepack yarn expo lint`, `npx expo-doctor`. See [AGENTS.md](AGENTS.md) for Convex and Revyl phone builds.
+
+Public pages (landing, privacy, terms) are static HTML in `web/`, deployed to https://signal-web-steel.vercel.app with `vercel deploy --prod` from that folder.
