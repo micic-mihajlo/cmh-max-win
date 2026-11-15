@@ -29,10 +29,12 @@ export const MIN_SHOWN_FOLLOWERS = 3;
 export const MAX_SQUADMATES = 3;
 const RECENT_DROPS = 20;
 
-// Load-test and QA hosts and drops, kept off the public feed.
+// Load-test and QA hosts and drops: kept off the public feed, and the cron may end their drops early.
 const TEST_LABELS = [/^load\b/i, /\bload ·/i, /^qa\b/i, /CMHM-\d+/, /\(ignore\)/i];
 export const isTestLabel = (label: string) => TEST_LABELS.some((p) => p.test(label.trim()));
-const isHiddenStreamer = (s: Doc<'streamers'>) => !!s.hidden || isTestLabel(s.name);
+// Lists also skip flagged hosts and hostDrop's default name "Host" (a host that never set a name). Neither counts as a
+// test for the cron: a real live room can still be run by an unnamed host.
+export const isHiddenStreamer = (s: Doc<'streamers'>) => !!s.hidden || isTestLabel(s.name) || /^host$/i.test(s.name.trim());
 
 // "Demo · Rio" -> "Rio", "Ana Lima" -> "Ana".
 export function firstName(name: string) {
@@ -587,7 +589,8 @@ export const hideStreamers = internalMutation({
   },
 });
 
-// Cron: ends test hosted drops older than STALE_DROP_MS, and real ones older than ABANDONED_DROP_MS that were dealt
+// Cron: ends test hosted drops (test-pattern host name or title; not the hidden flag or "Host") older than
+// STALE_DROP_MS, and real ones older than ABANDONED_DROP_MS that were dealt
 // and have no squad still racing. A real drop that is waiting to be dealt is never touched. Idempotent: ended
 // drops are skipped. "Live now" doesn't depend on this; reads already drop idle drops.
 export const expireStaleDrops = internalMutation({
@@ -605,7 +608,7 @@ export const expireStaleDrops = internalMutation({
         const sd = await streamerDropOf(ctx, drop.dropId);
         if (!sd || now - sd.createdAt < STALE_DROP_MS) continue;
         const streamer = await ctx.db.get(sd.streamerId);
-        const test = isTestLabel(drop.title) || (!!streamer && isHiddenStreamer(streamer));
+        const test = isTestLabel(drop.title) || (!!streamer && isTestLabel(streamer.name));
         if (!test) {
           if (drop.status !== 'live' || now - sd.createdAt < ABANDONED_DROP_MS) continue;
           const rooms = await ctx.db
