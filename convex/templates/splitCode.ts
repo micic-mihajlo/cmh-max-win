@@ -1,10 +1,10 @@
-// Challenge type #2, deliberately simple: a passphrase split across the team. Each player privately holds some
-// of its words (with their positions). Anyone can type into the shared slots, and the team commits when every
-// player confirms the same revision.
+// Challenge type #2, deliberately simple: a passphrase race between squads of 1 to 4. A solo player holds every
+// word; larger squads split the words so each player privately holds some (with their positions). Anyone in the
+// squad can type into its shared slots, and the squad commits when every player confirms the same revision.
 import { ConvexError, v } from 'convex/values';
 
 import { rng, shuffle } from './random';
-import type { ChallengeTemplate, CheckResult, TemplateError } from './types';
+import type { ChallengeTemplate, CheckResult, Progress, TemplateError } from './types';
 
 const WORDS = [
   'amber', 'beacon', 'cobalt', 'drift', 'ember', 'falcon', 'glacier', 'harbor', 'ion', 'juniper', 'kestrel', 'lantern',
@@ -55,6 +55,17 @@ function privateView(state: SplitCodeState, playerId: string): SplitCodePrivateV
   };
 }
 
+const SPLIT_STAGES = ['filling', 'confirming', 'solved'] as const;
+
+// Counts filled slots, never correct ones, so rivals (and the squad itself) get no oracle on the passphrase.
+function progress(state: SplitCodeState): Progress {
+  const stage = (i: number, value: number): Progress => ({ value, stage: SPLIT_STAGES[i], stageIndex: i, stageCount: SPLIT_STAGES.length, solved: i === 2 });
+  if (check(state).correct) return stage(2, 1);
+  const filled = state.slots.filter(Boolean).length / state.slots.length;
+  if (filled === 1 && state.confirmed.length > 0) return stage(1, 0.8 + (0.15 * state.confirmed.length) / state.players.length);
+  return stage(0, 0.8 * filled);
+}
+
 function finished(state: SplitCodeState): TemplateError | null {
   return check(state).correct ? { code: 'SOLVED', message: 'The code is already open.' } : null;
 }
@@ -80,11 +91,12 @@ export const splitCodeTemplate: ChallengeTemplate<
       return { wordCount };
     },
   },
-  teamSizes: [2, 3, 4],
+  minSquadSize: 1,
+  maxSquadSize: 4,
 
   deal(team, seed, config) {
     if (config.wordCount < team.length) {
-      throw new ConvexError({ code: 'BAD_CONFIG', message: 'Every player needs at least one word.' });
+      throw new ConvexError({ code: 'BAD_CONFIG', message: 'Every player in the squad needs at least one word.' });
     }
     const next = rng(seed);
     const words = shuffle(WORDS, next).slice(0, config.wordCount);
@@ -165,6 +177,7 @@ export const splitCodeTemplate: ChallengeTemplate<
   },
 
   check,
+  progress,
 
   scoring: {
     score: (o) => (o.correct ? Math.max(50, 500 - 50 * Math.max(0, o.attempts - 1)) : 0),

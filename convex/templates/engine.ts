@@ -3,9 +3,15 @@
 import { ConvexError, v } from 'convex/values';
 
 import { findTemplate } from './registry';
-import type { AnyTemplate, CheckResult, Outcome, Player, Team } from './types';
+import { MAX_SQUAD_SIZE, MIN_SQUAD_SIZE, type AnyTemplate, type CheckResult, type Outcome, type Player, type Progress, type Team } from './types';
 
-// One team's run of one template, stored as a single document field (state is a plain Convex value).
+export function squadSizes(template: AnyTemplate) {
+  const min = Math.max(MIN_SQUAD_SIZE, template.minSquadSize);
+  const max = Math.min(MAX_SQUAD_SIZE, template.maxSquadSize);
+  return Array.from({ length: Math.max(0, max - min + 1) }, (_, i) => min + i);
+}
+
+// One squad's run of one template, stored as a single document field (state is a plain Convex value).
 export type Session<State = unknown> = { templateId: string; seed: string; players: Player[]; state: State };
 
 function fail(code: string, message: string): never {
@@ -28,8 +34,8 @@ export function actionArgs(templateId: string) {
 
 export function startSession(templateId: string, team: Team, seed: string, rawConfig?: unknown) {
   const template = requireTemplate(templateId);
-  if (!template.teamSizes.includes(team.length)) {
-    fail('BAD_TEAM_SIZE', `${template.name} supports teams of ${template.teamSizes.join(', ')}.`);
+  if (!squadSizes(template).includes(team.length)) {
+    fail('BAD_TEAM_SIZE', `${template.name} supports squads of ${template.minSquadSize}–${template.maxSquadSize}.`);
   }
   if (new Set(team.map((p) => p.playerId)).size !== team.length) fail('BAD_TEAM', 'Duplicate player in team.');
   const { state, views } = template.deal(team, seed, template.config.parse(rawConfig));
@@ -61,6 +67,18 @@ export function viewsFor(session: Session, playerId: string) {
   return { shared: template.sharedView(session.state), mine: member ? template.privateView(session.state, playerId) : null };
 }
 
+export function progressOf(session: Session): Progress {
+  return requireTemplate(session.templateId).progress(session.state);
+}
+
+// Live standings for squads racing the same template: solved squads by rankKey, then unsolved by progress
+// (highest first). CMHM-10's standings query can sort its rows with this and use the index as the live rank.
+export function compareLive(templateId: string, a: { progress: Progress; outcome: Outcome }, b: { progress: Progress; outcome: Outcome }) {
+  if (a.progress.solved !== b.progress.solved) return a.progress.solved ? -1 : 1;
+  if (a.progress.solved) return compareOutcomes(templateId, a.outcome, b.outcome);
+  return b.progress.value - a.progress.value;
+}
+
 export function score(templateId: string, outcome: Outcome) {
   return requireTemplate(templateId).scoring.score(outcome);
 }
@@ -77,12 +95,12 @@ export function compareOutcomes(templateId: string, a: Outcome, b: Outcome) {
   return 0;
 }
 
-// Necessity self-check over every supported team size and the given seeds. Every template must be solvable by
+// Necessity self-check over every supported squad size and the given seeds. Every template must be solvable by
 // its whole team. A coop template must also not be solvable by any proper subset of the team.
 export function checkNecessity(template: AnyTemplate, seeds: readonly string[], rawConfig?: unknown) {
   const config = template.config.parse(rawConfig);
   const violations: string[] = [];
-  for (const size of template.teamSizes) {
+  for (const size of squadSizes(template)) {
     const team: Team = Array.from({ length: size }, (_, i) => ({ playerId: `p${i + 1}`, name: `P${i + 1}` }));
     for (const seed of seeds) {
       const { state } = template.deal(team, seed, config);

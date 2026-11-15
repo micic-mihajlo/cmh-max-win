@@ -5,6 +5,11 @@
 // it can live in a document.
 import type { GenericValidator } from 'convex/values';
 
+// Challenges are team vs team: every squad on a drop plays the same template and races the others. Squads are 1–4
+// players; each template declares the sizes it supports within that range.
+export const MIN_SQUAD_SIZE = 1;
+export const MAX_SQUAD_SIZE = 4;
+
 export type Player = { playerId: string; name: string };
 export type Team = readonly Player[];
 
@@ -16,6 +21,11 @@ export type CheckResult = { solved: boolean; correct: boolean; nudge?: Nudge };
 // What the platform knows about a team's run when it scores and ranks it. commitSeq is the platform's commit order
 // for correct solves (drops.winnersSoFar + 1), solveMs is commit time minus the race start.
 export type Outcome = { correct: boolean; attempts: number; solveMs: number; commitSeq: number };
+
+// One squad's live position in the race, for the standings view. value runs 0 to 1 and is 1 only when solved.
+// stage is a short label ("filling", "locking in", "solved"); stageIndex/stageCount let a client draw steps.
+// Rival squads can see it, so it must never reveal the answer or which parts of a squad's work are correct.
+export type Progress = { value: number; stage: string; stageIndex: number; stageCount: number; solved: boolean };
 
 export type TemplateError = { code: string; message: string };
 
@@ -32,11 +42,12 @@ export interface ChallengeTemplate<Config, State, Action extends BaseAction, Pri
   id: string;
   name: string;
   summary: string;
-  // coop: the whole team is needed (necessity must hold). solo: any one player could solve it.
+  // coop: the whole squad is needed (necessity must hold at every size). solo: any one player could solve it.
   mode: 'coop' | 'solo';
   // schema validates creator input at the mutation boundary; parse applies defaults and bounds, throwing on bad input.
   config: { schema: GenericValidator; parse(raw: unknown): Config };
-  teamSizes: readonly number[];
+  minSquadSize: number;
+  maxSquadSize: number;
   // Seats the team and returns the initial state plus each player's private view, keyed by playerId.
   deal(team: Team, seed: string, config: Config): { state: State; views: Record<string, PrivateView> };
   // What only this player may see. Must never contain another player's private content.
@@ -47,6 +58,7 @@ export interface ChallengeTemplate<Config, State, Action extends BaseAction, Pri
   // Server-side transition. Pure: returns a new state and never mutates the input. Runs only after validate passed.
   apply(state: State, playerId: string, action: Action): State;
   check(state: State): CheckResult;
+  progress(state: State): Progress;
   // score is display points; rankKey sorts ascending, compared element by element.
   scoring: { score(outcome: Outcome): number; rankKey(outcome: Outcome): number[] };
   // Could these players solve it from their private views alone? The engine's checkNecessity enumerates subsets.

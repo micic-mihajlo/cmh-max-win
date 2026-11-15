@@ -8,10 +8,22 @@ import { PIECES } from '../aurora';
 import { dealPieces } from '../drops';
 import schema from '../schema';
 import { auroraTemplate, type AuroraState } from './aurora';
-import { act, actionArgs, checkNecessity, checkSession, compareOutcomes, startSession, viewsFor, type Session } from './engine';
+import {
+  act,
+  actionArgs,
+  checkNecessity,
+  checkSession,
+  compareLive,
+  compareOutcomes,
+  progressOf,
+  squadSizes,
+  startSession,
+  viewsFor,
+  type Session,
+} from './engine';
 import { findTemplate, listTemplates, TEMPLATES } from './registry';
 import { splitCodeTemplate, type SplitCodeState } from './splitCode';
-import type { AnyTemplate, Outcome, Team } from './types';
+import { MAX_SQUAD_SIZE, MIN_SQUAD_SIZE, type AnyTemplate, type Outcome, type Progress, type Team } from './types';
 
 const modules = import.meta.glob('../**/*.ts');
 const SEEDS = Array.from({ length: 40 }, (_, i) => `drop-${i}:${i % 5}`);
@@ -59,9 +71,34 @@ describe('registry', () => {
   test('refuses unknown templates, team sizes and configs', async () => {
     expect(await errorCode(() => startSession('nope', team(2), 's'))).toBe('UNKNOWN_TEMPLATE');
     expect(await errorCode(() => startSession('aurora', team(4), 's'))).toBe('BAD_TEAM_SIZE');
+    expect(await errorCode(() => startSession('aurora', team(1), 's'))).toBe('BAD_TEAM_SIZE');
     expect(await errorCode(() => startSession('split-code', team(3), 's', { wordCount: 9 }))).toBe('BAD_CONFIG');
     expect(await errorCode(() => startSession('split-code', team(4), 's', { wordCount: 3 }))).toBe('BAD_CONFIG');
     expect(actionArgs('aurora').kind).toBe('union');
+  });
+});
+
+describe('squad sizes', () => {
+  test('every template declares sizes within 1–4', () => {
+    for (const t of TEMPLATES) {
+      expect(t.minSquadSize).toBeGreaterThanOrEqual(MIN_SQUAD_SIZE);
+      expect(t.maxSquadSize).toBeLessThanOrEqual(MAX_SQUAD_SIZE);
+      expect(t.minSquadSize).toBeLessThanOrEqual(t.maxSquadSize);
+    }
+    expect(squadSizes(auroraTemplate)).toEqual([2, 3]);
+    expect(squadSizes(splitCodeTemplate)).toEqual([1, 2, 3, 4]);
+  });
+
+  test('split code: a solo player holds every word, bigger squads split them with nobody empty-handed', async () => {
+    for (const size of [1, 2, 3, 4]) {
+      for (const seed of SEEDS) {
+        const { session, views } = startSession('split-code', team(size), seed);
+        const counts = session.players.map((p) => (views[p.playerId] as { fragments: unknown[] }).fragments.length);
+        expect(counts.reduce((a, b) => a + b, 0)).toBe(4);
+        expect(Math.min(...counts)).toBeGreaterThan(0);
+      }
+    }
+    expect(await errorCode(() => startSession('split-code', team(5), 'x'))).toBe('BAD_TEAM_SIZE');
   });
 });
 
@@ -102,7 +139,7 @@ function secrets(templateId: string, session: Session): Record<string, string[]>
 describe('private views never leak', () => {
   for (const template of TEMPLATES) {
     test(`${template.id}: no player's view or the shared view carries another player's pieces`, () => {
-      for (const size of template.teamSizes) {
+      for (const size of squadSizes(template)) {
         for (const seed of SEEDS) {
           const { session, views } = startSession(template.id, team(size), seed);
           const held = secrets(template.id, session);
@@ -269,6 +306,64 @@ describe('split code rules', () => {
     ]);
     expect(results.at(-1)).toEqual({ solved: true, correct: true });
     expect(viewsFor(s, 'p1').shared).toMatchObject({ attempts: 1, slots: words });
+  });
+});
+
+describe('progress for live standings', () => {
+  const values = (ps: Progress[]) => ps.map((p) => p.value);
+
+  test('split code: climbs as slots fill and confirm, hits 1 only when solved, and never tells right from wrong', () => {
+    const { session } = startSession('split-code', team(2), 'race', { wordCount: 2 });
+    const words = (session.state as SplitCodeState).words;
+    const trail: Progress[] = [progressOf(session)];
+    let s = session;
+    for (const step of [
+      ['p1', { type: 'enter', position: 0, word: words[0] }],
+      ['p2', { type: 'enter', position: 1, word: 'wrong' }],
+      ['p1', { type: 'confirm', revision: 2 }],
+    ] as const) {
+      s = act(s, step[0], step[1]).session;
+      trail.push(progressOf(s));
+    }
+    expect(values(trail)).toEqual([0, 0.4, 0.8, 0.875]);
+    expect(trail.map((p) => p.stage)).toEqual(['filling', 'filling', 'filling', 'confirming']);
+    const rightWords = play(session, [
+      ['p1', { type: 'enter', position: 0, word: words[0] }],
+      ['p2', { type: 'enter', position: 1, word: words[1] }],
+    ]).session;
+    expect(progressOf(rightWords)).toEqual(progressOf(act(act(session, 'p1', { type: 'enter', position: 0, word: words[0] }).session, 'p2', { type: 'enter', position: 1, word: 'wrong' }).session));
+    const wrongCommit = act(s, 'p2', { type: 'confirm', revision: 2 }).session;
+    expect(progressOf(wrongCommit)).toMatchObject({ value: 0.8, solved: false });
+    const solved = play(rightWords, [
+      ['p1', { type: 'confirm', revision: 2 }],
+      ['p2', { type: 'confirm', revision: 2 }],
+    ]).session;
+    expect(progressOf(solved)).toEqual({ value: 1, stage: 'solved', stageIndex: 2, stageCount: 3, solved: true });
+  });
+
+  test('aurora: a right and a wrong theory look the same to rivals until the right one commits', () => {
+    const { session } = startSession('aurora', team(2), 'd1:0');
+    const theo = act(session, 'p1', { type: 'setTheory', culprit: 'theo' }).session;
+    const jun = act(session, 'p1', { type: 'setTheory', culprit: 'jun' }).session;
+    expect(progressOf(session).value).toBe(0);
+    expect(progressOf(theo)).toEqual(progressOf(jun));
+    expect(progressOf(act(theo, 'p1', { type: 'lockIn', revision: 1 }).session)).toEqual(progressOf(act(jun, 'p1', { type: 'lockIn', revision: 1 }).session));
+    const wrong = play(theo, [['p1', { type: 'lockIn', revision: 1 }], ['p2', { type: 'lockIn', revision: 1 }]]).session;
+    expect(progressOf(wrong)).toEqual(progressOf(theo));
+    const right = play(jun, [['p1', { type: 'lockIn', revision: 1 }], ['p2', { type: 'lockIn', revision: 1 }]]).session;
+    expect(progressOf(right)).toMatchObject({ value: 1, stage: 'solved', solved: true });
+  });
+
+  test('compareLive: solved squads by rank key first, then unsolved by progress', () => {
+    const p = (value: number, solved = false): Progress => ({ value, stage: '', stageIndex: 0, stageCount: 3, solved });
+    const o = (x: Partial<Outcome> = {}): Outcome => ({ correct: true, attempts: 1, solveMs: 1000, commitSeq: 1, ...x });
+    const rows = [
+      { id: 'slow-solve', progress: p(1, true), outcome: o({ solveMs: 9000, commitSeq: 2 }) },
+      { id: 'almost', progress: p(0.8), outcome: o({ correct: false }) },
+      { id: 'fast-solve', progress: p(1, true), outcome: o({ solveMs: 3000, commitSeq: 1 }) },
+      { id: 'started', progress: p(0.2), outcome: o({ correct: false }) },
+    ];
+    expect([...rows].sort((a, b) => compareLive('split-code', a, b)).map((r) => r.id)).toEqual(['fast-solve', 'slow-solve', 'almost', 'started']);
   });
 });
 

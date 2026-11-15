@@ -14,5 +14,12 @@ export function findTemplate(id: string): AnyTemplate | null {
 }
 
 export function listTemplates() {
-  return TEMPLATES.map((t) => ({ id: t.id, name: t.name, summary: t.summary, mode: t.mode, teamSizes: [...t.teamSizes] }));
+  return TEMPLATES.map((t) => ({
+    id: t.id,
+    name: t.name,
+    summary: t.summary,
+    mode: t.mode,
+    minSquadSize: t.minSquadSize,
+    maxSquadSize: t.maxSquadSize,
+  }));
 }

@@ -6,7 +6,7 @@ import { AURORA_REVEAL, PIECES, SUSPECT_NAMES, nudgeText, ownNudgeText, pieceFor
 import { ANSWER, ROLES, SUSPECTS, type Role, type SuspectId } from '../case01';
 import { suspect } from '../schema';
 import { hash } from './random';
-import type { ChallengeTemplate, CheckResult, TemplateError } from './types';
+import type { ChallengeTemplate, CheckResult, Progress, TemplateError } from './types';
 
 export type AuroraConfig = Record<string, never>;
 
@@ -65,6 +65,23 @@ function check(state: AuroraState): CheckResult {
   };
 }
 
+const AURORA_STAGES = ['investigating', 'theory', 'locking in', 'solved'] as const;
+
+// Never reflects whether the theory is right: a wrong commit drops back to the theory stage like any edit.
+function progress(state: AuroraState): Progress {
+  const stage = (i: number, value: number): Progress => ({
+    value,
+    stage: AURORA_STAGES[i],
+    stageIndex: i,
+    stageCount: AURORA_STAGES.length,
+    solved: i === 3,
+  });
+  if (check(state).correct) return stage(3, 1);
+  if (state.lockedIn.length > 0) return stage(2, 0.5 + (0.4 * state.lockedIn.length) / state.seats.length);
+  if (state.culprit) return stage(1, 0.4);
+  return stage(0, 0);
+}
+
 function finished(state: AuroraState): TemplateError | null {
   return check(state).correct ? { code: 'SOLVED', message: 'The case is closed.' } : null;
 }
@@ -94,7 +111,8 @@ export const auroraTemplate: ChallengeTemplate<AuroraConfig, AuroraState, Aurora
     schema: v.object({}),
     parse: () => ({}),
   },
-  teamSizes: [2, 3],
+  minSquadSize: 2,
+  maxSquadSize: 3,
 
   deal(team, seed) {
     const dealt = hands(seed, team.length);
@@ -165,6 +183,7 @@ export const auroraTemplate: ChallengeTemplate<AuroraConfig, AuroraState, Aurora
   },
 
   check,
+  progress,
 
   scoring: {
     score: (o) => (o.correct ? Math.max(100, 1000 - 150 * Math.max(0, o.attempts - 1)) : 0),
