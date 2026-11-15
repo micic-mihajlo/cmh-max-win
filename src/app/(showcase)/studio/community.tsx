@@ -5,7 +5,7 @@ import { FontFamily, Space } from '@/constants/signal';
 import { Txt } from '@/components/signal/txt';
 import { auroraDraft, draftStore } from '@/components/showcase/draft-store';
 import { generatePuzzle, settings } from '@/components/showcase/generate';
-import { Caption, Chip, G, StudioScreen, studio } from '@/components/showcase/studio-ui';
+import { Caption, G, PrimaryButton, StudioScreen, studio } from '@/components/showcase/studio-ui';
 import { communityCases, type CommunityCase } from '@/mocks/showcase/studio';
 import { Enter, PressScale } from '@/motion';
 
@@ -16,7 +16,7 @@ const load = (c: CommunityCase) => {
 
 export default function Community() {
   return (
-    <StudioScreen kicker="Made by creators" title="Community cases">
+    <StudioScreen title="Community cases">
       {communityCases.map((c, i) => (
         <Enter key={c.id} index={i} from={8}>
           <View style={styles.item}>
@@ -42,23 +42,14 @@ export default function Community() {
                   {c.plays.toLocaleString('en-US')} plays · {Math.round(c.solveRate * 100)}% solved
                 </Caption>
               </View>
-              <View style={studio.row}>
-                <Chip
-                  label="Remix"
-                  onPress={() => {
-                    load(c);
-                    router.push('/studio/builder?step=pieces');
-                  }}
-                />
-                <Chip
-                  label="Run as a drop"
-                  selected
-                  onPress={() => {
-                    load(c);
-                    router.push('/studio/builder?step=bounty');
-                  }}
-                />
-              </View>
+              <PrimaryButton
+                title="Run as a drop"
+                variant="text"
+                onPress={() => {
+                  load(c);
+                  router.push('/studio/builder?step=bounty');
+                }}
+              />
             </View>
           </View>
         </Enter>

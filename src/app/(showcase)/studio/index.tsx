@@ -52,7 +52,7 @@ export default function Studio() {
                 <View style={styles.flex}>
                   <Txt variant="bodyStrong" color={G.ink}>{d.title}</Txt>
                   <Txt variant="small" color={G.inkSoft}>
-                    {d.when} · ${d.bounty} · first {d.winners}
+                    {d.when} · ${d.bounty}
                   </Txt>
                 </View>
                 <Txt variant="small" color={G.inkSoft}>
@@ -73,12 +73,10 @@ export default function Studio() {
         </Card>
       </Section>
 
-      <Section title="Make">
-        <View style={studio.gap}>
-          <Link title="Generate a puzzle" hint="Pick a setting, get a case that passes the check" onPress={() => router.push('/studio/generate')} />
-          <Link title="Community cases" hint="Remix one, or run it as your next drop" onPress={() => router.push('/studio/community')} />
-        </View>
-      </Section>
+      <View style={[studio.gap, styles.make]}>
+        <Link title="Generate a puzzle" hint="Pick a setting, get a case that passes the check" onPress={() => router.push('/studio/generate')} />
+        <Link title="Community cases" hint="Run one as your next drop" onPress={() => router.push('/studio/community')} />
+      </View>
     </StudioScreen>
   );
 }
@@ -103,6 +101,7 @@ function Link({ title, hint, onPress }: { title: string; hint: string; onPress: 
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  make: { marginTop: Space.xxl },
   right: { alignItems: 'flex-end' },
   live: { gap: Space.m, marginTop: Space.s },
   liveTitle: { fontFamily: FontFamily.display, fontSize: 22, lineHeight: 28, color: G.ink },
