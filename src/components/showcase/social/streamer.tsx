@@ -53,11 +53,13 @@ export function StreamerScreen({
     <Screen scroll={false}>
       <View style={styles.body}>
         <Enter style={[showcase.gutter, styles.head]}>
-          <Avatar initials={page.name.slice(0, 1)} size={84} />
+          <Avatar initials={page.name.slice(0, 1)} uri={page.avatarUrl} size={84} />
           <Txt variant="display">{page.name}</Txt>
-          <Txt variant="body" color={Palette.paperMuted}>
-            {followers(page.followerCount)}
-          </Txt>
+          {page.showFollowerCount !== false ? (
+            <Txt variant="body" color={Palette.paperMuted}>
+              {followers(page.followerCount)}
+            </Txt>
+          ) : null}
         </Enter>
         <View style={[showcase.gutter, styles.follow]}>
           {page.following ? (
