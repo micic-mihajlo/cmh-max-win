@@ -24,7 +24,7 @@ export const openDrop = mutation({
   handler: async (ctx, args) => {
     requireDemoControls();
     const dropId = `demo-${Date.now().toString(36)}-${Math.floor(Math.random() * 1296).toString(36)}`;
-    await insertDrop(ctx, {
+    return insertDrop(ctx, {
       dropId,
       title: args.title ?? 'The Aurora Seed',
       creatorName: 'SIGNAL',
@@ -33,7 +33,6 @@ export const openDrop = mutation({
       startsAt: Date.now() + Math.max(0, args.startInSeconds ?? 120) * 1000,
       bounty: { totalCents: args.totalCents ?? 30_000, winnerSlots: args.winnerSlots ?? 3 },
     });
-    return { dropId };
   },
 });
 

@@ -71,6 +71,9 @@ export default defineSchema({
     creatorName: v.string(),
     caseId: v.literal('aurora01'),
     squadSize,
+    joinCode: v.optional(v.string()), // 4 chars, unique among drops that aren't ended; the QR payload
+    hostToken: v.optional(v.string()), // drops:hostDrop: the device that runs the host screen and deals
+    conceptOnly: v.optional(v.boolean()), // hosted drops never take the sandbox payout path
     strictSquadSize: v.optional(v.boolean()), // demo controls: every squad is exactly squadSize, leftovers unmatched
     startsAt: v.number(),
     status: v.union(v.literal('scheduled'), v.literal('live'), v.literal('ended')),
@@ -79,6 +82,7 @@ export default defineSchema({
     startJobId: v.optional(v.id('_scheduled_functions')),
   })
     .index('by_dropId', ['dropId'])
+    .index('by_joinCode', ['joinCode'])
     .index('by_status', ['status', 'startsAt']),
   dropEntries: defineTable({
     dropId: v.string(),
