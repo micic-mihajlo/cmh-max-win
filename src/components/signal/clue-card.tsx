@@ -19,11 +19,6 @@ export function ClueCard({ dossier, highlight }: { dossier: DossierView; highlig
         <Txt variant="bodyStrong" color={Palette.inkOnPaper}>
           {dossier.docLabel.charAt(0) + dossier.docLabel.slice(1).toLowerCase()}
         </Txt>
-        <View style={styles.chip}>
-          <Txt variant="smallStrong" color={Palette.inkOnPaper}>
-            Your piece
-          </Txt>
-        </View>
       </View>
       {single ? (
         <Txt variant="quote" color={Palette.inkOnPaper} style={highlight === 0 ? styles.highlight : undefined}>
@@ -92,7 +87,6 @@ const styles = StyleSheet.create({
     boxShadow: '0 1px 2px rgba(26,25,22,0.04), 0 8px 24px rgba(26,25,22,0.05)',
   },
   headRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Space.s },
-  chip: { backgroundColor: Palette.accentSoft, borderRadius: 14, height: 28, paddingHorizontal: Space.m, justifyContent: 'center' },
   lines: { gap: Space.m },
   line: { flexDirection: 'row', gap: Space.m },
   lineStacked: { flexDirection: 'column', gap: 0 },
