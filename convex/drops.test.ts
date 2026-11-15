@@ -518,6 +518,14 @@ describe('host screen', () => {
     ]);
   });
 
+  test('hostDrop names the drop after creatorName, else Host', async () => {
+    const t = newTest();
+    const named = await t.mutation(api.drops.hostDrop, { deviceToken: 'h1', creatorName: '  Nova ' });
+    const plain = await t.mutation(api.drops.hostDrop, { deviceToken: 'h2', creatorName: ' ' });
+    expect(await t.query(api.drops.dropByCode, { deviceToken: 'p1', code: named.joinCode })).toMatchObject({ creatorName: 'Nova' });
+    expect(await t.query(api.drops.dropByCode, { deviceToken: 'p1', code: plain.joinCode })).toMatchObject({ creatorName: 'Host' });
+  });
+
   test('hosted drops stay out of listDrops but answer to their code', async () => {
     const { t, joinCode } = await hosted(1);
     await t.mutation(internal.drops.seedDemo, { startsInSeconds: 60 });

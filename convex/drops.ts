@@ -518,13 +518,14 @@ export const hostDrop = mutation({
     title: v.optional(v.string()),
     winnerSlots: v.optional(v.number()),
     totalCents: v.optional(v.number()),
+    creatorName: v.optional(v.string()),
   },
-  handler: async (ctx, { deviceToken, title, winnerSlots, totalCents }) => {
+  handler: async (ctx, { deviceToken, title, winnerSlots, totalCents, creatorName }) => {
     if (!deviceToken) fail('WRONG_STATUS', 'Missing device token.');
     return insertDrop(ctx, {
       dropId: `host-${Date.now().toString(36)}-${Math.floor(Math.random() * 46656).toString(36)}`,
       title: (title ?? 'The Aurora Seed').trim().slice(0, 60) || 'The Aurora Seed',
-      creatorName: 'Host',
+      creatorName: (creatorName ?? '').trim().slice(0, 24) || 'Host',
       squadSize: 3,
       startsAt: Date.now() + HOSTED_DROP_HOLD_MS,
       bounty: { totalCents: totalCents ?? 30_000, winnerSlots: winnerSlots ?? 3 },
