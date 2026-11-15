@@ -21,12 +21,14 @@ export function StreamersScreen({ streamers, sample }: { streamers: StreamerCard
         <View style={[showcase.gutter, showcase.list, styles.list]}>
           {(streamers ?? []).map((s) => (
             <Pressable key={s.streamerId} accessibilityRole="button" style={showcase.row} onPress={() => router.push(streamerHref(s.streamerId))}>
-              {s.live ? <LiveAvatar initials={s.name.slice(0, 1)} size={44} /> : <Avatar initials={s.name.slice(0, 1)} size={44} />}
+              {s.live ? <LiveAvatar initials={s.name.slice(0, 1)} uri={s.avatarUrl} size={44} /> : <Avatar initials={s.name.slice(0, 1)} uri={s.avatarUrl} size={44} />}
               <View style={showcase.flex}>
                 <Txt variant="bodyStrong">{s.name}</Txt>
-                <Txt variant="small" color={Palette.paperMuted}>
-                  {s.live ? 'Live now' : followers(s.followerCount)}
-                </Txt>
+                {s.live || s.showFollowerCount !== false ? (
+                  <Txt variant="small" color={Palette.paperMuted}>
+                    {s.live ? 'Live now' : followers(s.followerCount)}
+                  </Txt>
+                ) : null}
               </View>
               {s.following ? (
                 <Txt variant="small" color={Palette.paperMuted}>
