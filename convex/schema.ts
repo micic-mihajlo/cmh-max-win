@@ -35,7 +35,8 @@ export default defineSchema({
     roomId: v.id('rooms'),
     deviceToken: v.string(),
     name: v.string(),
-    role: v.union(role, v.null()),
+    role: v.union(role, v.null()), // primary role
+    roles: v.optional(v.array(role)), // every role's evidence this member holds; defaults to [role]
     presence,
   })
     .index('by_room', ['roomId'])
