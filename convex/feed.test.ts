@@ -419,26 +419,58 @@ describe('live status at read time', () => {
 });
 
 describe('expireStaleDrops', () => {
-  test('ends idle and test hosted drops older than 2 hours, leaves upcoming ones, and runs idempotently', async () => {
+  const HOUR = 60 * MIN;
+  const status = async (t: T, dropId: string) => (await t.query(api.drops.drop, { deviceToken: 'x', dropId }))?.status;
+  async function dealt(t: T, deviceToken: string, creatorName: string) {
+    const d = await t.mutation(api.drops.hostDrop, { deviceToken, creatorName });
+    for (const [i, n] of ['Ana', 'Bo', 'Cy', 'Di'].entries()) await t.mutation(api.drops.enterDrop, { deviceToken: deviceToken + '-p' + i, dropId: d.dropId, name: n });
+    await t.mutation(api.drops.dealSquads, { deviceToken, dropId: d.dropId });
+    return d;
+  }
+
+  test('ends test drops after 2 hours and runs idempotently; expired drops stay out of past lists', async () => {
     const t = newTest();
-    const idle = await host(t);
-    const upcoming = await host(t, Date.now() + 3 * 24 * 60 * MIN);
-    const busy = await t.mutation(api.drops.hostDrop, { deviceToken: 'busy-host', creatorName: 'Bo' });
     const loadTest = await t.mutation(api.drops.hostDrop, { deviceToken: 'load-host', creatorName: 'load · 3' });
-    vi.advanceTimersByTime(2 * 60 * MIN - MIN);
-    await t.mutation(api.drops.enterDrop, { deviceToken: 'fan', dropId: busy.dropId, name: 'Fan' });
-    await t.mutation(api.drops.enterDrop, { deviceToken: 'fan2', dropId: loadTest.dropId, name: 'Fan' });
+    const ignored = await host(t);
+    await t.run(async (ctx) => {
+      const drop = (await ctx.db.query('drops').withIndex('by_dropId', (q) => q.eq('dropId', ignored.dropId)).unique())!;
+      await ctx.db.patch(drop._id, { title: 'Soak (ignore)' });
+    });
+    const racingTest = await dealt(t, 'qa-host', 'QA bot');
+    vi.advanceTimersByTime(2 * HOUR - MIN);
     expect(await t.mutation(internal.feed.expireStaleDrops, {})).toEqual({ expired: 0 });
     vi.advanceTimersByTime(2 * MIN);
-    expect(await t.mutation(internal.feed.expireStaleDrops, {})).toEqual({ expired: 2 });
+    expect(await t.mutation(internal.feed.expireStaleDrops, {})).toEqual({ expired: 3 });
     expect(await t.mutation(internal.feed.expireStaleDrops, {})).toEqual({ expired: 0 });
-    const status = async (dropId: string) => (await t.query(api.drops.drop, { deviceToken: 'x', dropId }))?.status;
-    expect(await status(idle.dropId)).toBe('ended');
-    expect(await status(loadTest.dropId)).toBe('ended');
-    expect(await status(busy.dropId)).toBe('scheduled');
-    expect(await status(upcoming.dropId)).toBe('scheduled');
-    const page = (await t.query(api.feed.streamerPage, { deviceToken: 'x', streamerId: idle.streamerId }))!;
-    expect(page.past).toEqual([]);
-    expect(page.nextDrop?.dropId).toBe(upcoming.dropId);
+    for (const d of [loadTest, ignored, racingTest]) expect(await status(t, d.dropId)).toBe('ended');
+    expect((await t.run((ctx) => ctx.db.query('streamerDrops').collect())).filter((sd) => sd.expiredAt).length).toBe(3);
+  });
+
+  test('a real waiting room older than 2 hours with no new joins survives, even past 12 hours', async () => {
+    const t = newTest();
+    const waiting = await host(t);
+    await t.mutation(api.drops.enterDrop, { deviceToken: 'fan', dropId: waiting.dropId, name: 'Fan' });
+    const upcoming = await host(t, Date.now() + 3 * 24 * HOUR);
+    vi.advanceTimersByTime(3 * HOUR);
+    expect(await t.mutation(internal.feed.expireStaleDrops, {})).toEqual({ expired: 0 });
+    vi.advanceTimersByTime(10 * HOUR);
+    expect(await t.mutation(internal.feed.expireStaleDrops, {})).toEqual({ expired: 0 });
+    expect(await status(t, waiting.dropId)).toBe('scheduled');
+    expect(await status(t, upcoming.dropId)).toBe('scheduled');
+  });
+
+  test('a real racing drop with a quiet squad survives; once no squad is racing, it ends after 12 hours', async () => {
+    const t = newTest();
+    const racing = await dealt(t, HOST, 'Nova');
+    vi.advanceTimersByTime(3 * HOUR);
+    expect(await t.mutation(internal.feed.expireStaleDrops, {})).toEqual({ expired: 0 });
+    vi.advanceTimersByTime(10 * HOUR);
+    expect(await t.mutation(internal.feed.expireStaleDrops, {})).toEqual({ expired: 0 });
+    expect(await status(t, racing.dropId)).toBe('live');
+    await t.run(async (ctx) => {
+      for (const r of await ctx.db.query('rooms').withIndex('by_drop', (q) => q.eq('dropId', racing.dropId)).collect()) await ctx.db.patch(r._id, { status: 'resolved' });
+    });
+    expect(await t.mutation(internal.feed.expireStaleDrops, {})).toEqual({ expired: 1 });
+    expect(await status(t, racing.dropId)).toBe('ended');
   });
 });

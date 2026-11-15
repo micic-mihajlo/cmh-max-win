@@ -23,7 +23,8 @@ import type {
 export const STARTING_LEAD_MS = 2 * 60 * 1000; // "Nova's room opens in 2 minutes"
 export const MAX_SCHEDULE_AHEAD_MS = 30 * 24 * 60 * 60 * 1000;
 export const IDLE_MS = 20 * 60 * 1000; // an open drop with no entry, lock-in or solve this long stops counting as live
-export const STALE_DROP_MS = 2 * 60 * 60 * 1000; // expireStaleDrops ends idle or test hosted drops older than this
+export const STALE_DROP_MS = 2 * 60 * 60 * 1000; // expireStaleDrops ends test hosted drops older than this
+export const ABANDONED_DROP_MS = 12 * 60 * 60 * 1000; // and real ones this old, once dealt with no squad still racing
 export const MIN_SHOWN_FOLLOWERS = 3;
 export const MAX_SQUADMATES = 3;
 const RECENT_DROPS = 20;
@@ -571,8 +572,9 @@ export const hideTestHosts = internalMutation({
   },
 });
 
-// Cron: ends hosted drops older than STALE_DROP_MS that are idle (opened, nothing for IDLE_MS) or tests.
-// A scheduled drop still waiting for its start time is left alone. Idempotent: ended drops are skipped.
+// Cron: ends test hosted drops older than STALE_DROP_MS, and real ones older than ABANDONED_DROP_MS that were dealt
+// and have no squad still racing. A real drop that is waiting to be dealt is never touched. Idempotent: ended
+// drops are skipped. "Live now" doesn't depend on this; reads already drop idle drops.
 export const expireStaleDrops = internalMutation({
   args: {},
   handler: async (ctx) => {
@@ -590,8 +592,12 @@ export const expireStaleDrops = internalMutation({
         const streamer = await ctx.db.get(sd.streamerId);
         const test = isTestLabel(drop.title) || (!!streamer && isHiddenStreamer(streamer));
         if (!test) {
-          if (sd.openedAt === null && drop.status === 'scheduled') continue;
-          if (now - (await lastActivityAt(ctx, { sd, drop })) < IDLE_MS) continue;
+          if (drop.status !== 'live' || now - sd.createdAt < ABANDONED_DROP_MS) continue;
+          const rooms = await ctx.db
+            .query('rooms')
+            .withIndex('by_drop', (q) => q.eq('dropId', drop.dropId))
+            .collect();
+          if (rooms.some((r) => r.status === 'intro' || r.status === 'playing')) continue;
         }
         if (drop.startJobId) await ctx.scheduler.cancel(drop.startJobId);
         await ctx.db.patch(drop._id, { status: 'ended' });
