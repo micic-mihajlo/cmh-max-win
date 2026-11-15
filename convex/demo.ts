@@ -23,7 +23,7 @@ export const openDrop = mutation({
   },
   handler: async (ctx, args) => {
     requireDemoControls();
-    const dropId = `demo-${Date.now().toString(36)}-${Math.floor(Math.random() * 1296).toString(36)}`;
+    const dropId = `demo-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
     return insertDrop(ctx, {
       dropId,
       title: args.title ?? 'The Aurora Seed',

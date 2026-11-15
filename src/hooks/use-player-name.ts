@@ -1,24 +1,18 @@
-import * as SecureStore from 'expo-secure-store';
 import { useCallback, useEffect, useState } from 'react';
-import { Platform } from 'react-native';
+
+import { readStored, writeStored } from '@/lib/device';
 
 const KEY = 'signal.playerName';
 
-async function read(): Promise<string | null> {
-  if (Platform.OS === 'web') return globalThis.localStorage?.getItem(KEY) ?? null;
-  const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500));
-  return Promise.race([SecureStore.getItemAsync(KEY).catch(() => null), timeout]);
-}
-
-// The display name is local to this phone and is passed to createRoom/joinRoom.
+// The display name is local to this phone and is passed to createRoom/joinRoom. A read that fails
+// or times out yields null, which shows the name-entry screen instead of a blank one.
 export function usePlayerName() {
   const [name, setName] = useState<string | null | undefined>(undefined);
   useEffect(() => {
-    read().then(setName);
+    readStored(KEY).then(({ value }) => setName(value));
   }, []);
   const save = useCallback(async (value: string) => {
-    if (Platform.OS === 'web') globalThis.localStorage?.setItem(KEY, value);
-    else await SecureStore.setItemAsync(KEY, value).catch(() => {});
+    await writeStored(KEY, value);
     setName(value);
   }, []);
   return { name, save };

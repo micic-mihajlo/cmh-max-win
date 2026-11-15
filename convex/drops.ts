@@ -138,7 +138,8 @@ export const listDrops = query({
         .withIndex('by_status', (q) => q.eq('status', 'scheduled'))
         .collect()),
     ];
-    return Promise.all(open.map(async (d) => summary(d, (await entriesOf(ctx, d.dropId)).length)));
+    const listed = open.filter((d) => !d.hostToken);
+    return Promise.all(listed.map(async (d) => summary(d, (await entriesOf(ctx, d.dropId)).length)));
   },
 });
 

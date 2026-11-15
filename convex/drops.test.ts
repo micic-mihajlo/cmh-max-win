@@ -500,6 +500,13 @@ describe('host screen', () => {
     return { t, dropId, joinCode };
   }
 
+  test('hosted drops stay out of listDrops but answer to their code', async () => {
+    const { t, joinCode } = await hosted(1);
+    await t.mutation(internal.drops.seedDemo, { startsInSeconds: 60 });
+    expect((await t.query(api.drops.listDrops, {})).map((d) => d.dropId)).toEqual([DEMO_DROP_ID]);
+    expect(await t.query(api.drops.dropByCode, { deviceToken: 'p1', code: joinCode })).toMatchObject({ hosted: true });
+  });
+
   test('only the host reads hostView and deals; dealing needs 4 players', async () => {
     const { t, dropId, joinCode } = await hosted(3);
     expect(await t.query(api.drops.hostView, { deviceToken: 'p1', dropId })).toBeNull();
