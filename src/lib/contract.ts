@@ -452,6 +452,8 @@ export type ChallengeSummaryView = {
   config: ChallengeConfig;
   joinCode: string | null; // set at publish
   creator: { displayName: string; handle: string };
+  slug: string | null; // 'nova-fridays-trivia-k7qm' (discovery.slugOf); null before publish
+  shareUrl: string | null; // 'https://signal-app-wine.vercel.app/c/K7QM'; null before publish
   entrantCount: number;
   teamCount: number;
   createdAt: number;

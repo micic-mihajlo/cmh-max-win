@@ -47,6 +47,18 @@ async function published(patch: ChallengeConfigPatch = {}, t: T = newTest()) {
   return { t, challengeId, joinCode };
 }
 
+describe('share links on studio views', () => {
+  test('slug and shareUrl appear once published, null on a draft', async () => {
+    const { t, challengeId, joinCode } = await published({ title: "Nova's Friday Trivia" });
+    const view = (await t.query(api.challenges.hostConsole, { deviceToken: HOST, challengeId }))!;
+    expect(view).toMatchObject({ slug: 'nova-nova-s-friday-trivia-' + joinCode!.toLowerCase(), shareUrl: 'https://signal-app-wine.vercel.app/c/' + joinCode });
+    expect((await t.query(api.challenges.myChallenges, { deviceToken: HOST }))[0]).toMatchObject({ slug: view.slug, shareUrl: view.shareUrl });
+    const { challengeId: draftId } = await t.mutation(api.challenges.createChallenge, { deviceToken: HOST, patch: { title: 'Draft' } });
+    expect((await t.query(api.challenges.myChallenges, { deviceToken: HOST })).find((c) => c.challengeId === draftId)).toMatchObject({ slug: null, shareUrl: null });
+    expect(await t.query(api.discovery.shareLink, { ref: view.slug! })).toMatchObject({ joinCode });
+  });
+});
+
 async function join(t: T, joinCode: string, players: string[]) {
   for (const deviceToken of players) await t.action(api.challenges.joinChallenge, { deviceToken, code: joinCode, name: deviceToken.toUpperCase() });
 }
