@@ -35,7 +35,29 @@ const dealt = (solved: number): HostView => {
   };
 };
 
+const first = ['Kit', 'Lou', 'Ana', 'Maya', 'Ravi', 'Jo', 'Ivy', 'Hal', 'Fay', 'Sam', 'Noor', 'Tess', 'Rio', 'Bea', 'Ada', 'Eli', 'Zoe', 'Max', 'Uma', 'Leo'];
+const crowd = Array.from({ length: 100 }, (_, i) => (i < first.length ? first[i] : `${first[i % first.length]} ${String.fromCharCode(65 + Math.floor(i / first.length))}.`));
+const sizes = Array.from({ length: 34 }, (_, i) => (i < 32 ? 3 : 2));
+const starts = sizes.map((_, i) => sizes.slice(0, i).reduce((a, b) => a + b, 0));
+const scale = (solved: number): HostView => {
+  const solves = Array.from({ length: solved }, (_, i) => ({ place: i + 1, squadLabel: `Squad ${(i * 7) % 34 + 1}`, solvedAt: i, solveMs: 38_000 + i * 9_000, isWinner: i < 3 }));
+  return {
+    ...view(0),
+    entrantCount: 100,
+    entrants: crowd.map((name, i) => ({ name, joinedAt: i })),
+    status: 'live',
+    squads: sizes.map((n, i) => {
+      const s = solves.find((x) => x.squadLabel === `Squad ${i + 1}`);
+      return { squadLabel: `Squad ${i + 1}`, memberNames: crowd.slice(starts[i], starts[i] + n), status: s ? (s.isWinner ? 'winner' : 'solved') : 'solving', rank: s?.place ?? null };
+    }),
+    solves,
+  };
+};
+
 export const HostStates: MockState[] = [
+  { id: '22-host-100', ref: 'scale', section: 'Scale', title: 'Host · 100 here', render: () => <HostScreen hostName="Nova" view={{ ...scale(0), status: 'scheduled', squads: [] }} /> },
+  { id: '22-host-squads-34', ref: 'scale', section: 'Scale', title: 'Host · 34 squads dealt', render: () => <HostScreen hostName="Nova" view={scale(0)} /> },
+  { id: '22-host-race-34', ref: 'scale', section: 'Scale', title: 'Host · 34 squads, 3 winners + 2 solved', render: () => <HostScreen hostName="Nova" view={scale(5)} /> },
   { id: '20-host-empty', ref: 'host.md', section: 'Host', title: 'Host · code, nobody here yet', render: () => <HostScreen hostName="Nova" view={view(0)} /> },
   { id: '20-host-three', ref: 'host.md', section: 'Host', title: 'Host · 3 here (deal disabled)', render: () => <HostScreen hostName="Nova" view={view(3)} /> },
   {

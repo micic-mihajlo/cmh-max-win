@@ -16,9 +16,9 @@ export type RacingSquad = { pick: string | null; locked: number; size: number; n
 // Only our row carries a time; other squads are dimmed labels.
 function Row({ row }: { row: LeaderboardRow }) {
   return (
-    <View style={[styles.row, row.isMine ? styles.rowMine : styles.rowOther]}>
+    <View style={styles.row}>
       <Txt variant="bodyStrong" color={row.isMine ? Palette.paper : Palette.paperMuted} style={styles.rank}>
-        {row.rank ?? '–'}
+        {row.rank ?? ''}
       </Txt>
       <Txt variant="bodyStrong" color={row.isMine ? Palette.paper : Palette.paperMuted} style={styles.flex}>
         {row.squadLabel}
@@ -53,7 +53,6 @@ export function LeaderboardScreen({
   const stillRacing = board.rows.length - solved.length;
   const inMoney = mine?.status === 'winner';
   const missed = mine?.status === 'solved';
-  const creator = drop.creatorName.replace('@', '');
   const title = inMoney ? `You placed #${mine?.rank}` : missed ? `Solved · #${mine?.rank}` : 'Race';
   const sub = missed
     ? `The bounty went to the first ${board.winnerSlots} squads.`
@@ -98,7 +97,6 @@ export function LeaderboardScreen({
           </>
         )
       }>
-      <Label>{`${creator.charAt(0).toUpperCase()}${creator.slice(1)}’s drop · ${drop.title}`}</Label>
       <View style={styles.titleRow}>
         <View style={styles.flex}>
           <Txt variant="display">{title}</Txt>
@@ -136,21 +134,9 @@ const styles = StyleSheet.create({
   spots: { flexDirection: 'row', gap: 6 },
   spot: { flex: 1, height: 8, borderRadius: Radius.pill, backgroundColor: Palette.panelRaised },
   spotTaken: { backgroundColor: Palette.ember },
-  list: { gap: 6 },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Space.m,
-    paddingVertical: 12,
-    paddingHorizontal: Space.l,
-    borderRadius: Radius.m,
-    backgroundColor: Palette.panel,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Palette.hairline,
-  },
-  rowMine: {},
-  rowOther: { opacity: 0.5 },
-  rank: { width: 20, fontVariant: ['tabular-nums'] },
+  list: { backgroundColor: Palette.panel, borderRadius: 16, paddingHorizontal: Space.l },
+  row: { flexDirection: 'row', alignItems: 'center', gap: Space.m, height: 56 },
+  rank: { minWidth: 28, fontVariant: ['tabular-nums'] },
   card: {
     gap: Space.s,
     padding: Space.l,
