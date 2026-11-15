@@ -23,12 +23,14 @@ function fail(code: SignalErrorCode, message: string, extra: Record<string, numb
 }
 
 // Seeded server-side like mixer fragments (#58): a random nonce no client can derive from public ids.
-export async function dealPassphrase(ctx: MutationCtx, roomId: Id<'rooms'>, team: { playerId: Id<'members'>; name: string }[]) {
+// used: words already dealt to other squads in this drop; returns this squad's words so the caller can add them.
+export async function dealPassphrase(ctx: MutationCtx, roomId: Id<'rooms'>, team: { playerId: Id<'members'>; name: string }[], used: string[] = []) {
   const nonce = Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, '0')).join('');
   const players = team.map((p) => ({ playerId: p.playerId as string, name: firstName(p.name) || p.name }));
-  const { session } = startSession(TEMPLATE, players, roomId + ':' + nonce, { wordCount: Math.max(SPLIT_CODE_MIN_WORDS, team.length) }, { now: Date.now() });
+  const { session } = startSession(TEMPLATE, players, roomId + ':' + nonce, { wordCount: Math.max(SPLIT_CODE_MIN_WORDS, team.length), exclude: used }, { now: Date.now() });
   const passphrase: Passphrase = { session: session as Session<SplitCodeState>, proposedBy: null, typed: null, nudge: null };
   await ctx.db.patch(roomId, { passphrase });
+  return passphrase.session.state.words;
 }
 
 async function load(ctx: QueryCtx, code: string, deviceToken: string) {
