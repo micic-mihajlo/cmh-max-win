@@ -20,6 +20,7 @@ import type * as discovery from "../discovery.js";
 import type * as drops from "../drops.js";
 import type * as feed from "../feed.js";
 import type * as handles from "../handles.js";
+import type * as hardening from "../hardening.js";
 import type * as http from "../http.js";
 import type * as live from "../live.js";
 import type * as liveTemplates from "../liveTemplates.js";
@@ -59,6 +60,7 @@ declare const fullApi: ApiFromModules<{
   drops: typeof drops;
   feed: typeof feed;
   handles: typeof handles;
+  hardening: typeof hardening;
   http: typeof http;
   live: typeof live;
   liveTemplates: typeof liveTemplates;
