@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { Fonts } from '@/constants/theme';
+import { FontFamily } from '@/constants/signal';
 
 import { Enter } from './enter';
 import { useMotionColors } from './palette';
@@ -33,5 +33,5 @@ export function InviteCode({ code, play = true, size = 64, tileColor, borderColo
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: 8, justifyContent: 'center' },
   tile: { borderRadius: 10, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
-  letter: { fontFamily: Fonts.serif, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  letter: { fontFamily: FontFamily.uiSemi, fontVariant: ['tabular-nums'] },
 });

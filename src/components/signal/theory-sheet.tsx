@@ -191,7 +191,7 @@ export function TheorySheet({
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   center: { textAlign: 'center' },
-  scrim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(26,25,22,0.25)' },
+  scrim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(33,32,28,0.25)' },
   sheetHead: { gap: 4, paddingTop: Space.s },
   dots: { flexDirection: 'row', gap: 6 },
   dot: { width: 10, height: 10, borderRadius: 5, borderWidth: 1.5, borderColor: Palette.paperMuted },
@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderColor: Palette.hairline,
     paddingHorizontal: Space.xl,
-    boxShadow: '0 -8px 32px rgba(26,25,22,0.10)',
+    boxShadow: '0 0 0 1px #0000000F, 0 -12px 60px rgba(0,0,0,0.15), 0 -16px 36px -20px #00000031',
   },
   summary: { paddingTop: Space.s, paddingBottom: Space.s, gap: 4 },
   handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: Palette.hairline, marginBottom: Space.s },
