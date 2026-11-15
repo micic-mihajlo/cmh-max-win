@@ -662,6 +662,23 @@ describe('event guards', () => {
     expect(await entries()).toHaveLength(3);
   });
 
+  test('reseeding the demo drop frees all of its seats', async () => {
+    const t = newTest();
+    await t.mutation(internal.drops.seedDemo, { startsInSeconds: 60 });
+    for (let i = 0; i < DROP_CAPACITY; i++) {
+      await t.mutation(api.drops.enterDrop, { deviceToken: `seat-${i}`, dropId: DEMO_DROP_ID, name: `S${i}` });
+    }
+    expect(await errorCode(t.mutation(api.drops.enterDrop, { deviceToken: 'extra', dropId: DEMO_DROP_ID, name: 'Extra' }))).toBe(
+      'DROP_FULL',
+    );
+    await t.mutation(internal.drops.seedDemo, { startsInSeconds: 60 });
+    expect(await t.run((ctx) => ctx.db.query('dropSeats').collect())).toEqual([]);
+    for (let i = 0; i < DROP_CAPACITY; i++) {
+      await t.mutation(api.drops.enterDrop, { deviceToken: `again-${i}`, dropId: DEMO_DROP_ID, name: `A${i}` });
+    }
+    expect((await t.query(api.drops.drop, { deviceToken: 'x', dropId: DEMO_DROP_ID }))?.entrantCount).toBe(DROP_CAPACITY);
+  });
+
   test('hostDrop allows 5 drops per device token per 10 minutes', async () => {
     const t = newTest();
     for (let i = 0; i < 5; i++) await t.mutation(api.drops.hostDrop, { deviceToken: 'h1' });
