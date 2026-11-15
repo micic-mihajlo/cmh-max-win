@@ -42,7 +42,19 @@
           "imageWidth": 76
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "mode": "production"
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
@@ -54,9 +66,7 @@
       }
     },
     "owner": "r4z33n",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.0-native2",
     "updates": {
       "url": "https://u.expo.dev/e7418053-b72f-4c96-9d50-d13174da4c76"
     }
