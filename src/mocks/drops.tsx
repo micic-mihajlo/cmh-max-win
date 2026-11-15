@@ -15,10 +15,11 @@ import { WaitingRoomScreen } from '@/components/drops/waiting-room';
 
 import type { MockState } from './gallery';
 
-// Fixture times are on a made-up server timeline; screens read serverNow, never the device clock.
-const startsAt = 1_763_236_800_000;
-const before = startsAt - 161_000;
-const raceAt = (ms: number) => startsAt + RACE_REVEAL_MS + ms;
+// Fixture times are relative to when the gallery loads, with a server offset of 0, so countdowns tick live.
+const loadedAt = Date.now();
+const opensIn = loadedAt + 161_000;
+const startedAgo = (raceMs: number) => loadedAt - RACE_REVEAL_MS - raceMs;
+const startsAt = opensIn;
 
 const crowd = ['Kit', 'Maya', 'Jo', 'Ana', 'Lou', 'Hal', 'Ivy', 'Fay', 'Sam', 'Noor'];
 
@@ -28,8 +29,8 @@ function drop(over: Partial<DropView> = {}, me: Partial<DropView['me']> = {}): D
     title: 'The Aurora Seed',
     creatorName: '@nova',
     caseId: 'case01',
+    squadSize: 3,
     startsAt,
-    serverNow: before,
     status: 'scheduled',
     entrantCount: 212,
     bounty: { totalCents: 30000, currency: 'usd', winnerSlots: 3, perSquadCents: 10000, mode: 'concept' },
@@ -41,7 +42,7 @@ function drop(over: Partial<DropView> = {}, me: Partial<DropView['me']> = {}): D
 }
 
 const live = (size: 2 | 3) =>
-  drop({ status: 'live', serverNow: startsAt }, { squad: { code: size === 3 ? 'SQ14' : 'SQ15', size, label: size === 3 ? 'Squad 14' : 'Squad 15' } });
+  drop({ status: 'live', startsAt: startedAgo(0) }, { squad: { code: size === 3 ? 'SQ14' : 'SQ15', size, label: size === 3 ? 'Squad 14' : 'Squad 15' } });
 
 const trio: SquadMemberView[] = [
   { memberId: 'm_ravi', name: 'Ravi', role: 'hacker', roles: ['hacker'], isMe: true },
@@ -63,19 +64,15 @@ const row = (rank: number | null, n: number, status: LeaderboardRow['status'], s
   isMine,
 });
 const solving = (from: number, count: number) => Array.from({ length: count }, (_, i) => row(null, from + i, 'solving', null));
-const board = (rows: LeaderboardRow[], at: number): LeaderboardView => ({
+const board = (rows: LeaderboardRow[], raceMs: number): LeaderboardView => ({
   dropId: 'aurora-demo',
   status: 'live',
-  startsAt,
+  startsAt: startedAgo(raceMs),
   winnerSlots: 3,
-  serverNow: at,
   rows,
 });
 
-const racingBoard = board(
-  [row(1, 7, 'winner', 41_000), row(2, 22, 'winner', 58_000), row(null, 14, 'solving', null, 1, true), ...solving(30, 68)],
-  raceAt(72_000),
-);
+const racingBoard = board([row(1, 7, 'winner', 41_000), row(2, 22, 'winner', 58_000), row(null, 14, 'solving', null, 1, true), ...solving(30, 68)], 72_000);
 const moneyBoard = board(
   [
     row(1, 7, 'winner', 41_000),
@@ -85,7 +82,7 @@ const moneyBoard = board(
     row(5, 40, 'solved', 104_000),
     ...solving(50, 60),
   ],
-  raceAt(110_000),
+  110_000,
 );
 const missedBoard = board(
   [
@@ -96,7 +93,7 @@ const missedBoard = board(
     row(9, 14, 'solved', 123_000, 2, true),
     ...solving(60, 40),
   ],
-  raceAt(130_000),
+  130_000,
 );
 
 const award = (over: Partial<SquadAwardView> = {}): SquadAwardView => ({
@@ -112,7 +109,7 @@ const award = (over: Partial<SquadAwardView> = {}): SquadAwardView => ({
   label: 'Concept payout — no real money moves',
   ...over,
 });
-const winAt = raceAt(120_000);
+const winAt = loadedAt;
 const realAward = award({
   mode: 'sandbox',
   claimUrl: 'https://whop.com/claim/aurora-demo-3',
@@ -148,23 +145,26 @@ export const DropStates: MockState[] = [
     ref: 'D2',
     section: 'Drops',
     title: 'Follower · drop card + Join',
-    render: () => <DropEntryScreen drop={drop({ entrantCount: 211 }, { entered: false })} />,
+    render: () => <DropEntryScreen offset={0} drop={drop({ entrantCount: 211 }, { entered: false })} />,
   },
   {
     id: '11-entry-closed',
     ref: 'D2',
     section: 'Drops',
     title: 'Follower · DROP_CLOSED (late)',
-    render: () => <DropEntryScreen drop={drop({ status: 'live', serverNow: raceAt(30_000) }, { entered: false })} error="DROP_CLOSED" />,
+    render: () => <DropEntryScreen offset={0} drop={drop({ status: 'live', startsAt: startedAgo(30_000) }, { entered: false })} error="DROP_CLOSED" />,
   },
-  { id: '12-waiting', ref: 'D3', section: 'Drops', title: 'Waiting room · countdown', render: () => <WaitingRoomScreen drop={drop()} /> },
+  { id: '12-waiting', ref: 'D3', section: 'Drops', title: 'Waiting room · countdown', render: () => <WaitingRoomScreen offset={0} drop={drop()} /> },
   {
     id: '12-waiting-unmatched',
     ref: 'D3',
     section: 'Drops',
     title: 'Waiting room · unmatched (lone entrant)',
     render: () => (
-      <WaitingRoomScreen drop={drop({ status: 'live', serverNow: startsAt, entrantCount: 1, entrants: [{ name: 'Ravi', isMe: true }] }, { unmatched: true })} />
+      <WaitingRoomScreen
+        offset={0}
+        drop={drop({ status: 'live', startsAt: startedAgo(0), entrantCount: 1, entrants: [{ name: 'Ravi', isMe: true }] }, { unmatched: true })}
+      />
     ),
   },
   {
@@ -188,6 +188,7 @@ export const DropStates: MockState[] = [
     title: 'Race · racing + wrong pick',
     render: () => (
       <LeaderboardScreen
+        offset={0}
         drop={live(3)}
         board={racingBoard}
         racing={{ pick: 'Ines Vale', locked: 2, size: 3, nudge: 'Not Ines. Ask Jo to read the Scene Notes.', cooldownMs: 8_000 }}
@@ -199,21 +200,21 @@ export const DropStates: MockState[] = [
     ref: 'D5',
     section: 'Drops',
     title: 'Race · solved, in the money (#3)',
-    render: () => <LeaderboardScreen drop={live(3)} board={moneyBoard} roles={['hacker', 'witness', 'detective']} />,
+    render: () => <LeaderboardScreen offset={0} drop={live(3)} board={moneyBoard} roles={['hacker', 'witness', 'detective']} />,
   },
   {
     id: '14-race-missed',
     ref: 'D5',
     section: 'Drops',
     title: 'Race · solved #9, no bounty this time',
-    render: () => <LeaderboardScreen drop={live(3)} board={missedBoard} />,
+    render: () => <LeaderboardScreen offset={0} drop={live(3)} board={missedBoard} />,
   },
   {
     id: '15-win-concept',
     ref: 'D6',
     section: 'Drops',
     title: 'Win · CONCEPT payout (demo path)',
-    render: () => <BountyResultScreen award={award()} bounty={bounty} squadLabel="Squad 14" members={credits} serverNow={winAt} />,
+    render: () => <BountyResultScreen award={award()} bounty={bounty} squadLabel="Squad 14" members={credits} offset={0} />,
   },
   {
     id: '15-win-concept-duo',
@@ -221,13 +222,7 @@ export const DropStates: MockState[] = [
     section: 'Drops',
     title: 'Win · CONCEPT payout, duo',
     render: () => (
-      <BountyResultScreen
-        award={award({ perPlayerCents: 5000, redeemableCount: 2 })}
-        bounty={bounty}
-        squadLabel="Squad 15"
-        members={duoCredits}
-        serverNow={winAt}
-      />
+      <BountyResultScreen award={award({ perPlayerCents: 5000, redeemableCount: 2 })} bounty={bounty} squadLabel="Squad 15" members={duoCredits} offset={0} />
     ),
   },
   {
@@ -235,6 +230,6 @@ export const DropStates: MockState[] = [
     ref: 'D6',
     section: 'Drops',
     title: 'Not in demo · verified claim link (needs Whop KYC)',
-    render: () => <BountyResultScreen award={realAward} bounty={bounty} squadLabel="Squad 14" members={credits} serverNow={winAt} />,
+    render: () => <BountyResultScreen award={realAward} bounty={bounty} squadLabel="Squad 14" members={credits} offset={0} />,
   },
 ];

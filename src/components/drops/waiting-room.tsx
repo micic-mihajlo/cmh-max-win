@@ -6,14 +6,14 @@ import { Txt } from '@/components/signal/txt';
 import { FontFamily, Palette, Radius, RoleColors, Space } from '@/constants/signal';
 import { Enter } from '@/motion';
 
-import { useServerNow } from './clock';
+import { useServerClock } from './clock';
 import type { DropView } from './contract';
 import { clock, money, Tagline } from './ui';
 
 const avatarColors = [Palette.ember, RoleColors.witness, RoleColors.hacker, RoleColors.detective];
 
-export function WaitingRoomScreen({ drop }: { drop: DropView }) {
-  const now = useServerNow(drop.serverNow);
+export function WaitingRoomScreen({ drop, offset }: { drop: DropView; offset: number | null }) {
+  const now = useServerClock(offset);
   const left = drop.startsAt - now;
   const unmatched = drop.me.unmatched;
   const creator = drop.creatorName.replace('@', '');

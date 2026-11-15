@@ -7,7 +7,7 @@ import { Palette, Radius, RoleColors, Space } from '@/constants/signal';
 import { Enter } from '@/motion';
 import type { Role } from '@/lib/contract';
 
-import { useServerNow } from './clock';
+import { useServerClock } from './clock';
 import type { BountyView, SquadAwardView } from './contract';
 import { Brass, clock, ModeTag, money2, PieceLabel } from './ui';
 
@@ -19,15 +19,15 @@ export function BountyResultScreen({
   bounty,
   squadLabel,
   members,
-  serverNow,
+  offset,
 }: {
   award: SquadAwardView;
   bounty: BountyView;
   squadLabel: string;
   members: CreditedMember[];
-  serverNow: number;
+  offset: number | null;
 }) {
-  const now = useServerNow(serverNow);
+  const now = useServerClock(offset);
   const concept = award.mode === 'concept';
   const real = !concept && award.status === 'ready' && award.claimUrl;
   return (

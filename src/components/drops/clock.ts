@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 
-// A clock on the server's timeline: elapsed device time is added to the last serverNow, so every phone shows the same countdown.
-export function useServerNow(serverNow: number) {
-  const [tick, setTick] = useState({ from: serverNow, elapsed: 0 });
+// Server time, ticking each second. offset comes from useServerOffset() (ms to add to Date.now(), null until
+// measured); query results are cached, so countdowns never read a server timestamp off a query.
+export function useServerClock(offset: number | null) {
+  const [device, setDevice] = useState(() => Date.now());
   useEffect(() => {
-    const start = Date.now();
-    const id = setInterval(() => setTick({ from: serverNow, elapsed: Date.now() - start }), 1000);
+    const id = setInterval(() => setDevice(Date.now()), 1000);
     return () => clearInterval(id);
-  }, [serverNow]);
-  return serverNow + (tick.from === serverNow ? tick.elapsed : 0);
+  }, []);
+  return device + (offset ?? 0);
 }

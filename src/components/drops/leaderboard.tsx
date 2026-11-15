@@ -7,7 +7,7 @@ import { Palette, Radius, RoleColors, Space } from '@/constants/signal';
 import { NudgeEntrance, Seal, Stagger } from '@/motion';
 import type { Role } from '@/lib/contract';
 
-import { useServerNow } from './clock';
+import { useServerClock } from './clock';
 import { RACE_REVEAL_MS, type DropView, type LeaderboardRow, type LeaderboardView } from './contract';
 import { short } from './ui';
 
@@ -31,8 +31,20 @@ function Row({ row }: { row: LeaderboardRow }) {
   );
 }
 
-export function LeaderboardScreen({ drop, board, racing, roles }: { drop: DropView; board: LeaderboardView; racing?: RacingSquad; roles?: Role[] }) {
-  const now = useServerNow(board.serverNow);
+export function LeaderboardScreen({
+  drop,
+  board,
+  offset,
+  racing,
+  roles,
+}: {
+  drop: DropView;
+  board: LeaderboardView;
+  offset: number | null;
+  racing?: RacingSquad;
+  roles?: Role[];
+}) {
+  const now = useServerClock(offset);
   const raceMs = now - (board.startsAt + RACE_REVEAL_MS);
   const taken = board.rows.filter((r) => r.status === 'winner').length;
   const mine = board.rows.find((r) => r.isMine);
