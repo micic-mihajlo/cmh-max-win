@@ -127,7 +127,7 @@ const trioSlots = [
   { name: 'Kit', position: 1, isMe: true },
   { name: 'Ana', position: 2, isMe: false },
 ];
-const piece = (squad: Partial<PassphrasePieceView['squad']> = {}, over: Partial<PassphrasePieceView> = {}): PassphrasePieceView => ({
+const passPiece = (squad: Partial<PassphrasePieceView['squad']> = {}, over: Partial<PassphrasePieceView> = {}): PassphrasePieceView => ({
   code: 'K7QX',
   squadLabel: 'Squad 14',
   squadSize: 3,
@@ -143,28 +143,28 @@ const piece = (squad: Partial<PassphrasePieceView['squad']> = {}, over: Partial<
 const louProposal = { revision: 3, words: ['ember-47', 'glass-12', 'tide-03'], proposedBy: 'Lou', confirmedBy: ['Lou'], confirmedByMe: false };
 
 export const DropStates: MockState[] = [
-  { id: '17-pass-solving', ref: 'passphrase', section: 'Passphrase', title: 'Passphrase · your word, empty slots', render: () => <PassphraseScreen piece={piece()} /> },
+  { id: '17-pass-solving', ref: 'passphrase', section: 'Passphrase', title: 'Passphrase · your word, empty slots', render: () => <PassphraseScreen piece={passPiece()} /> },
   {
     id: '17-pass-first',
     ref: 'passphrase',
     section: 'Passphrase',
     title: 'Passphrase · you go first',
-    render: () => <PassphraseScreen piece={piece({}, { word: 'ember-47', position: 0, teammates: [{ name: 'Kit', position: 0, isMe: true }, { name: 'Lou', position: 1, isMe: false }, { name: 'Ana', position: 2, isMe: false }] })} />,
+    render: () => <PassphraseScreen piece={passPiece({}, { word: 'ember-47', position: 0, teammates: [{ name: 'Kit', position: 0, isMe: true }, { name: 'Lou', position: 1, isMe: false }, { name: 'Ana', position: 2, isMe: false }] })} />,
   },
   {
     id: '17-pass-duo',
     ref: 'passphrase',
     section: 'Passphrase',
     title: 'Passphrase · duo',
-    render: () => <PassphraseScreen piece={piece({}, { squadSize: 2, slotCount: 2, teammates: [{ name: 'Lou', position: 0, isMe: false }, { name: 'Kit', position: 1, isMe: true }] })} />,
+    render: () => <PassphraseScreen piece={passPiece({}, { squadSize: 2, slotCount: 2, teammates: [{ name: 'Lou', position: 0, isMe: false }, { name: 'Kit', position: 1, isMe: true }] })} />,
   },
-  { id: '17-pass-confirm', ref: 'passphrase', section: 'Passphrase', title: 'Passphrase · Lou proposed, your confirm', render: () => <PassphraseScreen piece={piece({ status: 'confirming', proposal: louProposal })} /> },
+  { id: '17-pass-confirm', ref: 'passphrase', section: 'Passphrase', title: 'Passphrase · Lou proposed, your confirm', render: () => <PassphraseScreen piece={passPiece({ status: 'confirming', proposal: louProposal })} /> },
   {
     id: '17-pass-waiting',
     ref: 'passphrase',
     section: 'Passphrase',
     title: 'Passphrase · confirmed, waiting for Ana',
-    render: () => <PassphraseScreen piece={piece({ status: 'confirming', proposal: { ...louProposal, confirmedBy: ['Lou', 'Kit'], confirmedByMe: true } })} />,
+    render: () => <PassphraseScreen piece={passPiece({ status: 'confirming', proposal: { ...louProposal, confirmedBy: ['Lou', 'Kit'], confirmedByMe: true } })} />,
   },
   {
     id: '17-pass-wrong',
@@ -173,7 +173,7 @@ export const DropStates: MockState[] = [
     title: 'Passphrase · wrong, cooldown + nudge',
     render: () => (
       <PassphraseScreen
-        piece={piece({ status: 'cooldown', attempts: 1, cooldownUntil: loadedAt + 20_000, lastNudge: { text: 'Check Ana’s word.', holderName: 'Ana' } })}
+        piece={passPiece({ status: 'cooldown', attempts: 1, cooldownUntil: loadedAt + 20_000, lastNudge: { text: 'Check Ana’s word.', holderName: 'Ana' } })}
       />
     ),
   },
