@@ -336,7 +336,7 @@ export type UseServerOffset = () => number | null;
 // (teams dealt) -> ended (results final) or cancelled. Drops above keep working unchanged.
 // Identity is the device token for now, behind one server helper (resolveIdentity) that Sign in with Whop replaces.
 
-export type ChallengeTemplateId = 'mystery-aurora' | 'split-passphrase'; // ids from the CAP-32 template registry
+export type ChallengeTemplateId = 'mystery-aurora' | 'split-passphrase' | 'quick-quiz'; // ids from the CAP-32 template registry
 export type ChallengeTemplateView = {
   id: ChallengeTemplateId;
   name: string; // 'The Aurora Seed'
@@ -393,6 +393,7 @@ export type ChallengeConfig = {
   payoutAdapter: PayoutAdapterId;
   requireWhopToJoin: boolean; // forced true for whop_members; recommended for large pools. Otherwise Whop is needed only to claim
   claimWindowMs: number; // how long a winner has to claim after approval; default 7 days. Unclaimed shares return to the pool
+  templateConfig?: unknown; // the template's own content, checked at publish (quick-quiz: { questions }; see templates.md)
 };
 export type ChallengeConfigPatch = Partial<ChallengeConfig>;
 export type ConfigIssue = { field: keyof ChallengeConfig; message: string }; // why publish would be refused
@@ -680,3 +681,4 @@ export type UseChallengeRecap = (challengeId: string | null) => ChallengeRecapVi
 
 export * from './contract-growth';
 export * from './contract-whop';
+export * from './contract-live'; // live layer: host start, lock and actions, public live view (CAP-40)
