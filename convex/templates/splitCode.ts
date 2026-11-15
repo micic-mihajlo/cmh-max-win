@@ -4,15 +4,15 @@
 import { ConvexError, v } from 'convex/values';
 
 import { rng, shuffle } from './random';
-import { MIXER_COLORS, type ChallengeTemplate, type CheckResult, type MixerColor, type MixerFragment, type Progress, type TemplateError } from './types';
+import { MIXER_COLORS, type ChallengeTemplate, type CheckResult, type Progress, type TemplateError } from './types';
 
 const WORDS = [
   'amber', 'beacon', 'cobalt', 'drift', 'ember', 'falcon', 'glacier', 'harbor', 'ion', 'juniper', 'kestrel', 'lantern',
   'meridian', 'nebula', 'orbit', 'prism', 'quartz', 'raven', 'signal', 'tundra', 'umbra', 'vector', 'willow', 'zenith',
 ];
 
-// Mixer fragments are a word plus a two-digit tag ("ember-47"), about 4,300 combinations, so two players in a drop
-// almost never share one. A shared fragment would still be harmless: the server builds each team's answer from
+// Mixer secrets are a word plus a two-digit tag ("ember-47"), about 4,300 combinations, so two players in a drop
+// rarely share one. A shared fragment would still be harmless: the server builds each team's answer from
 // its own members' fragments.
 const MIXER_WORDS = [
   ...WORDS,
@@ -20,11 +20,6 @@ const MIXER_WORDS = [
   'mica', 'nova', 'onyx', 'pulsar', 'quill', 'reef', 'sable', 'tidal', 'ultra', 'vapor', 'wren', 'yonder',
 ];
 
-const ORDINALS = ['first', 'second', 'third', 'fourth'];
-
-function colorOrder(colors: readonly MixerColor[]) {
-  return MIXER_COLORS.filter((c) => colors.includes(c));
-}
 
 function normalize(answer: string) {
   return answer.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean).join(' ');
@@ -96,8 +91,8 @@ export const splitCodeTemplate: ChallengeTemplate<
   SplitCodePrivateView,
   SplitCodeSharedView
 > = {
-  id: 'split-code',
-  name: 'Split code',
+  id: 'split-passphrase',
+  name: 'Split passphrase',
   summary: 'Every player holds part of a passphrase. Read your words out, fill the slots, confirm together.',
   mode: 'coop',
   config: {
@@ -110,26 +105,25 @@ export const splitCodeTemplate: ChallengeTemplate<
       return { wordCount };
     },
   },
-  minSquadSize: 1,
-  maxSquadSize: 4,
+  teamSizes: [1, 2, 3, 4],
   formations: ['dealt', 'mixer'],
 
   // Mixer showcase: each player holds one word, and a team's passphrase is its members' words in color order
   // (red, blue, green, yellow). Every team's passphrase is different, and a word posted in chat is useless to
   // anyone who doesn't have its owner on their team.
   mixer: {
-    clue: (colors) => `Your team's passphrase is your words in color order: ${colorOrder(colors).join(', ')}.`,
-    dealFragments(colors, seed) {
-      const order = colorOrder(colors);
-      const next = rng(seed);
-      const words = shuffle(MIXER_WORDS, next);
-      return Object.fromEntries(
-        order.map((color, i) => [color, { color, text: `${words[i]}-${10 + Math.floor(next() * 90)}`, hint: `${color[0].toUpperCase()}${color.slice(1)} goes ${ORDINALS[i]}.` }]),
-      ) as Record<MixerColor, MixerFragment>;
+    fragment(seed, color, index) {
+      const next = rng(`${seed}:${color}:${index}`);
+      const secret = `${MIXER_WORDS[Math.floor(next() * MIXER_WORDS.length)]}-${10 + Math.floor(next() * 90)}`;
+      return {
+        title: `PASSPHRASE · ${color.toUpperCase()}`,
+        text: `Your word is ${secret}. Your team's passphrase is every member's word in color order: ${MIXER_COLORS.join(', ')}.`,
+        secret,
+      };
     },
-    verify(answer, memberFragments) {
-      const order = colorOrder(memberFragments.map((f) => f.color));
-      const expected = normalize(order.map((c) => memberFragments.find((f) => f.color === c)!.text).join(' '));
+    verify(answer, members) {
+      const order = MIXER_COLORS.filter((c) => members.some((m) => m.color === c));
+      const expected = normalize(order.map((c) => members.find((m) => m.color === c)!.secret).join(' '));
       if (normalize(answer) === expected) return { correct: true };
       return { correct: false, nudge: `Not your team's passphrase. Read your words aloud in order: ${order.join(', ')}.` };
     },

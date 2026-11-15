@@ -38,11 +38,14 @@ const PIECE_PLACES: Record<PieceId, Exclude<SuspectId, 'jun'>> = Object.fromEntr
   Object.values(PIECES).map((p) => [p.pieceId, p.places]),
 ) as Record<PieceId, Exclude<SuspectId, 'jun'>>;
 
-// Same hands as drops.dealPieces(dropId, squadIndex, size) when seed is `${dropId}:${squadIndex}`.
+// Same hands as drops.dealPieces(dropId, squadIndex, size) for 2 and 3 when seed is `${dropId}:${squadIndex}`.
+// Solo holds all three pieces; a team of 4 gives the fourth player a copy of the first piece (creator-console.md).
 function hands(seed: string, size: number): Role[][] {
   const k = hash(seed) % 3;
   const order = [...ROLES.slice(k), ...ROLES.slice(0, k)];
-  return size === 3 ? order.map((r) => [r]) : [[order[0], order[1]], [order[2]]];
+  if (size === 1) return [order];
+  if (size === 2) return [[order[0], order[1]], [order[2]]];
+  return [...order.map((r) => [r]), ...(size === 4 ? [[order[0]]] : [])];
 }
 
 function seatOf(state: AuroraState, playerId: string) {
@@ -103,7 +106,7 @@ function privateView(state: AuroraState, playerId: string): AuroraPrivateView {
 }
 
 export const auroraTemplate: ChallengeTemplate<AuroraConfig, AuroraState, AuroraAction, AuroraPrivateView, AuroraSharedView> = {
-  id: 'aurora',
+  id: 'mystery-aurora',
   name: 'Aurora mystery',
   summary: 'Each player holds case pieces that each clear one suspect. Pool them, name the culprit, lock in together.',
   mode: 'coop',
@@ -111,8 +114,8 @@ export const auroraTemplate: ChallengeTemplate<AuroraConfig, AuroraState, Aurora
     schema: v.object({}),
     parse: () => ({}),
   },
-  minSquadSize: 2,
-  maxSquadSize: 3,
+  // At 4 the copied piece makes one seat redundant, so necessity holds strictly only at 2 and 3 (see the tests).
+  teamSizes: [1, 2, 3, 4],
   formations: ['dealt'],
 
   deal(team, seed) {

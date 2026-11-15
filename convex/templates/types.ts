@@ -5,8 +5,9 @@
 // it can live in a document.
 import type { GenericValidator } from 'convex/values';
 
-// Challenges are team vs team: every squad on a drop plays the same template and races the others. Squads are 1–4
+// Challenges are team vs team: every team on a drop plays the same template and races the others. Teams are 1–4
 // players; each template declares the sizes it supports within that range.
+export type TeamSize = 1 | 2 | 3 | 4;
 export const MIN_SQUAD_SIZE = 1;
 export const MAX_SQUAD_SIZE = 4;
 
@@ -29,8 +30,8 @@ export type Progress = { value: number; stage: string; stageIndex: number; stage
 
 export type TemplateError = { code: string; message: string };
 
-// How squads form. dealt: the platform deals squads of minSquadSize–maxSquadSize (today's dealSquads), and the
-// template runs the session below. mixer: every player gets a color (2–4 colors, round-robin) and a fragment that
+// How teams form. dealt: the platform deals teams of one of teamSizes (today's dealSquads), and the template runs
+// the session below. mixer: every player gets a color (2–4 colors, round-robin) and a fragment that
 // is unique to them, a team is exactly one player of each color linked by player codes, and the server checks the
 // team's answer against those members' fragments with mixer.verify.
 export type Formation = 'dealt' | 'mixer';
@@ -39,17 +40,18 @@ export type MixerColor = (typeof MIXER_COLORS)[number];
 export const MIN_MIXER_COLORS = 2;
 export const MAX_MIXER_COLORS = 4;
 
-// What one mixer player privately holds. text is the fragment itself; hint is extra clue text on the fragment.
-export type MixerFragment = { color: MixerColor; text: string; hint: string | null };
+// The shape CMHM-10 published in #51. title and text are shown to that player only (MixerFragmentView); secret is
+// stored server-side with the entry and is what verify checks against. Never send secret to a client.
+export type MixerFragment = { title: string; text: string; secret: string };
+export type MixerMember = { color: MixerColor; secret: string };
 export type VerifyResult = { correct: boolean; nudge?: string };
 
 export type MixerSupport = {
-  // The clue every player sees, explaining how a team's fragments combine into its answer.
-  clue(colors: readonly MixerColor[]): string;
-  // One fresh fragment per color. Call it with a per-player seed and keep the joining player's color.
-  dealFragments(colors: readonly MixerColor[], seed: string): Record<MixerColor, MixerFragment>;
-  // Server-side: is answer right for exactly these members' fragments (one per color, any order)?
-  verify(answer: string, memberFragments: readonly MixerFragment[]): VerifyResult;
+  // seed is per player (e.g. `<challengeId>:<playerId>`), index is the player's 0-based join index, so every
+  // fragment is unique to its player.
+  fragment(seed: string, color: MixerColor, index: number): MixerFragment;
+  // Server-side, called only with the locked team's members (one per color, any order).
+  verify(answer: string, members: readonly MixerMember[]): VerifyResult;
 };
 
 export type BaseAction = { type: string };
@@ -69,8 +71,7 @@ export interface ChallengeTemplate<Config, State, Action extends BaseAction, Pri
   mode: 'coop' | 'solo';
   // schema validates creator input at the mutation boundary; parse applies defaults and bounds, throwing on bad input.
   config: { schema: GenericValidator; parse(raw: unknown): Config };
-  minSquadSize: number;
-  maxSquadSize: number;
+  teamSizes: readonly TeamSize[];
   formations: readonly Formation[];
   // Required when formations includes 'mixer'.
   mixer?: MixerSupport;
