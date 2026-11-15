@@ -1,0 +1,35 @@
+{
+  "$schema": "https://api.capy.ai/schemas/setup.v1.json",
+  "format_version": 1,
+  "scripts": {
+    "initialize": "set -euo pipefail\nexport COREPACK_ENABLE_DOWNLOAD_PROMPT=0\ncorepack enable 2>/dev/null || sudo corepack enable\nstamp=$(cat package.json yarn.lock .yarnrc.yml | sha256sum | cut -d' ' -f1)\nif [ -d node_modules ] && [ \"$(cat node_modules/.capy-install-stamp 2>/dev/null)\" = \"$stamp\" ]; then echo \"deps unchanged\"; exit 0; fi\ncorepack yarn install --immutable\necho \"$stamp\" > node_modules/.capy-install-stamp",
+    "refresh": "set -euo pipefail\nexport COREPACK_ENABLE_DOWNLOAD_PROMPT=0\ncorepack enable 2>/dev/null || sudo corepack enable\nstamp=$(cat package.json yarn.lock .yarnrc.yml | sha256sum | cut -d' ' -f1)\nif [ -d node_modules ] && [ \"$(cat node_modules/.capy-install-stamp 2>/dev/null)\" = \"$stamp\" ]; then echo \"deps unchanged\"; exit 0; fi\ncorepack yarn install --immutable\necho \"$stamp\" > node_modules/.capy-install-stamp"
+  },
+  "startup": [],
+  "commands": [
+    {
+      "name": "typecheck",
+      "command": "corepack yarn typecheck",
+      "icon": "task"
+    },
+    {
+      "name": "lint",
+      "command": "corepack yarn expo lint",
+      "icon": "search"
+    },
+    {
+      "name": "doctor",
+      "command": "npx --yes expo-doctor",
+      "icon": "task"
+    },
+    {
+      "name": "convex push",
+      "command": "corepack yarn convex dev --once"
+    },
+    {
+      "name": "expo dev server",
+      "command": "corepack yarn expo start --port 8081",
+      "port": 8081
+    }
+  ]
+}
