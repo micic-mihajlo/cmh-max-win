@@ -9,6 +9,13 @@ export function seated(room: RoomView) {
   return RoleOrder.map((role) => ({ role, member: room.members.find((m) => m.role === role) ?? null }));
 }
 
+export function seals(room: RoomView) {
+  return room.members
+    .filter((m): m is MemberView & { role: NonNullable<MemberView['role']> } => m.role !== null)
+    .sort((a, b) => RoleOrder.indexOf(a.role) - RoleOrder.indexOf(b.role))
+    .map((member) => ({ role: member.role, member }));
+}
+
 export function others(room: RoomView) {
   return room.members.filter((m) => !m.isMe);
 }

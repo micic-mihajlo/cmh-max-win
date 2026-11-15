@@ -75,7 +75,7 @@ export function TheorySheet({
           <View style={styles.summaryRow}>
             <Label color={Palette.paper}>{`Shared theory · v${room.theory.revision}`}</Label>
             <Txt variant="smallStrong" color={Palette.paperMuted} style={styles.tabular}>
-              {locked.size} of 3 agree
+              {locked.size} of {room.members.length} agree
             </Txt>
           </View>
           {culprit ? (

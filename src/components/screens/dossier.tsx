@@ -20,12 +20,14 @@ export type DossierUi = {
   highlight?: number;
 };
 
-export function DossierScreen({ room, dossier, ui = {} }: { room: RoomView; dossier: DossierView | undefined; ui?: DossierUi }) {
+export function DossierScreen({ room, pieces, ui = {} }: { room: RoomView; pieces: DossierView[] | undefined; ui?: DossierUi }) {
   const role: Role = room.me?.role ?? 'detective';
-  const meta = RoleMeta[role];
+  const roles = pieces?.length ? pieces.map((p) => p.role) : [role];
+  const meta = RoleMeta[roles[0]];
   const tab = ui.tab ?? 'evidence';
   const others = room.members.filter((m) => !m.isMe);
-  const nudgeForMe = room.lastNudge?.forRole === role;
+  const nudgeForMe = !!room.lastNudge && roles.includes(room.lastNudge.forRole);
+  const title = roles.length > 1 ? 'Your evidence' : meta.docLabel.charAt(0) + meta.docLabel.slice(1).toLowerCase();
   return (
     <Screen
       header={
@@ -55,8 +57,8 @@ export function DossierScreen({ room, dossier, ui = {} }: { room: RoomView; doss
       }>
       {ui.banner ? <Banner {...ui.banner} /> : null}
       <View style={styles.head}>
-        <Label color={meta.color}>{`Your evidence · ${meta.label}`}</Label>
-        <Txt variant="display">{tab === 'evidence' ? meta.docLabel.charAt(0) + meta.docLabel.slice(1).toLowerCase() : 'Suspects'}</Txt>
+        <Label color={meta.color}>{`Your evidence · ${roles.map((r) => RoleMeta[r].label).join(' + ')}`}</Label>
+        <Txt variant="display">{tab === 'evidence' ? title : 'Suspects'}</Txt>
       </View>
       <PresenceLine people={others.map((m) => ({ name: m.name, role: m.role, presence: m.presence }))} />
       <Segmented
@@ -69,7 +71,7 @@ export function DossierScreen({ room, dossier, ui = {} }: { room: RoomView; doss
       {tab === 'evidence' ? (
         <>
           {nudgeForMe ? <Banner tone="warn" title="This one’s yours." text="Read your evidence out loud." /> : null}
-          {dossier ? <ClueCard dossier={dossier} highlight={ui.highlight} /> : <ClueCardSkeleton role={role} />}
+          {pieces ? pieces.map((p) => <ClueCard key={p.role} dossier={p} highlight={p.role === room.lastNudge?.forRole ? ui.highlight : undefined} />) : <ClueCardSkeleton role={role} />}
           <NextStep>Read your evidence out loud. Then pick a suspect together.</NextStep>
         </>
       ) : (

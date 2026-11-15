@@ -2,7 +2,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/signal/backdrop';
 import { Button, Label, NextStep } from '@/components/signal/primitives';
-import { joinNames, seated } from '@/components/signal/room';
+import { joinNames, seals } from '@/components/signal/room';
 import { Seal } from '@/components/signal/seal';
 import { Txt } from '@/components/signal/txt';
 import { Palette, Space } from '@/constants/signal';
@@ -19,7 +19,7 @@ export function IntroScreen({ room, opening }: { room: RoomView; opening?: boole
       footer={
         <>
           <View style={styles.seals}>
-            {seated(room).map(({ role, member }) => (
+            {seals(room).map(({ role, member }) => (
               <View key={role} style={styles.sealCol}>
                 <Seal role={role} filled={member?.presence === 'ready'} size={40} broken={member?.presence === 'offline'} />
                 <Txt variant="small" color={Palette.paperMuted}>
@@ -33,7 +33,7 @@ export function IntroScreen({ room, opening }: { room: RoomView; opening?: boole
           ) : away ? (
             <NextStep>{`Waiting for ${away.name} to come back.`}</NextStep>
           ) : meReady ? (
-            <NextStep>{`${ready.length} of 3 ready. Waiting for ${joinNames(waiting)}.`}</NextStep>
+            <NextStep>{`${ready.length} of ${room.members.length} ready. Waiting for ${joinNames(waiting)}.`}</NextStep>
           ) : (
             <NextStep>Read the briefing. Tap when you’re done.</NextStep>
           )}

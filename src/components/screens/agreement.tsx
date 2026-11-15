@@ -2,7 +2,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/signal/backdrop';
 import { Banner, Button, Label } from '@/components/signal/primitives';
-import { seated } from '@/components/signal/room';
+import { seals } from '@/components/signal/room';
 import { Seal } from '@/components/signal/seal';
 import { Txt } from '@/components/signal/txt';
 import { suspectById } from '@/constants/case01';
@@ -25,7 +25,7 @@ export function AgreementScreen({ room, phase }: { room: RoomView; phase: 'check
         <>
           <Label color={Palette.paper}>{`Shared theory · v${nudge?.revision ?? room.theory.revision}`}</Label>
           <View style={styles.sealsBig}>
-            {seated(room).map(({ role, member }, i) => (
+            {seals(room).map(({ role, member }, i) => (
               <View key={role} style={styles.sealCol}>
                 <Seal role={role} filled size={84} delay={i * 260} />
                 <Txt variant="smallStrong" color={RoleMeta[role].color}>
@@ -38,7 +38,7 @@ export function AgreementScreen({ room, phase }: { room: RoomView; phase: 'check
             ))}
           </View>
           <Txt variant="display" style={styles.center}>
-            3 of 3 agree.
+            {room.members.length} of {room.members.length} agree.
           </Txt>
           {guessed ? (
             <Txt variant="serif" color={Palette.paperMuted} style={styles.center}>
@@ -57,7 +57,7 @@ export function AgreementScreen({ room, phase }: { room: RoomView; phase: 'check
             <Txt variant="hero">Not {guessed.first}.</Txt>
           </View>
           <View style={styles.sealsRow}>
-            {seated(room).map(({ role }) => (
+            {seals(room).map(({ role }) => (
               <Seal key={role} role={role} filled={false} broken size={40} />
             ))}
             <Txt variant="small" color={Palette.paperMuted} style={styles.flex}>

@@ -26,7 +26,7 @@ export type MockState = {
 
 const playing = (over: RoomFixture = {}) => room({ status: 'playing', revision: 4, ...over });
 const asRole = (role: Role, over: RoomFixture = {}) => playing({ me: whoByRole[role], ...over });
-const dossier = (r: RoomView, ui?: DossierUi) => <DossierScreen room={r} dossier={r.me?.role ? Dossiers[r.me.role] : undefined} ui={ui} />;
+const dossier = (r: RoomView, ui?: DossierUi) => <DossierScreen room={r} pieces={r.me?.role ? [Dossiers[r.me.role]] : undefined} ui={ui} />;
 const sheet = (r: RoomView, extra?: NonNullable<DossierUi['sheet']>) => dossier(r, { sheet: { expanded: true, ...extra } });
 const lobby = (over: RoomFixture) => room({ status: 'lobby', ...over });
 const wrong = (role: Role, pick: 'theo' | 'priya' | 'ines', attempts: number) =>
@@ -129,8 +129,31 @@ export const MockStates: MockState[] = [
     render: () => dossier(asRole('hacker', { culprit: 'theo', editedBy: 'maya', members: [{ who: 'maya', presence: 'online' }, { who: 'ravi' }, { who: 'lena' }] })),
   },
   { id: '04-dossier-witness', ref: '4.2 / 4.6', section: 'Dossier', title: 'Witness · someone picked', render: () => dossier(asRole('witness', { culprit: 'theo', editedBy: 'ravi' })) },
-  { id: '04-dossier-loading', ref: '4.4', section: 'Dossier', title: 'Loading', render: () => <DossierScreen room={asRole('hacker', { revision: 1 })} dossier={undefined} /> },
+  { id: '04-dossier-loading', ref: '4.4', section: 'Dossier', title: 'Loading', render: () => <DossierScreen room={asRole('hacker', { revision: 1 })} pieces={undefined} /> },
   { id: '04-suspects', ref: '4.5', section: 'Dossier', title: 'Suspect directory', render: () => dossier(asRole('witness', { revision: 1 }), { tab: 'suspects' }) },
+
+  {
+    id: '04-dossier-squad-of-2',
+    ref: 'N',
+    section: 'Dossier',
+    title: 'Squad of 2 · I hold two pieces',
+    render: () => (
+      <DossierScreen room={room({ members: [{ who: 'maya' }, { who: 'ravi' }] })} pieces={[Dossiers.detective, Dossiers.witness]} />
+    ),
+  },
+  {
+    id: '05-theory-squad-of-2',
+    ref: 'N',
+    section: 'Theory sheet',
+    title: 'Squad of 2 · 1 of 2 agree',
+    render: () => (
+      <DossierScreen
+        room={room({ members: [{ who: 'maya' }, { who: 'ravi' }], culprit: 'jun', revision: 3, editedBy: 'ravi', locked: ['ravi'] })}
+        pieces={[Dossiers.detective, Dossiers.witness]}
+        ui={{ sheet: { expanded: true } }}
+      />
+    ),
+  },
 
   { id: '05-theory-empty', ref: '5.1', section: 'Theory sheet', title: 'Empty', render: () => sheet(asRole('hacker', { revision: 1 })) },
   { id: '05-theory-picked', ref: '5.2', section: 'Theory sheet', title: 'Pick made · 0 locked', render: () => sheet(asRole('hacker', { culprit: 'jun', editedBy: 'ravi' })) },
@@ -169,6 +192,13 @@ export const MockStates: MockState[] = [
   },
 
   { id: '06-agreement-checking', ref: '6.1', section: 'Agreement', title: '3 of 3 · checking (every phone)', render: () => <AgreementScreen phase="checking" room={asRole('hacker', allLocked)} /> },
+  {
+    id: '06-agreement-squad-of-2',
+    ref: 'N',
+    section: 'Agreement',
+    title: 'Squad of 2 · checking',
+    render: () => <AgreementScreen phase="checking" room={room({ members: [{ who: 'maya' }, { who: 'ravi' }], culprit: 'jun', revision: 3, editedBy: 'ravi', locked: ['maya', 'ravi'] })} />,
+  },
   { id: '06-nudge-theo', ref: '6.2 / 6.5', section: 'Agreement', title: 'Wrong · Theo', render: () => <AgreementScreen phase="wrong" room={wrong('detective', 'theo', 1)} /> },
   { id: '06-nudge-priya', ref: '6.3', section: 'Agreement', title: 'Wrong · Priya', render: () => <AgreementScreen phase="wrong" room={wrong('detective', 'priya', 2)} /> },
   { id: '06-nudge-ines', ref: '6.4', section: 'Agreement', title: 'Wrong · Ines', render: () => <AgreementScreen phase="wrong" room={wrong('hacker', 'ines', 2)} /> },
