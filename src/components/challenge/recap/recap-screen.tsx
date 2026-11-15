@@ -10,6 +10,12 @@ import { clock, day, money, names } from './format';
 
 const placeWord = ['First', 'Second', 'Third'];
 
+function crowd(list: string[], total: number) {
+  const shown = list.slice(0, 6);
+  const more = Math.max(total, list.length) - shown.length;
+  return more > 0 ? `${shown.join(', ')} and ${more} more` : names(shown);
+}
+
 export function RecapScreen({ recap, growth }: { recap: ChallengeRecapView | null | undefined; growth: ChallengeGrowthView | null | undefined }) {
   if (recap === undefined) return <Screen>{null}</Screen>;
   if (recap === null)
@@ -72,8 +78,16 @@ export function RecapScreen({ recap, growth }: { recap: ChallengeRecapView | nul
           ))}
         </Enter>
 
+        {growth?.playerNames?.length ? (
+          <Enter index={2}>
+            <Txt variant="body" color={Palette.paperMuted}>
+              With {crowd(growth.playerNames, recap.entrantCount)}
+            </Txt>
+          </Enter>
+        ) : null}
+
         {recap.podium.length ? (
-          <Enter index={2} style={styles.list}>
+          <Enter index={3} style={styles.list}>
             {[first, ...rest].map((row) => (
               <View key={row.place} style={styles.row}>
                 <View style={styles.flex}>
@@ -93,14 +107,14 @@ export function RecapScreen({ recap, growth }: { recap: ChallengeRecapView | nul
             ))}
             {recap.poolCents > 0 ? (
               <Txt variant="caption" color={Palette.paperMuted}>
-                {money(recap.paidCents)} of {money(recap.poolCents)} paid{concept ? ' · concept payout, no real money moves' : ''}
+                {money(recap.paidCents)} of {money(recap.poolCents)} paid{concept ? ' · concept, no real money' : ''}
               </Txt>
             ) : null}
           </Enter>
         ) : null}
       </View>
 
-      <Enter index={3} style={styles.action}>
+      <Enter index={4} style={styles.action}>
         <BigButton title="Share recap" onPress={share} />
       </Enter>
     </Screen>
