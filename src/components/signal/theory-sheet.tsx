@@ -29,8 +29,9 @@ function statusLine(room: RoomView) {
   return { text: 'Counts only for this version. Any change clears everyone.', strong: false };
 }
 
-function useSecondsUntil(until: number | null) {
-  const [now, setNow] = useState(() => Date.now());
+function useSecondsUntil(until: number | null, offset: number) {
+  const [local, setNow] = useState(() => Date.now());
+  const now = local + offset;
   const active = until !== null && until > now;
   useEffect(() => {
     if (!active) return;
@@ -49,6 +50,7 @@ export function TheorySheet({
   onToggle,
   onPick,
   onLockIn,
+  serverOffset = 0,
 }: {
   room: RoomView;
   expanded: boolean;
@@ -58,6 +60,7 @@ export function TheorySheet({
   onToggle?: () => void;
   onPick?: (id: SuspectId) => void;
   onLockIn?: () => void;
+  serverOffset?: number;
 }) {
   const insets = useSafeAreaInsets();
   const reduced = useMotionReduced();
@@ -69,7 +72,7 @@ export function TheorySheet({
   const editorName = editor ? (editor.memberId === room.me?.memberId ? 'You' : editor.name) : null;
   const status = statusLine(room);
   const ruledOut = room.lastNudge;
-  const cooldown = useSecondsUntil(room.cooldownUntil);
+  const cooldown = useSecondsUntil(room.cooldownUntil, serverOffset);
 
   return (
     <>
