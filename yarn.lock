@@ -1169,6 +1169,20 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@expo-google-fonts/fraunces@npm:^0.4.1":
+  version: 0.4.1
+  resolution: "@expo-google-fonts/fraunces@npm:0.4.1"
+  checksum: 10c0/b9bc153e51eb7fff711909b1cc132bce739f5d4a173c229a1041ccfff2fea7ebc721685462c8733ad076e6f41e81e180161e1b27655222f1d9b397ddcfd30b2e
+  languageName: node
+  linkType: hard
+
+"@expo-google-fonts/inter@npm:^0.4.2":
+  version: 0.4.2
+  resolution: "@expo-google-fonts/inter@npm:0.4.2"
+  checksum: 10c0/a88e6d1321584055d2fa265861795d55ec04b64d9726ecb60fd11a970252d23a1fd8c1febab7b587eb8ec699071d35c38c591625e44a2826c1e0e18bb1aa1946
+  languageName: node
+  linkType: hard
+
 "@expo-google-fonts/material-symbols@npm:^0.4.1":
   version: 0.4.54
   resolution: "@expo-google-fonts/material-symbols@npm:0.4.54"
@@ -3687,6 +3701,8 @@ __metadata:
   dependencies:
     "@convex-dev/presence": "npm:0.4.0"
     "@edge-runtime/vm": "npm:^5.0.0"
+    "@expo-google-fonts/fraunces": "npm:^0.4.1"
+    "@expo-google-fonts/inter": "npm:^0.4.2"
     "@expo/ui": "npm:~58.0.28"
     "@types/node": "npm:^24"
     "@types/react": "npm:~19.3.0"
@@ -3701,6 +3717,7 @@ __metadata:
     expo-device: "npm:~58.0.5"
     expo-font: "npm:~58.0.12"
     expo-glass-effect: "npm:~58.0.5"
+    expo-haptics: "npm:~58.0.8"
     expo-image: "npm:~58.0.18"
     expo-linking: "npm:~58.0.17"
     expo-router: "npm:~58.0.31"
@@ -4776,6 +4793,15 @@ __metadata:
     react: "*"
     react-native: "*"
   checksum: 10c0/a4fcf07afcb5d97561b60bf460fb59caa980eea1a1e69b0b19d0c094ba59cb1907d883e504ca73fd61e1f0f5d3549b01ee33d79fd2a1d0012b1e248b7690bc33
+  languageName: node
+  linkType: hard
+
+"expo-haptics@npm:~58.0.8":
+  version: 58.0.8
+  resolution: "expo-haptics@npm:58.0.8"
+  peerDependencies:
+    expo: "*"
+  checksum: 10c0/42c0baa406282ac2e023c7ae286c5374028702ea362292f2f199b409f41c1b5c1879701dcf4eab3617dfe6092b64c391fa1a4c17295291bc66fd97fc71f938b6
   languageName: node
   linkType: hard
 
