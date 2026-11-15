@@ -18,7 +18,7 @@ import type {
 } from '../src/lib/contract';
 import { RACE_REVEAL_MS } from '../src/lib/contract';
 
-const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+export const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const MAX_MEMBERS = 3;
 export const WRONG_GUESS_COOLDOWN_MS = 20_000;
 
@@ -159,6 +159,7 @@ async function recordSolve(ctx: MutationCtx, room: Doc<'rooms'>, now: number) {
   if (place > drop.bounty.winnerSlots) return;
   const size = room.squadSize ?? MAX_MEMBERS;
   const { amountCents, perPlayerCents } = bountyShares(drop.bounty.totalCents, drop.bounty.winnerSlots, size);
+  const mode = !drop.conceptOnly && process.env.BOUNTY_MODE === 'sandbox' ? 'sandbox' : 'concept';
   const awardId = await ctx.db.insert('bountyAwards', {
     dropId: drop.dropId,
     roomId: room._id,
@@ -166,12 +167,12 @@ async function recordSolve(ctx: MutationCtx, room: Doc<'rooms'>, now: number) {
     amountCents,
     perPlayerCents,
     redeemableCount: size,
-    mode: process.env.BOUNTY_MODE === 'sandbox' ? 'sandbox' : 'concept',
+    mode,
     status: 'pending',
     claimUrl: null,
     label: '',
   });
-  await ctx.scheduler.runAfter(0, internal.bounty.payAward, { awardId, perPlayerCents, redeemableCount: size });
+  await ctx.scheduler.runAfter(0, internal.bounty.payAward, { awardId, mode, perPlayerCents, redeemableCount: size });
 }
 
 export const activeRoom = query({

@@ -113,7 +113,8 @@ export type SignalErrorCode =
   | 'DROP_CLOSED' // entries close at the start time; a late joiner gets this
   | 'NOT_ENTERED'
   | 'COOLDOWN' // drops: a lock-in during the 20s after a wrong check
-  | 'DEMO_CONTROLS_OFF'; // demo:* mutations on a deployment without SIGNAL_DEMO_CONTROLS=on
+  | 'DEMO_CONTROLS_OFF'
+  | 'NOT_ENOUGH_PLAYERS'; // dealSquads below 4 entrants // demo:* mutations on a deployment without SIGNAL_DEMO_CONTROLS=on
 
 export type SignalError = { code: SignalErrorCode; message: string };
 
@@ -160,6 +161,8 @@ export type DropSummaryView = {
   creatorName: string;
   caseId: CaseId;
   squadSize: SquadSize; // target size N
+  joinCode?: string | null; // always set by the server: 4 chars, unique among drops that aren't ended; what the host QR encodes
+  hosted?: boolean; // made by a host screen (drops:hostDrop): dealt by the host, startsAt is only a placeholder, concept payout only
   startsAt: number; // ms epoch, server clock
   status: DropStatus;
   entrantCount: number;
@@ -255,6 +258,30 @@ export type UseDrops = () => DropSummaryView[] | undefined; // scheduled and liv
 export type UseDrop = (dropId: string | null) => DropView | null | undefined;
 export type UseLeaderboard = (dropId: string | null) => LeaderboardView | null | undefined;
 export type UseMyAward = (code: string | null) => SquadAwardView | null | undefined;
+// The big shared host screen (signal/design/host.md). Only the device that created the drop can read it.
+export type HostView = {
+  dropId: string;
+  title: string;
+  joinCode: string;
+  status: DropStatus;
+  bounty: BountyView; // display only; hosted drops always pay in concept mode
+  entrantCount: number;
+  entrants: { name: string; joinedAt: number }[]; // join order
+  squads: {
+    squadLabel: string;
+    memberNames: string[];
+    status: 'solving' | 'solved' | 'winner';
+    rank: number | null;
+  }[]; // empty until the deal, then in deal order
+  solves: { place: number; squadLabel: string; solvedAt: number; solveMs: number; isWinner: boolean }[]; // commit order
+};
+
+export type UseHostView = (dropId: string | null) => HostView | null | undefined; // null = not the host, or no such drop
+export type UseHostDrop = () => (args: { title?: string; winnerSlots?: number; totalCents?: number }) => Promise<{ dropId: string; joinCode: string }>;
+export type UseDealSquads = (dropId: string) => () => Promise<void>; // host only; NOT_ENOUGH_PLAYERS below 4
+
+export type UseDropByCode = (code: string | null) => DropView | null | undefined; // null = no open drop with that code
+export type UseEnterDropByCode = () => (args: { code: string; name: string }) => Promise<{ dropId: string }>;
 export type UseEnterDrop = (dropId: string) => (args: { name: string }) => Promise<void>; // free, idempotent
 export type UseLeaveDrop = (dropId: string) => () => Promise<void>; // waiting room only
 // Milliseconds to add to Date.now() to get server time, measured once per mount with a mutation round-trip

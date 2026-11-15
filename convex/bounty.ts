@@ -102,9 +102,14 @@ export const CONCEPT_LABEL = 'Concept payout — no real money moves';
 // concept (BOUNTY_MODE unset, the default): a labeled concept award with no URL.
 // sandbox: one Whop claim link, redeemable once per squad member, keyed by the award id so retries fund one link.
 export const payAward = internalAction({
-  args: { awardId: v.id('bountyAwards'), perPlayerCents: v.number(), redeemableCount: v.number() },
-  handler: async (ctx, { awardId, perPlayerCents, redeemableCount }) => {
-    if (process.env.BOUNTY_MODE !== 'sandbox') {
+  args: {
+    awardId: v.id('bountyAwards'),
+    mode: v.union(v.literal('concept'), v.literal('sandbox')),
+    perPlayerCents: v.number(),
+    redeemableCount: v.number(),
+  },
+  handler: async (ctx, { awardId, mode, perPlayerCents, redeemableCount }) => {
+    if (mode !== 'sandbox') {
       await ctx.runMutation(internal.bounty.recordAward, { awardId, status: 'ready', claimUrl: null, label: CONCEPT_LABEL });
       return;
     }

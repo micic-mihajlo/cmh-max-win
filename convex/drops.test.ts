@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { api, internal } from './_generated/api';
 import { CONCEPT_LABEL } from './bounty';
 import { DEMO_DROP_ID, dealPieces, splitSizes } from './drops';
+import { parseJoinCode } from '../src/lib/join-code';
 import schema from './schema';
 import { WRONG_GUESS_COOLDOWN_MS } from './signal';
 
@@ -412,6 +413,149 @@ describe('demo controls', () => {
       const last = await t.query(api.drops.drop, { deviceToken: `${size}-p7`, dropId });
       expect(last?.me).toMatchObject({ unmatched: true, squad: null });
     }
+    vi.unstubAllEnvs();
+  });
+});
+
+describe('join codes', () => {
+  test('every way of creating a drop sets a 4-char join code, unique among open drops', async () => {
+    vi.stubEnv('SIGNAL_DEMO_CONTROLS', 'on');
+    const t = await dropWith(0);
+    const seeded = await t.mutation(internal.drops.seedDemo, { startsInSeconds: 600 });
+    const codes = [seeded.joinCode];
+    for (let i = 0; i < 20; i++) codes.push((await t.mutation(api.demo.openDrop, { squadSize: 3 })).joinCode);
+    codes.push((await t.query(api.drops.drop, { deviceToken: 'x', dropId: 'd1' }))!.joinCode!);
+    for (const code of codes) expect(code).toMatch(/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}$/);
+    expect(new Set(codes).size).toBe(codes.length);
+    vi.unstubAllEnvs();
+  });
+
+  test('a scanned code finds the drop and enters it; the host view updates live', async () => {
+    const t = await dropWith(0);
+    const code = (await t.query(api.drops.drop, { deviceToken: 'host', dropId: 'd1' }))!.joinCode!;
+    expect(await t.query(api.drops.dropByCode, { deviceToken: 'p1', code: code.toLowerCase() })).toMatchObject({
+      dropId: 'd1',
+      status: 'scheduled',
+      me: { entered: false },
+    });
+    for (const token of tokens(4)) {
+      expect(await t.mutation(api.drops.enterDropByCode, { deviceToken: token, code, name: token })).toEqual({
+        dropId: 'd1',
+      });
+    }
+    const host = await t.query(api.drops.dropByCode, { deviceToken: 'host', code });
+    expect(host).toMatchObject({ entrantCount: 4, entrants: tokens(4).map((name) => ({ name, isMe: false })) });
+    await t.mutation(internal.drops.startNow, { dropId: 'd1' });
+    expect((await t.query(api.drops.dropByCode, { deviceToken: 'host', code }))?.status).toBe('live');
+    expect((await t.query(api.drops.leaderboard, { deviceToken: 'host', dropId: 'd1' }))?.rows.map((r) => r.memberNames)).toEqual([
+      ['p1', 'p2'],
+      ['p3', 'p4'],
+    ]);
+    expect(await errorCode(t.mutation(api.drops.enterDropByCode, { deviceToken: 'late', code, name: 'L' }))).toBe(
+      'DROP_CLOSED',
+    );
+    expect(await errorCode(t.mutation(api.drops.enterDropByCode, { deviceToken: 'x', code: 'ZZZZ', name: 'X' }))).toBe(
+      'DROP_NOT_FOUND',
+    );
+    expect(await t.query(api.drops.dropByCode, { deviceToken: 'x', code: 'ZZZZ' })).toBeNull();
+  });
+
+  test('an ended drop stops answering to its code, and the backfill codes older open drops', async () => {
+    const { t } = await started(1);
+    const code = (await t.query(api.drops.drop, { deviceToken: 'p1', dropId: 'd1' }))!.joinCode!;
+    expect(await t.query(api.drops.dropByCode, { deviceToken: 'p1', code })).toBeNull();
+    await t.run(async (ctx) => {
+      await ctx.db.insert('drops', {
+        dropId: 'old',
+        title: 'Old',
+        creatorName: 'X',
+        caseId: 'aurora01',
+        squadSize: 3,
+        startsAt: Date.now() + 60_000,
+        status: 'scheduled',
+        bounty: { totalCents: 0, currency: 'usd', winnerSlots: 1 },
+        solvedCount: 0,
+      });
+    });
+    const filled = await t.mutation(internal.drops.backfillJoinCodes, {});
+    expect(filled.map((f) => f.dropId)).toEqual(['old']);
+    expect((await t.query(api.drops.dropByCode, { deviceToken: 'p1', code: filled[0].joinCode }))?.dropId).toBe('old');
+  });
+
+  test('the QR payload parser accepts a bare code or a URL ending in it', () => {
+    expect(parseJoinCode('k7qx')).toBe('K7QX');
+    expect(parseJoinCode(' https://signal.example/join/K7QX ')).toBe('K7QX');
+    expect(parseJoinCode('exp://192.168.1.2:8081/--/join/K7QX?x=1')).toBe('K7QX');
+    expect(parseJoinCode('https://signal.example/join/K7QX/')).toBe('K7QX');
+    expect(parseJoinCode('K7Q0')).toBeNull();
+    expect(parseJoinCode('hello world')).toBeNull();
+  });
+});
+
+describe('host screen', () => {
+  async function hosted(n: number) {
+    const t = newTest();
+    const { dropId, joinCode } = await t.mutation(api.drops.hostDrop, { deviceToken: 'host', winnerSlots: 1, totalCents: 30_000 });
+    for (const token of tokens(n)) await t.mutation(api.drops.enterDropByCode, { deviceToken: token, code: joinCode, name: token });
+    return { t, dropId, joinCode };
+  }
+
+  test('only the host reads hostView and deals; dealing needs 4 players', async () => {
+    const { t, dropId, joinCode } = await hosted(3);
+    expect(await t.query(api.drops.hostView, { deviceToken: 'p1', dropId })).toBeNull();
+    expect(await t.query(api.drops.hostView, { deviceToken: 'stranger', dropId })).toBeNull();
+    const view = await t.query(api.drops.hostView, { deviceToken: 'host', dropId });
+    expect(view).toMatchObject({
+      joinCode,
+      status: 'scheduled',
+      entrantCount: 3,
+      bounty: { totalCents: 30_000, winnerSlots: 1, mode: 'concept' },
+      squads: [],
+      solves: [],
+    });
+    expect(view?.entrants.map((e) => e.name)).toEqual(['p1', 'p2', 'p3']);
+    expect(await errorCode(t.mutation(api.drops.dealSquads, { deviceToken: 'host', dropId }))).toBe('NOT_ENOUGH_PLAYERS');
+    await t.mutation(api.drops.enterDropByCode, { deviceToken: 'p4', code: joinCode, name: 'p4' });
+    for (const deviceToken of ['p1', 'stranger']) {
+      expect(await errorCode(t.mutation(api.drops.dealSquads, { deviceToken, dropId }))).toBe('NOT_HOST');
+    }
+    await t.mutation(api.drops.dealSquads, { deviceToken: 'host', dropId });
+    const dealt = await t.query(api.drops.hostView, { deviceToken: 'host', dropId });
+    expect(dealt?.status).toBe('live');
+    expect(dealt?.squads.map((s) => s.memberNames)).toEqual([
+      ['p1', 'p2'],
+      ['p3', 'p4'],
+    ]);
+    expect(await errorCode(t.mutation(api.drops.dealSquads, { deviceToken: 'host', dropId }))).toBe('WRONG_STATUS');
+  });
+
+  test('a hosted drop never takes the sandbox payout path, even with BOUNTY_MODE=sandbox', async () => {
+    vi.stubEnv('BOUNTY_MODE', 'sandbox');
+    vi.stubEnv('WHOP_API_KEY', 'test-key');
+    vi.stubEnv('WHOP_ACCOUNT_ID', 'biz_test');
+    const fetchSpy = vi.fn(() => Promise.reject(new Error('Whop must not be called')));
+    vi.stubGlobal('fetch', fetchSpy);
+    const { t, dropId } = await hosted(4);
+    expect((await t.query(api.drops.drop, { deviceToken: 'p1', dropId }))?.bounty.mode).toBe('concept');
+    await t.mutation(api.drops.dealSquads, { deviceToken: 'host', dropId });
+    const code = (await t.query(api.drops.drop, { deviceToken: 'p1', dropId }))!.me.squad!.code;
+    await toPlaying(t, code, ['p1', 'p2']);
+    const revision = await lockAllBut(t, code, ['p1', 'p2'], 'jun');
+    await t.mutation(api.signal.lockIn, { deviceToken: 'p2', code, revision });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(await t.query(api.drops.myAward, { deviceToken: 'p1', code })).toMatchObject({
+      mode: 'concept',
+      status: 'ready',
+      claimUrl: null,
+      label: CONCEPT_LABEL,
+    });
+    const view = await t.query(api.drops.hostView, { deviceToken: 'host', dropId });
+    expect(view?.solves).toEqual([
+      expect.objectContaining({ place: 1, squadLabel: 'Squad 1', isWinner: true, solvedAt: expect.any(Number) }),
+    ]);
+    expect(view?.squads[0]).toMatchObject({ status: 'winner', rank: 1 });
+    vi.unstubAllGlobals();
     vi.unstubAllEnvs();
   });
 });
