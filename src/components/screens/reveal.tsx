@@ -2,16 +2,14 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { Screen } from '@/components/signal/backdrop';
-import { Banner, Button, Label } from '@/components/signal/primitives';
+import { Avatar, Banner, Button, Label } from '@/components/signal/primitives';
 import { useMotionReduced } from '@/components/signal/settings';
 import { Txt } from '@/components/signal/txt';
-import { Palette, Radius, RoleMeta, Space } from '@/constants/signal';
+import { FontFamily, Palette, Radius, RoleMeta, Space } from '@/constants/signal';
 import { suspectById } from '@/constants/case01';
 import type { RevealView, RoomView } from '@/lib/contract';
 
 export type RevealPage = 'reconstruction' | 'credits' | 'choice' | 'next';
-
-const pages: RevealPage[] = ['reconstruction', 'credits', 'choice', 'next'];
 
 export function RevealScreen({
   room,
@@ -32,7 +30,7 @@ export function RevealScreen({
   const culprit = suspectById(reveal.culprit);
   const enter = (i: number) => (reduced ? undefined : FadeInDown.duration(500).delay(120 * i));
   const footer = {
-    reconstruction: <Button title="Who cracked it" onPress={() => on.onPage?.('credits')} />,
+    reconstruction: <Button title="What happens next" onPress={() => on.onPage?.('next')} />,
     credits: <Button title="What happens to Jun" onPress={() => on.onPage?.('choice')} />,
     choice: <Button title={choice ? 'Continue' : 'Choose together'} disabled={!choice} onPress={() => on.onPage?.('next')} />,
     next: (
@@ -45,42 +43,32 @@ export function RevealScreen({
 
   return (
     <Screen footer={footer}>
-      <View style={styles.progress}>
-        {pages.map((p) => (
-          <View key={p} style={[styles.tick, p === page && styles.tickOn]} />
-        ))}
-      </View>
-      <Label color={Palette.ok}>{`Case 01 · solved on attempt ${room.attempts}`}</Label>
+      <Txt variant="small" color={Palette.paperMuted}>
+        {room.drop ? `${room.drop.squadLabel} · solved` : `Solved on attempt ${room.attempts}`}
+      </Txt>
       {late ? <Banner tone="good" title="Your crew solved it." text="You were away when it resolved. Here’s what happened." /> : null}
 
       {page === 'reconstruction' ? (
         <>
-          <Txt variant="display">
-            {culprit.name}
-            <Txt variant="display" color={Palette.paperMuted}>
-              {' '}
-              took the Aurora Seed.
-            </Txt>
-          </Txt>
-          <Label>Reconstruction</Label>
-          <View style={styles.timeline}>
-            {reveal.timeline.map((t, i) => (
-              <Animated.View key={t.time} entering={enter(i)} style={styles.tRow}>
-                <View style={styles.tRail}>
-                  <View style={styles.tDot} />
-                  {i < reveal.timeline.length - 1 ? <View style={styles.tLine} /> : null}
-                </View>
-                <Txt variant="time" color={Palette.paper} style={styles.tTime}>
-                  {t.time}
-                </Txt>
-                <Txt variant="serif" style={styles.flex}>
-                  {t.text}
-                </Txt>
-              </Animated.View>
-            ))}
+          <Txt variant="display">{reveal.headline}</Txt>
+          <View style={styles.credits}>
+            {reveal.credits.map((c, i) => {
+              const m = c.line.match(/^(.+?) (placed|put|locked|ruled|cleared) (.+?)\.?$/);
+              return (
+                <Animated.View key={c.role} entering={enter(i)} style={[styles.creditRow, i > 0 && styles.creditRule]}>
+                  <Avatar name={c.memberName} filled={c.memberName === room.me?.name} />
+                  <View style={styles.flex}>
+                    <Txt variant="name">{m ? m[1] : `${c.memberName}’s ${RoleMeta[c.role].docLabel.toLowerCase()}`}</Txt>
+                    <Txt variant="small" color={Palette.paperMuted}>
+                      {m ? `${m[2]} ${m[3]}` : c.line}
+                    </Txt>
+                  </View>
+                </Animated.View>
+              );
+            })}
           </View>
-          <Txt variant="quote" color={Palette.paperMuted}>
-            {reveal.why}
+          <Txt variant="serif" color={Palette.paperMuted} style={styles.italic}>
+            {`Nobody could place ${culprit.first}.`}
           </Txt>
         </>
       ) : null}
@@ -175,7 +163,7 @@ function ChoiceCard({ title, text, selected, onPress }: { title: string; text: s
       accessibilityRole="radio"
       accessibilityState={{ selected }}
       onPress={onPress}
-      style={[styles.choice, selected && { borderColor: Palette.ember, backgroundColor: '#251C15' }]}>
+      style={[styles.choice, selected && { borderColor: Palette.ember, backgroundColor: Palette.accentSoft }]}>
       <Txt variant="name">{title}</Txt>
       <Txt variant="small" color={Palette.paperMuted}>
         {text}
@@ -191,9 +179,16 @@ function ChoiceCard({ title, text, selected, onPress }: { title: string; text: s
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  progress: { flexDirection: 'row', gap: 6 },
-  tick: { flex: 1, height: 3, borderRadius: 2, backgroundColor: Palette.hairline },
-  tickOn: { backgroundColor: Palette.paper },
+  italic: { fontFamily: FontFamily.serifItalic },
+  credits: {
+    backgroundColor: Palette.card,
+    borderRadius: Radius.l,
+    borderWidth: 1,
+    borderColor: Palette.hairline,
+    paddingHorizontal: Space.l,
+  },
+  creditRow: { flexDirection: 'row', alignItems: 'center', gap: Space.m, paddingVertical: Space.l },
+  creditRule: { borderTopWidth: 1, borderTopColor: Palette.hairline },
   timeline: { gap: 0 },
   tRow: { flexDirection: 'row', gap: Space.m, minHeight: 64 },
   tRail: { width: 12, alignItems: 'center', paddingTop: 8 },
