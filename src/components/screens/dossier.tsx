@@ -1,15 +1,28 @@
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { CaseMenu, type MenuActions, type MenuMode } from '@/components/screens/case-menu';
 import { Screen } from '@/components/signal/backdrop';
 import { ClueCard, ClueCardSkeleton } from '@/components/signal/clue-card';
-import { Avatar, Banner, IconButton, Toast, TopBar } from '@/components/signal/primitives';
+import { Avatar, Banner, IconButton, PresenceLine, Toast, TopBar } from '@/components/signal/primitives';
 import { SuspectList } from '@/components/signal/suspect-card';
 import { TheorySheet, type SheetNotice } from '@/components/signal/theory-sheet';
 import { Txt } from '@/components/signal/txt';
 import { Suspects } from '@/constants/case01';
 import { Palette, Space } from '@/constants/signal';
-import type { DossierView, Role, RoomView, SuspectId } from '@/lib/contract';
+import type { DossierView, MemberView, Role, RoomView, SuspectId } from '@/lib/contract';
+
+function useNewestPresence(members: MemberView[]) {
+  const [newestId, setNewestId] = useState<string | null>(null);
+  const before = useRef(members);
+  useEffect(() => {
+    const changed = members.find((m) => !m.isMe && before.current.find((b) => b.memberId === m.memberId)?.presence !== m.presence);
+    before.current = members;
+    if (changed) setNewestId(changed.memberId);
+  }, [members]);
+  const others = members.filter((m) => !m.isMe);
+  return others.find((m) => m.memberId === newestId) ?? others[0] ?? null;
+}
 
 export type DossierUi = {
   tab?: 'evidence' | 'suspects';
@@ -42,6 +55,7 @@ export function DossierScreen({
 }) {
   const role: Role = room.me?.role ?? 'detective';
   const roles = pieces?.length ? pieces.map((p) => p.role) : [role];
+  const presence = useNewestPresence(room.members);
   const nudgeForMe = room.lastNudge?.holder ? room.lastNudge.holder.memberId === room.me?.memberId : !!room.lastNudge && roles.includes(room.lastNudge.forRole);
   return (
     <Screen
@@ -49,7 +63,7 @@ export function DossierScreen({
         <TopBar
           left={
             <Txt variant="small" color={Palette.paperMuted}>
-              {room.drop ? room.drop.squadLabel : `Room ${room.code}`}
+              {room.me ? `Your piece, ${room.me.name}` : room.drop ? room.drop.squadLabel : `Room ${room.code}`}
             </Txt>
           }
           right={
@@ -84,6 +98,7 @@ export function DossierScreen({
         </>
       }>
       {ui.banner ? <Banner {...ui.banner} /> : null}
+      <PresenceLine person={presence} />
       <Txt variant="bodyStrong">Every piece is true and puts one suspect somewhere else. Whoever’s left is the thief.</Txt>
       {nudgeForMe ? <Banner tone="warn" title="This one’s yours." text="Read your piece out loud." /> : null}
       {pieces ? pieces.map((p) => <ClueCard key={p.role} dossier={p} highlight={p.role === room.lastNudge?.forRole ? ui.highlight : undefined} />) : <ClueCardSkeleton role={role} />}

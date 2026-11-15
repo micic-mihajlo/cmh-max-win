@@ -24,7 +24,7 @@ export function HostScreen({ view, hostName, dealing, onDeal }: { view: HostView
           <Txt variant="bodyStrong" style={styles.flex}>
             {`${money(view.bounty.totalCents)} · first ${view.bounty.winnerSlots} squads`}
           </Txt>
-          <PressScale disabled={!canDeal} onPress={onDeal} style={[styles.deal, !canDeal && styles.dealOff]}>
+          <PressScale disabled={!canDeal} onPress={onDeal} haptic="tap" style={[styles.deal, !canDeal && styles.dealOff]}>
             <Txt variant="button" color={canDeal ? Palette.onAccent : Palette.disabledText}>
               {dealing ? 'Dealing…' : 'Deal squads'}
             </Txt>

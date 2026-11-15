@@ -27,7 +27,7 @@ export function ago(ms: number, now: number) {
   return `${Math.round(min / 60)} h ago`;
 }
 
-export const followers = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k` : String(n));
+export const followers = (n: number) => `${n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k` : n} follower${n === 1 ? '' : 's'}`;
 
 const STARTING_WINDOW = 10 * 60_000;
 

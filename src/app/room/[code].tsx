@@ -28,6 +28,7 @@ import {
   useSetTheory,
   useStartCase,
 } from '@/hooks/use-signal';
+import { useFollowStreamer, useStreamerForDrop } from '@/hooks/use-feed';
 import type { Role, RoomView, SuspectId } from '@/lib/contract';
 import { toSignalError } from '@/lib/signal-error';
 import { Haptic } from '@/motion';
@@ -270,6 +271,9 @@ function Playing({
 
 function Resolved({ room }: { room: RoomView }) {
   const reveal = useReveal(room.code);
+  const streamer = useStreamerForDrop(room.drop?.dropId ?? null);
+  const { follow } = useFollowStreamer(streamer?.streamerId ?? '');
+  const [followed, setFollowed] = useState(false);
   const [page, setPage] = useState<RevealPage>('reconstruction');
   const [choice, setChoice] = useState<'report' | 'informant' | undefined>(undefined);
   const { reveal: showReveal } = useLocalSearchParams<{ reveal?: string }>();
@@ -282,6 +286,18 @@ function Resolved({ room }: { room: RoomView }) {
       reveal={reveal}
       page={page}
       choice={choice}
+      host={
+        streamer
+          ? {
+              name: streamer.name,
+              following: streamer.following || followed,
+              onFollow: () => {
+                setFollowed(true);
+                follow().catch(() => setFollowed(false));
+              },
+            }
+          : undefined
+      }
       on={{
         onPage: setPage,
         onChoice: setChoice,

@@ -1,4 +1,5 @@
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/signal/backdrop';
 import { Icon } from '@/components/signal/icon';
@@ -7,6 +8,7 @@ import { joinNames } from '@/components/signal/room';
 import { Txt } from '@/components/signal/txt';
 import { FontFamily, Palette, Radius, Space } from '@/constants/signal';
 import type { SeasonPackView } from '@/lib/contract';
+import { Haptic, PressScale } from '@/motion';
 
 export type ShelfPack = SeasonPackView | { real: false };
 
@@ -62,6 +64,11 @@ export function ShelfScreen({
 
 export function RealPackCard({ pack, onBuy }: { pack: SeasonPackView; onBuy?: () => void }) {
   const test = pack.environment === 'production' ? '' : ' · Whop test purchase';
+  const previous = useRef(pack.state);
+  useEffect(() => {
+    if (previous.current !== pack.state && pack.state === 'owned') Haptic.success();
+    previous.current = pack.state;
+  }, [pack.state]);
   return (
     <View style={styles.real}>
       <Txt style={styles.realTitle}>Season 01</Txt>
@@ -70,11 +77,11 @@ export function RealPackCard({ pack, onBuy }: { pack: SeasonPackView; onBuy?: ()
       </Txt>
       {pack.state === 'locked' ? (
         <>
-          <Pressable style={styles.buy} accessibilityRole="button" onPress={onBuy}>
+          <PressScale style={styles.buy} accessibilityRole="button" haptic="tap" onPress={onBuy}>
             <Txt variant="button" color={Palette.ink}>
               Get Season 01 · $4.99
             </Txt>
-          </Pressable>
+          </PressScale>
           {pack.error ? (
             <Txt variant="small" color={Palette.danger}>
               Checkout didn’t open. Try again.

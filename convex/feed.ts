@@ -207,7 +207,7 @@ async function liveRow(ctx: QueryCtx, streamer: Doc<'streamers'>, h: HostedDrop,
     joinCode: h.drop.joinCode ?? '',
     dropStatus: h.drop.status === 'live' ? 'live' : 'scheduled',
     entrantCount: (await entriesOf(ctx, h.drop.dropId)).length,
-    bounty: bountyView(h.drop),
+    bounty: await bountyView(ctx, h.drop),
     liveSince: since,
   };
 }
@@ -224,7 +224,7 @@ async function upcomingRow(ctx: QueryCtx, streamer: Doc<'streamers'>, h: HostedD
     title: h.drop.title,
     joinCode: h.drop.joinCode ?? '',
     startsAt: h.sd.scheduledFor!,
-    bounty: bountyView(h.drop),
+    bounty: await bountyView(ctx, h.drop),
     reminded: !!reminder,
   };
 }

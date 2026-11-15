@@ -25,7 +25,7 @@ export function StreamersScreen({ streamers, sample }: { streamers: StreamerCard
               <View style={showcase.flex}>
                 <Txt variant="bodyStrong">{s.name}</Txt>
                 <Txt variant="small" color={Palette.paperMuted}>
-                  {s.live ? 'Live now' : `${followers(s.followerCount)} followers`}
+                  {s.live ? 'Live now' : followers(s.followerCount)}
                 </Txt>
               </View>
               {s.following ? (
