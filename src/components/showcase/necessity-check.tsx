@@ -16,7 +16,7 @@ export function NecessityCheck({ puzzle }: { puzzle: PuzzleInput }) {
   return (
     <View style={styles.gap}>
       <Enter key={String(report.pass)} from={8}>
-        <View style={[styles.verdict, { backgroundColor: report.pass ? G.okWash : G.badWash }]}>
+        <View style={[styles.verdict, { backgroundColor: report.pass ? G.okWash : G.surface }]}>
           <Txt style={[styles.verdictTitle, { color: report.pass ? G.ok : G.bad }]}>{report.pass ? 'Holds.' : 'Leaks.'}</Txt>
           <Txt variant="body" color={G.ink}>
             {report.pass ? `Every piece is needed. Only all ${n} together leave ${first(puzzle.answer)}.` : 'A squad could skip someone. Fix the red rows.'}
@@ -35,9 +35,7 @@ export function NecessityCheck({ puzzle }: { puzzle: PuzzleInput }) {
             pass={r.pass}
           />
         ))}
-      </Card>
-
-      <Card>
+        <View style={styles.spacer} />
         {report.checks.map((c) => (
           <Row key={c.id} label={c.label} hint={c.detail} pass={c.pass} />
         ))}
@@ -49,11 +47,7 @@ export function NecessityCheck({ puzzle }: { puzzle: PuzzleInput }) {
 function Row({ label, value, hint, pass }: { label: string; value?: string; hint?: string; pass: boolean }) {
   return (
     <View style={styles.row}>
-      <View style={[styles.mark, { backgroundColor: pass ? G.ok : G.bad }]}>
-        <Txt variant="smallStrong" color="#FFFFFF">
-          {pass ? '✓' : '✕'}
-        </Txt>
-      </View>
+      <Txt style={[styles.mark, { color: pass ? G.ink : G.bad }]}>{pass ? '✓' : '✕'}</Txt>
       <View style={styles.flex}>
         <Txt variant="bodyStrong" color={G.ink}>
           {label}
@@ -78,6 +72,8 @@ const styles = StyleSheet.create({
   verdict: { borderRadius: 16, padding: Space.l, gap: Space.xs },
   verdictTitle: { fontFamily: FontFamily.display, fontSize: 28, lineHeight: 34 },
   row: { flexDirection: 'row', alignItems: 'center', gap: Space.m },
-  mark: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  mark: { width: 20, fontFamily: FontFamily.uiSemi, fontSize: 17, lineHeight: 24, textAlign: 'center' },
+  spacer: { height: Space.s },
   flex: { flex: 1 },
 });
+

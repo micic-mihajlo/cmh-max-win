@@ -18,7 +18,7 @@ export default function PlayerPreview() {
   const hand = draft.pieces.slice(start, start + counts[seat]);
 
   return (
-    <StudioScreen kicker="Player preview" title={draft.title}>
+    <StudioScreen title={draft.title}>
       <Txt variant="serif" color={G.ink}>
         {draft.setup}
       </Txt>
@@ -53,7 +53,7 @@ export default function PlayerPreview() {
         <Enter key={`${seat}-${p.id}`} index={i} from={10}>
           <View style={[styles.piece, { backgroundColor: G.role[p.role] }]}>
             <RoleCaption role={p.role} docLabel={p.docLabel} />
-            <Txt variant="quote" color={G.ink}>
+            <Txt variant="body" color={G.ink}>
               {p.text}
             </Txt>
             <Caption>Only you can see this. Read it out.</Caption>
@@ -68,4 +68,5 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   piece: { borderRadius: 20, padding: Space.xl, gap: Space.l },
 });
+
 
