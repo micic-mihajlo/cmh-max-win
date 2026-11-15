@@ -1,10 +1,10 @@
 import { StyleSheet, View } from 'react-native';
 
-import { Palette, Radius, Space } from '@/constants/signal';
+import { FontFamily, Space } from '@/constants/signal';
 import { Txt } from '@/components/signal/txt';
 import { Enter } from '@/motion';
 
-import { Card } from './studio-ui';
+import { Card, G, docName } from './studio-ui';
 import type { PuzzleInput } from './validate';
 import { validatePuzzle } from './validate';
 
@@ -16,22 +16,20 @@ export function NecessityCheck({ puzzle }: { puzzle: PuzzleInput }) {
   return (
     <View style={styles.gap}>
       <Enter key={String(report.pass)} from={8}>
-        <View style={[styles.verdict, report.pass ? styles.pass : styles.fail]}>
-          <Txt variant="title" color={report.pass ? Palette.ok : Palette.danger}>
-            {report.pass ? 'Holds.' : 'Leaks.'}
-          </Txt>
-          <Txt variant="body">
+        <View style={[styles.verdict, { backgroundColor: report.pass ? G.okWash : G.badWash }]}>
+          <Txt style={[styles.verdictTitle, { color: report.pass ? G.ok : G.bad }]}>{report.pass ? 'Holds.' : 'Leaks.'}</Txt>
+          <Txt variant="body" color={G.ink}>
             {report.pass ? `Every piece is needed. Only all ${n} together leave ${first(puzzle.answer)}.` : 'A squad could skip someone. Fix the red rows.'}
           </Txt>
         </View>
       </Enter>
 
-      <Card style={styles.tight}>
+      <Card>
         <Row label={`All ${n} pieces`} value={report.allTogether.map(first).join(', ') || 'nobody'} pass={report.checks.find((c) => c.id === 'together')!.pass} />
         {report.removals.map((r) => (
           <Row
             key={r.pieceId}
-            label={`Without ${r.docLabel}`}
+            label={`Without the ${docName(r.docLabel).toLowerCase()}`}
             value={`${r.remaining.length} remain`}
             hint={r.remaining.map(first).join(', ')}
             pass={r.pass}
@@ -39,7 +37,7 @@ export function NecessityCheck({ puzzle }: { puzzle: PuzzleInput }) {
         ))}
       </Card>
 
-      <Card style={styles.tight}>
+      <Card>
         {report.checks.map((c) => (
           <Row key={c.id} label={c.label} hint={c.detail} pass={c.pass} />
         ))}
@@ -51,21 +49,23 @@ export function NecessityCheck({ puzzle }: { puzzle: PuzzleInput }) {
 function Row({ label, value, hint, pass }: { label: string; value?: string; hint?: string; pass: boolean }) {
   return (
     <View style={styles.row}>
-      <View style={[styles.mark, { backgroundColor: pass ? Palette.ok : Palette.danger }]}>
+      <View style={[styles.mark, { backgroundColor: pass ? G.ok : G.bad }]}>
         <Txt variant="smallStrong" color="#FFFFFF">
           {pass ? '✓' : '✕'}
         </Txt>
       </View>
       <View style={styles.flex}>
-        <Txt variant="bodyStrong">{label}</Txt>
+        <Txt variant="bodyStrong" color={G.ink}>
+          {label}
+        </Txt>
         {hint ? (
-          <Txt variant="small" color={Palette.paperMuted}>
+          <Txt variant="small" color={G.inkSoft}>
             {hint}
           </Txt>
         ) : null}
       </View>
       {value ? (
-        <Txt variant="smallStrong" color={pass ? Palette.paper : Palette.danger}>
+        <Txt variant="smallStrong" color={pass ? G.ink : G.bad}>
           {value}
         </Txt>
       ) : null}
@@ -75,10 +75,8 @@ function Row({ label, value, hint, pass }: { label: string; value?: string; hint
 
 const styles = StyleSheet.create({
   gap: { gap: Space.m },
-  verdict: { borderRadius: Radius.m, padding: Space.l, gap: Space.xs, borderWidth: 1 },
-  pass: { backgroundColor: '#EEF5EE', borderColor: '#CFE3D0' },
-  fail: { backgroundColor: '#FBEDEA', borderColor: '#F0CFC7' },
-  tight: { gap: Space.m },
+  verdict: { borderRadius: 16, padding: Space.l, gap: Space.xs },
+  verdictTitle: { fontFamily: FontFamily.display, fontSize: 28, lineHeight: 34 },
   row: { flexDirection: 'row', alignItems: 'center', gap: Space.m },
   mark: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   flex: { flex: 1 },

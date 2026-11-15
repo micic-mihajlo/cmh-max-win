@@ -2,11 +2,11 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
 
-import { FontFamily, Palette, Radius, Space } from '@/constants/signal';
+import { FontFamily, Space } from '@/constants/signal';
 import { Txt } from '@/components/signal/txt';
 import { auroraDraft, draftStore, type Draft } from '@/components/showcase/draft-store';
 import { NecessityCheck } from '@/components/showcase/necessity-check';
-import { Card, Chip, PrimaryButton, RolePill, Section, StudioScreen, studio } from '@/components/showcase/studio-ui';
+import { Caption, Card, Chip, G, PrimaryButton, RoleCaption, Section, StudioScreen, docName, studio } from '@/components/showcase/studio-ui';
 import { splitPieces, validatePuzzle } from '@/components/showcase/validate';
 import { auroraBroken } from '@/mocks/showcase/aurora';
 import { Enter } from '@/motion';
@@ -17,7 +17,11 @@ const members = ['Kit', 'Lou', 'Ana'];
 export default function Builder() {
   const params = useLocalSearchParams<{ step?: string; fresh?: string; broken?: string }>();
   const [step, setStep] = useState(() => Math.max(0, steps.findIndex((s) => s.toLowerCase() === params.step)));
-  const [draft, setDraftState] = useState<Draft>(() => (params.broken ? { ...auroraDraft, ...auroraBroken } : params.fresh ? auroraDraft : draftStore.get()));
+  const [draft, setDraftState] = useState<Draft>(() => {
+    const initial = params.broken ? { ...auroraDraft, ...auroraBroken } : params.fresh ? auroraDraft : draftStore.get();
+    draftStore.set(initial);
+    return initial;
+  });
   const setDraft = (next: Draft) => {
     draftStore.set(next);
     setDraftState(next);
@@ -27,14 +31,14 @@ export default function Builder() {
 
   return (
     <StudioScreen
-      kicker={`Step ${step + 1} of ${steps.length}`}
+      kicker={`${draft.title} · step ${step + 1} of ${steps.length}`}
       title={steps[step]}
       onBack={step > 0 ? () => setStep(step - 1) : undefined}
       footer={
         last ? (
           <PrimaryButton title="Preview as a player" disabled={!validatePuzzle(draft).pass} onPress={() => router.push('/studio/preview')} />
         ) : (
-          <PrimaryButton title={`Next: ${steps[step + 1]}`} onPress={() => setStep(step + 1)} />
+          <PrimaryButton title={steps[step + 1]} onPress={() => setStep(step + 1)} />
         )
       }>
       <View style={styles.progress}>
@@ -43,7 +47,7 @@ export default function Builder() {
         ))}
       </View>
 
-      <Enter key={step} from={10}>
+      <Enter key={step} from={8}>
         <View style={studio.gap}>
           {step === 0 ? (
             <>
@@ -55,10 +59,12 @@ export default function Builder() {
 
           {step === 1
             ? draft.suspects.map((s, i) => (
-                <Card key={s.id}>
+                <Card key={s.id} style={styles.tight}>
                   <View style={studio.between}>
-                    <Txt variant="name">{s.name}</Txt>
-                    <Chip label={s.job} tone="soft" />
+                    <Txt variant="bodyStrong" color={G.ink}>
+                      {s.name}
+                    </Txt>
+                    <Caption>{s.job}</Caption>
                   </View>
                   <TextInput
                     value={s.claim}
@@ -71,21 +77,20 @@ export default function Builder() {
 
           {step === 2 ? (
             <>
-              <Txt variant="body" color={Palette.paperMuted}>
+              <Txt variant="body" color={G.inkSoft}>
                 Every piece is true and puts one suspect somewhere else.
               </Txt>
               {draft.pieces.map((p, i) => (
-                <Card key={p.id}>
-                  <RolePill role={p.role} docLabel={p.docLabel} />
-                  <Txt style={styles.pieceText}>{p.text}</Txt>
-                  <Txt variant="label" color={Palette.paperMuted}>
-                    Clears
+                <View key={p.id} style={[styles.piece, { backgroundColor: G.role[p.role] }]}>
+                  <RoleCaption role={p.role} docLabel={p.docLabel} />
+                  <Txt variant="body" color={G.ink}>
+                    {p.text}
                   </Txt>
                   <View style={studio.wrap}>
                     {draft.suspects.map((s) => (
                       <Chip
                         key={s.id}
-                        label={s.name.split(' ')[0]}
+                        label={p.places.includes(s.id) ? `Clears ${s.name.split(' ')[0]}` : s.name.split(' ')[0]}
                         selected={p.places.includes(s.id)}
                         onPress={() =>
                           setDraft({
@@ -98,19 +103,21 @@ export default function Builder() {
                       />
                     ))}
                   </View>
-                </Card>
+                </View>
               ))}
             </>
           ) : null}
 
           {step === 3 ? (
             <>
-              <Txt variant="body" color={Palette.paperMuted}>
-                Whoever nobody can clear.
+              <Txt variant="body" color={G.inkSoft}>
+                The one nobody can clear.
               </Txt>
-              {draft.suspects.map((s) => (
-                <Chip key={s.id} label={`${s.name} · ${s.job}`} selected={draft.answer === s.id} onPress={() => setDraft({ ...draft, answer: s.id })} />
-              ))}
+              <View style={styles.list}>
+                {draft.suspects.map((s) => (
+                  <Chip key={s.id} label={`${s.name} · ${s.job}`} selected={draft.answer === s.id} onPress={() => setDraft({ ...draft, answer: s.id })} />
+                ))}
+              </View>
             </>
           ) : null}
 
@@ -129,21 +136,17 @@ export default function Builder() {
                     <Card>
                       {hands.map((hand, m) => (
                         <View key={m} style={styles.hand}>
-                          <Txt variant="bodyStrong">
+                          <Txt variant="bodyStrong" color={G.ink}>
                             {members[m]} · {hand.length} piece{hand.length === 1 ? '' : 's'}
                           </Txt>
-                          <Txt variant="small" color={Palette.paperMuted}>
-                            {hand.map((p) => p.docLabel).join(' + ')}
-                          </Txt>
+                          <Caption>{hand.map((p) => docName(p.docLabel)).join(' + ')}</Caption>
                         </View>
                       ))}
                     </Card>
                   </Section>
                 );
               })}
-              <Txt variant="small" color={Palette.paperMuted}>
-                Leftover players fold into duos, so nobody sits out.
-              </Txt>
+              <Caption>Leftover players fold into duos, so nobody sits out.</Caption>
             </>
           ) : null}
 
@@ -162,14 +165,23 @@ export default function Builder() {
                 </View>
                 <Card>
                   <View style={studio.between}>
-                    <Txt variant="body">Each winning squad</Txt>
-                    <Txt variant="bodyStrong">${Math.floor(draft.bounty / draft.winners)}</Txt>
+                    <Txt variant="body" color={G.ink}>
+                      Each winning squad
+                    </Txt>
+                    <Txt variant="bodyStrong" color={G.ink}>
+                      ${Math.floor(draft.bounty / draft.winners)}
+                    </Txt>
                   </View>
                   <View style={studio.between}>
-                    <Txt variant="body">Each player in a trio</Txt>
-                    <Txt variant="bodyStrong">${(Math.floor((draft.bounty / draft.winners / 3) * 100) / 100).toFixed(2)}</Txt>
+                    <Txt variant="body" color={G.ink}>
+                      Each player in a trio
+                    </Txt>
+                    <Txt variant="bodyStrong" color={G.ink}>
+                      ${(Math.floor((draft.bounty / draft.winners / 3) * 100) / 100).toFixed(2)}
+                    </Txt>
                   </View>
                 </Card>
+                <Caption>Concept payout. No money moves in this preview.</Caption>
               </Section>
               <Section title="Goes live">
                 <View style={studio.wrap}>
@@ -185,12 +197,12 @@ export default function Builder() {
             <>
               <NecessityCheck puzzle={draft} />
               <View style={studio.row}>
-                <Chip label="Load a broken version" onPress={() => setDraft({ ...draft, ...auroraBroken })} />
-                <Chip label="Reset" onPress={() => setDraft(auroraDraft)} />
+                <PrimaryButton variant="text" title="Try a broken version" onPress={() => setDraft({ ...draft, ...auroraBroken })} />
+                <PrimaryButton variant="text" title="Reset" onPress={() => setDraft(auroraDraft)} />
               </View>
-              <Txt variant="small" color={Palette.paperMuted}>
-                Clears for {draft.pieces.map((p) => p.places.map(first).join('+') || '—').join(', ')}. Answer {first(draft.answer)}.
-              </Txt>
+              <Caption>
+                Pieces clear {draft.pieces.map((p) => p.places.map(first).join(' + ') || 'nobody').join(', ')}. Answer: {first(draft.answer)}.
+              </Caption>
             </>
           ) : null}
         </View>
@@ -202,33 +214,33 @@ export default function Builder() {
 function Field({ label, value, onChange, multiline, big }: { label: string; value: string; onChange: (v: string) => void; multiline?: boolean; big?: boolean }) {
   return (
     <View style={styles.field}>
-      <Txt variant="label" color={Palette.paperMuted}>
-        {label}
-      </Txt>
-      <TextInput value={value} onChangeText={onChange} multiline={multiline} style={[styles.input, big && styles.inputBig]} />
+      <Caption>{label}</Caption>
+      <TextInput value={value} onChangeText={onChange} multiline={multiline} style={[styles.input, multiline && styles.inputTall, big && styles.inputBig]} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   progress: { flexDirection: 'row', gap: 6 },
-  dot: { flex: 1, height: 4, borderRadius: 2, backgroundColor: Palette.hairline },
-  dotOn: { backgroundColor: Palette.ember },
+  dot: { flex: 1, height: 3, borderRadius: 2, backgroundColor: G.line },
+  dotOn: { backgroundColor: G.ink },
   field: { gap: Space.s },
   input: {
-    backgroundColor: Palette.card,
-    borderRadius: Radius.m,
-    borderWidth: 1,
-    borderColor: Palette.hairline,
+    backgroundColor: G.surface,
+    borderRadius: 14,
     paddingHorizontal: Space.l,
     paddingVertical: Space.m,
     fontFamily: FontFamily.ui,
     fontSize: 17,
     lineHeight: 24,
-    color: Palette.paper,
+    color: G.ink,
   },
-  inputBig: { fontFamily: FontFamily.displayBold, fontSize: 24, lineHeight: 30 },
-  claim: { fontFamily: FontFamily.serif, fontSize: 18, lineHeight: 26, color: Palette.paper, padding: 0 },
-  pieceText: { fontFamily: FontFamily.serif, fontSize: 19, lineHeight: 27, color: Palette.paper, padding: 0 },
+  inputTall: { minHeight: 96, textAlignVertical: 'top' },
+  inputBig: { fontFamily: FontFamily.display, fontSize: 24, lineHeight: 30 },
+  tight: { gap: Space.s },
+  claim: { fontFamily: FontFamily.ui, fontSize: 17, lineHeight: 24, color: G.inkSoft, padding: 0 },
+  piece: { borderRadius: 16, padding: Space.l, gap: Space.m },
+  list: { alignItems: 'flex-start', gap: Space.s },
   hand: { gap: 2 },
 });
+

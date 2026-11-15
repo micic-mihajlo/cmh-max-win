@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { Palette, Radius, Space } from '@/constants/signal';
+import { Space } from '@/constants/signal';
 import { Txt } from '@/components/signal/txt';
 import { draftStore } from '@/components/showcase/draft-store';
-import { Card, Chip, RolePill, Section, StudioScreen, studio } from '@/components/showcase/studio-ui';
+import { Caption, Card, Chip, G, RoleCaption, Section, StudioScreen, studio } from '@/components/showcase/studio-ui';
 import { splitPieces } from '@/components/showcase/validate';
 import { Enter } from '@/motion';
 
@@ -19,8 +19,12 @@ export default function PlayerPreview() {
 
   return (
     <StudioScreen kicker="Player preview" title={draft.title}>
-      <Txt variant="serif">{draft.setup}</Txt>
-      <Txt variant="bodyStrong">Everyone holds a piece. Nobody solves it alone.</Txt>
+      <Txt variant="serif" color={G.ink}>
+        {draft.setup}
+      </Txt>
+      <Txt variant="bodyStrong" color={G.ink}>
+        Everyone holds a piece. Nobody solves it alone.
+      </Txt>
 
       <Section title="Suspects">
         <Card>
@@ -28,7 +32,7 @@ export default function PlayerPreview() {
             <View key={s.id} style={studio.between}>
               <View style={styles.flex}>
                 <Txt variant="bodyStrong">{s.name}</Txt>
-                <Txt variant="small" color={Palette.paperMuted}>
+                <Txt variant="small" color={G.inkSoft}>
                   {s.job} · “{s.claim}”
                 </Txt>
               </View>
@@ -47,12 +51,12 @@ export default function PlayerPreview() {
 
       {hand.map((p, i) => (
         <Enter key={`${seat}-${p.id}`} index={i} from={10}>
-          <View style={styles.piece}>
-            <RolePill role={p.role} docLabel={p.docLabel} />
-            <Txt variant="quote">{p.text}</Txt>
-            <Txt variant="small" color={Palette.paperMuted}>
-              Only you can see this. Read it out.
+          <View style={[styles.piece, { backgroundColor: G.role[p.role] }]}>
+            <RoleCaption role={p.role} docLabel={p.docLabel} />
+            <Txt variant="quote" color={G.ink}>
+              {p.text}
             </Txt>
+            <Caption>Only you can see this. Read it out.</Caption>
           </View>
         </Enter>
       ))}
@@ -62,12 +66,6 @@ export default function PlayerPreview() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  piece: {
-    backgroundColor: Palette.card,
-    borderRadius: Radius.l,
-    borderWidth: 1,
-    borderColor: Palette.paper,
-    padding: Space.xl,
-    gap: Space.l,
-  },
+  piece: { borderRadius: 20, padding: Space.xl, gap: Space.l },
 });
+
