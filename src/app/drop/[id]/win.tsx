@@ -1,19 +1,22 @@
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, Linking, StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { BountyResultScreen } from '@/components/drops/bounty-result';
 import { Atmosphere } from '@/components/signal/backdrop';
 import { Palette } from '@/constants/signal';
-import { useDrop, useMyAward, useServerOffset } from '@/hooks/use-drops';
+import { useDrop, useMyAward } from '@/hooks/use-drops';
+import { useLinkForClaim } from '@/hooks/use-whop-account';
 import { useRoom } from '@/hooks/use-signal';
 
 export default function WinRoute() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const drop = useDrop(id);
-  const offset = useServerOffset();
   const squad = drop?.me.squad ?? null;
   const award = useMyAward(squad?.code ?? null);
   const room = useRoom(squad?.code ?? null);
+  const link = useLinkForClaim(squad?.code ?? null, `/drop/${id}/win`);
+  const [signingIn, setSigningIn] = useState(false);
   if (drop === undefined || award === undefined || room === undefined) {
     return (
       <View style={styles.loading}>
@@ -27,10 +30,16 @@ export default function WinRoute() {
     <BountyResultScreen
       award={award}
       bounty={drop.bounty}
-      squadLabel={squad.label}
-      offset={offset}
+      signingIn={signingIn}
       on={{
-        onClaim: () => award.claimUrl && Linking.openURL(award.claimUrl),
+        onSignIn: async () => {
+          setSigningIn(true);
+          try {
+            await link();
+          } finally {
+            setSigningIn(false);
+          }
+        },
         onContinue: () => router.push({ pathname: '/room/[code]', params: { code: squad.code, reveal: '1' } }),
       }}
     />
