@@ -3,11 +3,28 @@ import type { ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { FontFamily, Palette, Radius, RoleMeta, Space } from '@/constants/signal';
+import { FontFamily, RoleMeta, Space } from '@/constants/signal';
 import { Txt } from '@/components/signal/txt';
-import { PressScale } from '@/motion';
+import { Enter, PressScale } from '@/motion';
 
 import type { BuilderRole } from './validate';
+
+export const G = {
+  bg: '#FAFAF7',
+  surface: '#FFFFFF',
+  ink: '#161513',
+  inkSoft: '#6B6860',
+  line: '#E8E6E0',
+  fill: '#F1F0EB',
+  onInk: '#FAFAF7',
+  ok: '#2F6B3A',
+  okWash: '#EAF1EA',
+  bad: '#B8381A',
+  badWash: '#F8E9E3',
+  role: { detective: '#F3EDE0', hacker: '#E7EDF4', witness: '#F4E6E1' } as Record<BuilderRole, string>,
+};
+
+export const docName = (label: string) => label.charAt(0) + label.slice(1).toLowerCase();
 
 export function StudioScreen({ title, kicker, children, footer, onBack }: { title: string; kicker?: string; children: ReactNode; footer?: ReactNode; onBack?: () => void }) {
   const insets = useSafeAreaInsets();
@@ -15,23 +32,25 @@ export function StudioScreen({ title, kicker, children, footer, onBack }: { titl
     <View style={styles.root}>
       <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: insets.top + Space.m, paddingBottom: insets.bottom + (footer ? 120 : Space.xxxl) }]}>
         <Pressable accessibilityRole="button" hitSlop={12} onPress={onBack ?? (() => (router.canGoBack() ? router.back() : router.replace('/')))} style={styles.back}>
-          <Txt variant="label" color={Palette.paperMuted}>
+          <Txt variant="small" color={G.inkSoft}>
             ‹ Back
           </Txt>
         </Pressable>
-        {kicker ? (
-          <Txt variant="label" color={Palette.emberDeep}>
-            {kicker}
-          </Txt>
-        ) : null}
-        <Txt variant="title" style={styles.title}>
-          {title}
-        </Txt>
+        <Enter from={8}>
+          <View style={styles.head}>
+            {kicker ? <Caption>{kicker}</Caption> : null}
+            <Txt style={styles.title}>{title}</Txt>
+          </View>
+        </Enter>
         {children}
       </ScrollView>
       {footer ? <View style={[styles.footer, { paddingBottom: insets.bottom + Space.l }]}>{footer}</View> : null}
     </View>
   );
+}
+
+export function Caption({ children, color = G.inkSoft }: { children: ReactNode; color?: string }) {
+  return <Txt style={[styles.caption, { color }]}>{children}</Txt>;
 }
 
 export function Card({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
@@ -42,7 +61,7 @@ export function Section({ title, children, action }: { title: string; children: 
   return (
     <View style={styles.section}>
       <View style={styles.sectionHead}>
-        <Txt variant="name">{title}</Txt>
+        <Txt style={styles.sectionTitle}>{title}</Txt>
         {action}
       </View>
       {children}
@@ -50,10 +69,10 @@ export function Section({ title, children, action }: { title: string; children: 
   );
 }
 
-export function Chip({ label, selected, onPress, tone = 'plain' }: { label: string; selected?: boolean; onPress?: () => void; tone?: 'plain' | 'soft' }) {
+export function Chip({ label, selected, onPress }: { label: string; selected?: boolean; onPress?: () => void }) {
   const body = (
-    <View style={[styles.chip, tone === 'soft' && styles.chipSoft, selected && styles.chipOn]}>
-      <Txt variant="smallStrong" color={Palette.paper}>
+    <View style={[styles.chip, selected && styles.chipOn]}>
+      <Txt variant="small" color={selected ? G.onInk : G.ink}>
         {label}
       </Txt>
     </View>
@@ -66,13 +85,11 @@ export function Chip({ label, selected, onPress, tone = 'plain' }: { label: stri
   );
 }
 
-export function RolePill({ role, docLabel }: { role: BuilderRole; docLabel: string }) {
+export function RoleCaption({ role, docLabel }: { role: BuilderRole; docLabel: string }) {
   return (
-    <View style={styles.rolePill}>
-      <Txt variant="label" color={Palette.paper}>
-        {docLabel} · {RoleMeta[role].label}
-      </Txt>
-    </View>
+    <Caption>
+      {docName(docLabel)} · {RoleMeta[role].label}
+    </Caption>
   );
 }
 
@@ -80,19 +97,26 @@ export function Stat({ value, label }: { value: string; label: string }) {
   return (
     <View style={styles.stat}>
       <Txt style={styles.statValue}>{value}</Txt>
-      <Txt variant="small" color={Palette.paperMuted}>
-        {label}
-      </Txt>
+      <Caption>{label}</Caption>
     </View>
   );
 }
 
-export function PrimaryButton({ title, onPress, variant = 'primary', disabled }: { title: string; onPress?: () => void; variant?: 'primary' | 'secondary'; disabled?: boolean }) {
+export function PrimaryButton({ title, onPress, variant = 'primary', disabled }: { title: string; onPress?: () => void; variant?: 'primary' | 'text'; disabled?: boolean }) {
+  if (variant === 'text') {
+    return (
+      <PressScale accessibilityRole="button" onPress={onPress} haptic="tap" style={styles.textButton}>
+        <Txt variant="button" color={G.ink}>
+          {title}
+        </Txt>
+      </PressScale>
+    );
+  }
   return (
     <View style={styles.flex}>
       <PressScale accessibilityRole="button" disabled={disabled} onPress={onPress} haptic="tap">
-        <View style={[styles.button, variant === 'primary' ? styles.buttonPrimary : styles.buttonSecondary, disabled && styles.buttonDisabled]}>
-          <Txt variant="button" color={disabled ? Palette.disabledText : Palette.onAccent}>
+        <View style={[styles.button, disabled && styles.buttonDisabled]}>
+          <Txt variant="button" color={G.onInk} style={styles.buttonText}>
             {title}
           </Txt>
         </View>
@@ -113,50 +137,37 @@ export const studio = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: Palette.ink },
+  root: { flex: 1, backgroundColor: G.bg },
   scroll: { paddingHorizontal: Space.xl, gap: Space.l },
   back: { alignSelf: 'flex-start', paddingVertical: Space.xs },
-  title: { marginTop: -Space.s },
+  head: { gap: Space.xs },
+  title: { fontFamily: FontFamily.display, fontSize: 28, lineHeight: 32, letterSpacing: -0.4, color: G.ink },
+  caption: { fontFamily: FontFamily.ui, fontSize: 13, lineHeight: 17, color: G.inkSoft },
   footer: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
     paddingHorizontal: Space.xl,
-    paddingTop: Space.l,
+    paddingTop: Space.m,
     flexDirection: 'row',
-    gap: Space.m,
-    backgroundColor: Palette.ink,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: Palette.hairline,
+    alignItems: 'center',
+    gap: Space.l,
+    backgroundColor: G.bg,
   },
-  card: {
-    backgroundColor: Palette.card,
-    borderRadius: Radius.m,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Palette.hairline,
-    padding: Space.l,
-    gap: Space.m,
-  },
-  section: { gap: Space.m, marginTop: Space.s },
+  card: { backgroundColor: G.surface, borderRadius: 16, padding: Space.l, gap: Space.m },
+  section: { gap: Space.m, marginTop: Space.m },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  chip: {
-    paddingHorizontal: Space.m,
-    paddingVertical: Space.s,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Palette.hairline,
-    backgroundColor: Palette.card,
-  },
-  chipSoft: { backgroundColor: Palette.accentSoft, borderColor: Palette.accentSoft },
-  chipOn: { backgroundColor: Palette.ember, borderColor: Palette.ember },
-  rolePill: { alignSelf: 'flex-start', backgroundColor: Palette.accentSoft, borderRadius: Radius.pill, paddingHorizontal: Space.m, paddingVertical: Space.xs },
+  sectionTitle: { fontFamily: FontFamily.uiSemi, fontSize: 17, lineHeight: 24, color: G.ink },
+  chip: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: G.fill },
+  chipOn: { backgroundColor: G.ink },
   stat: { flexBasis: '45%', flexGrow: 1, gap: 2 },
-  statValue: { fontFamily: FontFamily.displayBold, fontSize: 28, lineHeight: 34, color: Palette.paper, fontVariant: ['tabular-nums'] },
+  statValue: { fontFamily: FontFamily.display, fontSize: 32, lineHeight: 38, color: G.ink, fontVariant: ['tabular-nums'] },
   flex: { flex: 1 },
-  button: { height: 52, borderRadius: Radius.pill, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Space.l },
-  buttonPrimary: { backgroundColor: Palette.ember },
-  buttonSecondary: { backgroundColor: Palette.card, borderWidth: 1, borderColor: Palette.hairline },
-  buttonDisabled: { backgroundColor: Palette.inkDeep },
-  hairline: { height: StyleSheet.hairlineWidth, backgroundColor: Palette.hairline },
+  button: { height: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Space.l, backgroundColor: G.ink },
+  buttonText: { fontFamily: FontFamily.uiMedium },
+  buttonDisabled: { opacity: 0.32 },
+  textButton: { paddingHorizontal: Space.s, paddingVertical: Space.m },
+  hairline: { height: StyleSheet.hairlineWidth, backgroundColor: G.line },
 });
+

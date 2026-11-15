@@ -7,5 +7,5 @@ export default function SignIn() {
   const params = useLocalSearchParams<{ step?: string }>();
   const [step, setStep] = useState(params.step === 'handle' ? 'handle' : 'welcome');
   if (step === 'handle') return <ClaimHandleScreen onDone={() => router.replace('/showcase/profile' as Href)} />;
-  return <WelcomeScreen onWhop={() => setStep('handle')} onApple={() => setStep('handle')} onLater={() => router.back()} />;
+  return <WelcomeScreen onWhop={() => setStep('handle')} onApple={() => setStep('handle')} />;
 }

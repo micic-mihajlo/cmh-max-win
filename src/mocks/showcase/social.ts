@@ -20,8 +20,8 @@ export const me = {
     { value: '$83.33', label: 'Bounty earned' },
   ],
   packs: [
-    { id: 's01', season: 'Season 01', title: 'The Aurora Seed', creator: 'Nova', episodes: '4 episodes', owned: 2 },
-    { id: 'glass', season: 'Season 01', title: 'Glass Harbor', creator: 'Rook', episodes: '3 episodes', owned: 3 },
+    { id: 's01', season: 'Season 01', title: 'The Aurora Seed', creator: 'Nova', episodes: '4', owned: 2 },
+    { id: 'glass', season: 'Season 01', title: 'Glass Harbor', creator: 'Rook', episodes: '3', owned: 3 },
   ],
   squads: [
     { id: 'q14', squad: 'Squad 14', members: ['Kit', 'Lou', 'Ana'], drop: 'The Aurora Seed', placement: '#2', earned: '$33.33', when: 'Today' },
