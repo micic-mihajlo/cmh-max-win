@@ -1,7 +1,7 @@
 import { router, type Href } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
-import { useFollowingFeed, useFollowStreamer, useRemindMe, useStreamerPage, useStreamers } from '@/hooks/use-feed';
+import { useFollowingFeed, useFollowStreamer, useRegisterPushToken, useRemindMe, useStreamerPage, useStreamers } from '@/hooks/use-feed';
 import type { FeedUpcomingRow, StreamerCardView } from '@/lib/contract';
 import { feedFixtures } from '@/mocks/showcase/feed-load';
 
@@ -10,6 +10,7 @@ import { FeedScreen, streamerHref } from './feed';
 import { TextAction } from './kit';
 import { Toggle, NotificationSettingsScreen } from './notification-settings';
 import { NotificationsScreen } from './notifications';
+import { existingPushToken, requestPushToken } from './push';
 import { StreamerScreen } from './streamer';
 import { StreamersScreen } from './streamers';
 
@@ -47,6 +48,12 @@ export function Feed() {
 }
 
 function LiveFeed() {
+  const register = useRegisterPushToken();
+  useEffect(() => {
+    existingPushToken()
+      .then((t) => t && register(t))
+      .catch(() => {});
+  }, [register]);
   return <FeedScreen view={useFollowingFeed()} Remind={LiveRemind} onOpenLive={(l) => openDrop(l.dropId)} />;
 }
 
@@ -72,7 +79,20 @@ function SampleStreamer({ id }: { id: string }) {
 function LiveStreamer({ id }: { id: string | null }) {
   const page = useStreamerPage(id);
   const { follow, unfollow } = useFollowStreamer(id ?? '');
-  return <StreamerScreen page={id ? page : null} onFollow={() => void follow()} onUnfollow={() => void unfollow()} onOpenLive={(l) => openDrop(l.dropId)} />;
+  const register = useRegisterPushToken();
+  const turnOn = () =>
+    requestPushToken()
+      .then((t) => t && register(t))
+      .catch(() => {});
+  return (
+    <StreamerScreen
+      page={id ? page : null}
+      onFollow={() => void follow()}
+      onUnfollow={() => void unfollow()}
+      onOpenLive={(l) => openDrop(l.dropId)}
+      onTurnOnPings={() => void turnOn()}
+    />
+  );
 }
 
 export function Notifications() {
