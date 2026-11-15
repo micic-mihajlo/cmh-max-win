@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { Screen } from '@/components/signal/backdrop';
 import { Label } from '@/components/signal/primitives';
 import { Txt } from '@/components/signal/txt';
-import { Palette, Radius, RoleColors, RoleMeta, Space } from '@/constants/signal';
+import { Palette, Radius, RoleColors, Space } from '@/constants/signal';
 import { Enter, PressScale, Stagger } from '@/motion';
 
 import { RACE_REVEAL_MS, type DossierView, type DropView, type MemberView } from '@/lib/contract';
@@ -37,7 +37,7 @@ export function SquadRevealScreen({
               Read it out to your squad.
             </Txt>
             <PressScale style={styles.cta} onPress={onOpen}>
-              <Txt variant="button" color={Palette.ink}>
+              <Txt variant="button" color={Palette.onAccent}>
                 Open the case
               </Txt>
             </PressScale>
@@ -83,7 +83,7 @@ export function SquadRevealScreen({
         <Enter key={p.role} play={play} delay={1400 + i * 120}>
           <View style={[styles.piece, { borderColor: RoleColors[p.role] }]}>
             <Txt variant="label" color={RoleColors[p.role]}>
-              {`${p.docLabel} · ${RoleMeta[p.role].label}`}
+              {p.docLabel}
             </Txt>
             <Txt variant="small" color={Palette.paperMuted}>
               {p.title}

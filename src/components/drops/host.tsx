@@ -128,7 +128,7 @@ function HostBoard({ view }: { view: HostView }) {
 const styles = StyleSheet.create({
   boardHead: { flexDirection: 'row', alignItems: 'baseline', gap: Space.m },
   bars: { flexDirection: 'row', gap: Space.s },
-  bar: { flex: 1, height: 10, borderRadius: Radius.pill, backgroundColor: Palette.inkDeep, overflow: 'hidden' },
+  bar: { flex: 1, height: 10, borderRadius: Radius.pill, backgroundColor: Palette.hairline, overflow: 'hidden' },
   barFill: { flex: 1, backgroundColor: Palette.ember },
   squads: { gap: Space.s },
   squad: {
