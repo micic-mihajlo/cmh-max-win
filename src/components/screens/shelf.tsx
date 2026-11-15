@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/signal/backdrop';
@@ -69,15 +69,21 @@ export function RealPackCard({ pack, onBuy }: { pack: SeasonPackView; onBuy?: ()
     if (previous.current !== pack.state && pack.state === 'owned') Haptic.success();
     previous.current = pack.state;
   }, [pack.state]);
+  const [cancelled, setCancelled] = useState(false);
+  const state = cancelled && pack.state === 'checkout' ? 'locked' : pack.state;
+  const buy = () => {
+    setCancelled(false);
+    onBuy?.();
+  };
   return (
     <View style={styles.real}>
       <Txt style={styles.realTitle}>Season 01</Txt>
       <Txt variant="body" color={Palette.paperMuted}>
         Every Kestrel Station drop.
       </Txt>
-      {pack.state === 'locked' ? (
+      {state === 'locked' ? (
         <>
-          <PressScale style={styles.buy} accessibilityRole="button" haptic="tap" onPress={onBuy}>
+          <PressScale style={styles.buy} accessibilityRole="button" haptic="tap" onPress={buy}>
             <Txt variant="button" color={Palette.ink}>
               Get Season 01 · $4.99
             </Txt>
@@ -88,16 +94,25 @@ export function RealPackCard({ pack, onBuy }: { pack: SeasonPackView; onBuy?: ()
             </Txt>
           ) : null}
         </>
-      ) : pack.state === 'owned' ? (
+      ) : state === 'owned' ? (
         <View style={styles.owned}>
           <Icon name="checkmark" size={16} color={Palette.paper} />
           <Txt variant="bodyStrong">{`Owned${test}`}</Txt>
         </View>
       ) : (
-        <View style={styles.owned}>
-          <ActivityIndicator color={Palette.paper} />
-          <Txt variant="bodyStrong">{pack.state === 'checkout' ? 'Finish checkout on Whop…' : 'Verifying with Whop…'}</Txt>
-        </View>
+        <>
+          <View style={styles.owned}>
+            <ActivityIndicator color={Palette.paper} />
+            <Txt variant="bodyStrong">{state === 'checkout' ? 'Finish checkout on Whop…' : 'Verifying with Whop…'}</Txt>
+          </View>
+          {state === 'checkout' ? (
+            <PressScale accessibilityRole="button" haptic="tap" onPress={() => setCancelled(true)} style={styles.cancel}>
+              <Txt variant="body" color={Palette.paperMuted}>
+                Cancel
+              </Txt>
+            </PressScale>
+          ) : null}
+        </>
       )}
     </View>
   );
@@ -138,6 +153,7 @@ const styles = StyleSheet.create({
   },
   realTitle: { fontFamily: FontFamily.displayBold, fontSize: 22, lineHeight: 28, color: Palette.paper },
   buy: { minHeight: 56, borderRadius: Radius.m, backgroundColor: Palette.paper, alignItems: 'center', justifyContent: 'center', marginTop: Space.s },
+  cancel: { alignSelf: 'flex-start', paddingVertical: Space.s },
   owned: {
     minHeight: 56,
     borderRadius: Radius.m,
