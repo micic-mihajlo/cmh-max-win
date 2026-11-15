@@ -2,7 +2,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/signal/backdrop';
 import { Icon } from '@/components/signal/icon';
-import { Banner, Button, NextStep } from '@/components/signal/primitives';
+import { Banner, Button } from '@/components/signal/primitives';
 import { Txt } from '@/components/signal/txt';
 import { Palette, Space } from '@/constants/signal';
 
@@ -35,7 +35,6 @@ export function DropEntryScreen({
           </>
         ) : (
           <>
-            <NextStep>{`You’ll play as ${drop.me.name ?? 'you'}. Squads form when the drop opens.`}</NextStep>
             <Button title={joining ? 'Joining…' : 'Join the drop'} disabled={joining} onPress={on?.onJoin} />
           </>
         )
@@ -46,7 +45,7 @@ export function DropEntryScreen({
         <Stat label="Joined" value={String(drop.entrantCount)} />
       </View>
       <Txt variant="small" color={Palette.paperMuted}>
-        Free to enter, no purchase needed. Winners are decided by skill and speed only, never by chance.
+        Free to enter.
       </Txt>
     </Screen>
   );
