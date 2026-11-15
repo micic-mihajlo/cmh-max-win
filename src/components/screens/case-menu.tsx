@@ -10,15 +10,27 @@ import { Txt } from '@/components/signal/txt';
 import { Palette, Radius, Space } from '@/constants/signal';
 import type { RoomView } from '@/lib/contract';
 
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 export type MenuMode = 'menu' | 'lobby' | 'confirm-restart' | 'confirm-leave';
 
-export function CaseMenu({ room, mode }: { room: RoomView; mode: MenuMode }) {
+export type MenuActions = {
+  onClose?: () => void;
+  onShare?: () => void;
+  onRestart?: () => void;
+  onConfirmRestart?: () => void;
+  onLeave?: () => void;
+  onConfirmLeave?: () => void;
+  onSuspects?: () => void;
+};
+
+export function CaseMenu({ room, mode, actions = {} }: { room: RoomView; mode: MenuMode; actions?: MenuActions }) {
   const insets = useSafeAreaInsets();
   const reduced = useMotionReduced();
   const hostName = host(room)?.name ?? 'the host';
   return (
     <>
-      <Animated.View entering={reduced ? undefined : FadeIn} style={styles.scrim} />
+      <AnimatedPressable accessibilityLabel="Close menu" onPress={actions.onClose} entering={reduced ? undefined : FadeIn} style={styles.scrim} />
       <Animated.View
         entering={reduced ? undefined : SlideInDown.springify().damping(20)}
         style={[styles.sheet, { paddingBottom: insets.bottom + Space.l }]}>
@@ -29,15 +41,15 @@ export function CaseMenu({ room, mode }: { room: RoomView; mode: MenuMode }) {
             <Txt variant="body" color={Palette.paperMuted}>
               The case can’t finish without your evidence. Your seat stays open for you to come back to.
             </Txt>
-            <Button title="Stay in the case" />
-            <Button title="Leave anyway" variant="secondary" />
+            <Button title="Stay in the case" onPress={actions.onClose} />
+            <Button title="Leave anyway" variant="secondary" onPress={actions.onConfirmLeave} />
           </View>
         ) : mode === 'lobby' ? (
           <View style={styles.items}>
             <Label>{`Room ${room.code}`}</Label>
-            <Item icon="link" title="Copy invite link" value="Opens the app" />
+            <Item icon="link" title="Share invite" value="Code first, link second" onPress={actions.onShare} />
             <Item icon="speaker.slash" title="Sound" value="Off" />
-            <Item icon="rectangle.portrait.and.arrow.right" title="Leave case" />
+            <Item icon="rectangle.portrait.and.arrow.right" title="Leave case" onPress={actions.onConfirmLeave} />
           </View>
         ) : mode === 'confirm-restart' ? (
           <View style={styles.confirm}>
@@ -48,17 +60,16 @@ export function CaseMenu({ room, mode }: { room: RoomView; mode: MenuMode }) {
             <Txt variant="body" color={Palette.paperMuted}>
               Everyone goes back to the lobby with the same roles. The theory and lock-ins are cleared.
             </Txt>
-            <Button title="Restart case" variant="danger" />
-            <Button title="Keep playing" variant="secondary" />
+            <Button title="Restart case" variant="danger" onPress={actions.onConfirmRestart} />
+            <Button title="Keep playing" variant="secondary" onPress={actions.onClose} />
           </View>
         ) : (
           <View style={styles.items}>
             <Label>{`Case 01 · room ${room.code}`}</Label>
-            <Item icon="doc.text" title="Shared briefing" />
-            <Item icon="person.3" title="Suspect directory" />
+            <Item icon="person.3" title="Suspect directory" onPress={actions.onSuspects} />
             <Item icon="speaker.slash" title="Sound" value="Off" />
             {room.isHost ? (
-              <Item icon="arrow.counterclockwise" title="Restart case" danger />
+              <Item icon="arrow.counterclockwise" title="Restart case" danger onPress={actions.onRestart} />
             ) : (
               <View style={styles.item}>
                 <Icon name="lock" size={18} color={Palette.paperFaint} />
@@ -72,7 +83,7 @@ export function CaseMenu({ room, mode }: { room: RoomView; mode: MenuMode }) {
                 </View>
               </View>
             )}
-            <Item icon="rectangle.portrait.and.arrow.right" title="Leave case" muted />
+            <Item icon="rectangle.portrait.and.arrow.right" title="Leave case" muted onPress={actions.onLeave} />
           </View>
         )}
       </Animated.View>
@@ -86,16 +97,18 @@ function Item({
   value,
   danger,
   muted,
+  onPress,
 }: {
   icon: Parameters<typeof Icon>[0]['name'];
   title: string;
   value?: string;
   danger?: boolean;
   muted?: boolean;
+  onPress?: () => void;
 }) {
   const color = danger ? Palette.danger : muted ? Palette.paperMuted : Palette.paper;
   return (
-    <Pressable accessibilityRole="button" style={styles.item}>
+    <Pressable accessibilityRole="button" onPress={onPress} style={styles.item}>
       <Icon name={icon} size={18} color={color} />
       <Txt variant="bodyStrong" color={color} style={styles.flex}>
         {title}

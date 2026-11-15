@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Screen } from '@/components/signal/backdrop';
 import { CodeCells } from '@/components/signal/code-cells';
 import { Icon } from '@/components/signal/icon';
-import { CaseMenu } from '@/components/screens/case-menu';
+import { CaseMenu, type MenuActions } from '@/components/screens/case-menu';
 import { Button, IconButton, Label, NextStep, Toast, TopBar } from '@/components/signal/primitives';
 import { host, seated } from '@/components/signal/room';
 import { Txt } from '@/components/signal/txt';
@@ -32,23 +32,33 @@ function nextLine(room: RoomView) {
   return `Waiting for ${theHost?.name ?? 'the host'} to start.`;
 }
 
+export type LobbyActions = {
+  onClaim?: (role: Role) => void;
+  onStart?: () => void;
+  onShare?: () => void;
+  onMenu?: () => void;
+  menu?: MenuActions;
+};
+
 export function LobbyScreen({
   room,
   toast,
   menu,
+  on = {},
 }: {
   room: RoomView;
   toast?: { text: string; tone?: 'info' | 'warn' | 'good' };
-  menu?: boolean;
+  menu?: boolean | 'confirm-leave';
+  on?: LobbyActions;
 }) {
   const claimed = room.members.filter((m) => m.role).length;
   const canStart = claimed === 3;
   return (
     <Screen
-      header={<TopBar right={<IconButton name="ellipsis" label="Room menu" />} />}
+      header={<TopBar right={<IconButton name="ellipsis" label="Room menu" onPress={on.onMenu} />} />}
       overlay={
         <>
-          {menu ? <CaseMenu room={room} mode="lobby" /> : null}
+          {menu ? <CaseMenu room={room} mode={menu === true ? 'lobby' : menu} actions={on.menu} /> : null}
           {toast ? <Toast text={toast.text} tone={toast.tone} /> : null}
         </>
       }
@@ -56,7 +66,7 @@ export function LobbyScreen({
         <>
           <NextStep>{nextLine(room)}</NextStep>
           {room.isHost ? (
-            <Button title={canStart ? 'Start case' : `Start · waiting for ${3 - claimed}`} disabled={!canStart} />
+            <Button title={canStart ? 'Start case' : `Start · waiting for ${3 - claimed}`} disabled={!canStart} onPress={on.onStart} />
           ) : null}
         </>
       }>
@@ -70,7 +80,7 @@ export function LobbyScreen({
         <Txt variant="small" color={Palette.paperMuted} style={styles.center}>
           Friends open SIGNAL and tap Join with code.
         </Txt>
-        <Button title="Share invite" variant="secondary" icon={<Icon name="square.and.arrow.up" size={16} />} />
+        <Button title="Share invite" variant="secondary" icon={<Icon name="square.and.arrow.up" size={16} />} onPress={on.onShare} />
       </View>
       <View style={styles.rolesHead}>
         <Label>Roles</Label>
@@ -80,19 +90,20 @@ export function LobbyScreen({
       </View>
       <View style={styles.roles}>
         {seated(room).map(({ role, member }) => (
-          <RoleCard key={role} role={role} member={member} />
+          <RoleCard key={role} role={role} member={member} onPress={() => on.onClaim?.(role)} />
         ))}
       </View>
     </Screen>
   );
 }
 
-function RoleCard({ role, member }: { role: Role; member: MemberView | null }) {
+function RoleCard({ role, member, onPress }: { role: Role; member: MemberView | null; onPress?: () => void }) {
   const meta = RoleMeta[role];
   const offline = member?.presence === 'offline';
   return (
     <Pressable
       accessibilityRole="button"
+      onPress={member?.isMe ? undefined : onPress}
       accessibilityLabel={`${meta.label}. ${member ? `Claimed by ${member.isMe ? 'you' : member.name}` : 'Open'}`}
       style={[styles.card, member?.isMe && { borderColor: meta.color }, offline && styles.dim]}>
       <View style={[styles.edge, { backgroundColor: meta.color }]} />

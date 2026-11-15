@@ -1,6 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 
-import { CaseMenu, type MenuMode } from '@/components/screens/case-menu';
+import { CaseMenu, type MenuActions, type MenuMode } from '@/components/screens/case-menu';
 import { Screen } from '@/components/signal/backdrop';
 import { ClueCard, ClueCardSkeleton } from '@/components/signal/clue-card';
 import { Banner, IconButton, Label, NextStep, PresenceLine, Segmented, Toast, TopBar } from '@/components/signal/primitives';
@@ -20,7 +20,26 @@ export type DossierUi = {
   highlight?: number;
 };
 
-export function DossierScreen({ room, pieces, ui = {} }: { room: RoomView; pieces: DossierView[] | undefined; ui?: DossierUi }) {
+export type DossierActions = {
+  onTab?: (tab: 'evidence' | 'suspects') => void;
+  onToggleSheet?: () => void;
+  onPick?: (id: SuspectId) => void;
+  onLockIn?: () => void;
+  onMenu?: () => void;
+  menu?: MenuActions;
+};
+
+export function DossierScreen({
+  room,
+  pieces,
+  ui = {},
+  on = {},
+}: {
+  room: RoomView;
+  pieces: DossierView[] | undefined;
+  ui?: DossierUi;
+  on?: DossierActions;
+}) {
   const role: Role = room.me?.role ?? 'detective';
   const roles = pieces?.length ? pieces.map((p) => p.role) : [role];
   const meta = RoleMeta[roles[0]];
@@ -36,7 +55,7 @@ export function DossierScreen({ room, pieces, ui = {} }: { room: RoomView; piece
           right={
             <View style={styles.actions}>
               <IconButton name="speaker.slash" label="Sound off" />
-              <IconButton name="ellipsis" label="Case menu" />
+              <IconButton name="ellipsis" label="Case menu" onPress={on.onMenu} />
             </View>
           }
         />
@@ -50,8 +69,11 @@ export function DossierScreen({ room, pieces, ui = {} }: { room: RoomView; piece
             notice={ui.sheet?.notice}
             fullHeight={ui.sheet?.fullHeight}
             pendingPick={ui.sheet?.pendingPick}
+            onToggle={on.onToggleSheet}
+            onPick={on.onPick}
+            onLockIn={on.onLockIn}
           />
-          {ui.menu ? <CaseMenu room={room} mode={ui.menu} /> : null}
+          {ui.menu ? <CaseMenu room={room} mode={ui.menu} actions={on.menu} /> : null}
           {ui.toast ? <Toast text={ui.toast.text} tone={ui.toast.tone} /> : null}
         </>
       }>
@@ -63,6 +85,7 @@ export function DossierScreen({ room, pieces, ui = {} }: { room: RoomView; piece
       <PresenceLine people={others.map((m) => ({ name: m.name, role: m.role, presence: m.presence }))} />
       <Segmented
         value={tab}
+        onChange={on.onTab}
         options={[
           { value: 'evidence', label: 'Your evidence' },
           { value: 'suspects', label: 'Suspects' },

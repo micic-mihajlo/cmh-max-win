@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { Screen } from '@/components/signal/backdrop';
@@ -19,24 +19,26 @@ export function RevealScreen({
   page,
   late,
   choice,
+  on = {},
 }: {
   room: RoomView;
   reveal: RevealView;
   page: RevealPage;
   late?: boolean;
   choice?: 'report' | 'informant';
+  on?: { onPage?: (page: RevealPage) => void; onChoice?: (c: 'report' | 'informant') => void; onSeason?: () => void; onNewCase?: () => void };
 }) {
   const reduced = useMotionReduced();
   const culprit = suspectById(reveal.culprit);
   const enter = (i: number) => (reduced ? undefined : FadeInDown.duration(500).delay(120 * i));
   const footer = {
-    reconstruction: <Button title="Who cracked it" />,
-    credits: <Button title="What happens to Jun" />,
-    choice: <Button title={choice ? 'Lock in the crew’s choice' : 'Choose together'} disabled={!choice} />,
+    reconstruction: <Button title="Who cracked it" onPress={() => on.onPage?.('credits')} />,
+    credits: <Button title="What happens to Jun" onPress={() => on.onPage?.('choice')} />,
+    choice: <Button title={choice ? 'Continue' : 'Choose together'} disabled={!choice} onPress={() => on.onPage?.('next')} />,
     next: (
       <>
-        <Button title="See your season" />
-        <Button title="Start a new case" variant="secondary" />
+        <Button title="See your season" onPress={on.onSeason} />
+        <Button title="Start a new case" variant="secondary" onPress={on.onNewCase} />
       </>
     ),
   }[page];
@@ -129,11 +131,13 @@ export function RevealScreen({
             title="Report her"
             text="Station command takes it from here. The crew keeps its record clean."
             selected={choice === 'report'}
+            onPress={() => on.onChoice?.('report')}
           />
           <ChoiceCard
             title="Keep her as an informant"
             text="Jun stays in the galley, and she owes you. Whoever messaged her may try again."
             selected={choice === 'informant'}
+            onPress={() => on.onChoice?.('informant')}
           />
           <Txt variant="small" color={Palette.paperMuted}>
             Episode 02 remembers this.
@@ -165,11 +169,12 @@ export function RevealScreen({
   );
 }
 
-function ChoiceCard({ title, text, selected }: { title: string; text: string; selected: boolean }) {
+function ChoiceCard({ title, text, selected, onPress }: { title: string; text: string; selected: boolean; onPress?: () => void }) {
   return (
-    <View
+    <Pressable
       accessibilityRole="radio"
       accessibilityState={{ selected }}
+      onPress={onPress}
       style={[styles.choice, selected && { borderColor: Palette.ember, backgroundColor: '#251C15' }]}>
       <Txt variant="name">{title}</Txt>
       <Txt variant="small" color={Palette.paperMuted}>
@@ -177,10 +182,10 @@ function ChoiceCard({ title, text, selected }: { title: string; text: string; se
       </Txt>
       {selected ? (
         <Txt variant="smallStrong" color={Palette.ember}>
-          Maya and Ravi picked this · waiting for you
+          Your pick · a preview for now
         </Txt>
       ) : null}
-    </View>
+    </Pressable>
   );
 }
 
