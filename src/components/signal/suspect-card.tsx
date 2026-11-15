@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.m,
     borderWidth: 1,
     borderColor: Palette.hairline,
-    backgroundColor: Palette.ink,
+    backgroundColor: Palette.card,
   },
   optionSelected: { borderColor: Palette.ember, backgroundColor: '#251C15' },
   optionBody: { flex: 1 },

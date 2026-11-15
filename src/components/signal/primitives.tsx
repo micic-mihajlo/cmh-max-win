@@ -25,7 +25,7 @@ export function Button({
   icon?: ReactNode;
   style?: ViewStyle;
 }) {
-  const fg = variant === 'primary' || variant === 'danger' ? Palette.ink : Palette.paper;
+  const fg = variant === 'primary' || variant === 'danger' ? Palette.onAccent : Palette.paper;
   return (
     <Pressable
       accessibilityRole="button"
@@ -37,11 +37,11 @@ export function Button({
         variant === 'secondary' && styles.secondary,
         variant === 'danger' && styles.danger,
         disabled && styles.disabled,
-        pressed && !disabled && { opacity: 0.85, transform: [{ scale: 0.985 }] },
+        pressed && !disabled && { transform: [{ scale: 0.97 }] },
         style,
       ]}>
       {icon}
-      <Txt variant="button" color={disabled ? Palette.paperMuted : fg}>
+      <Txt variant="button" color={disabled ? Palette.disabledText : fg}>
         {title}
       </Txt>
     </Pressable>
@@ -221,8 +221,8 @@ export function Divider() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   button: {
-    minHeight: 54,
-    borderRadius: Radius.pill,
+    minHeight: 56,
+    borderRadius: Radius.m,
     paddingHorizontal: Space.xl,
     flexDirection: 'row',
     alignItems: 'center',
@@ -230,9 +230,9 @@ const styles = StyleSheet.create({
     gap: Space.s,
   },
   primary: { backgroundColor: Palette.ember },
-  secondary: { borderWidth: 1, borderColor: Palette.hairline, backgroundColor: Palette.panel },
+  secondary: { borderWidth: 1, borderColor: Palette.hairline, backgroundColor: Palette.card },
   danger: { backgroundColor: Palette.danger },
-  disabled: { backgroundColor: Palette.panel, borderWidth: 1, borderColor: Palette.hairline },
+  disabled: { backgroundColor: Palette.paperShade, borderWidth: 0 },
   roleTag: { flexDirection: 'row', alignItems: 'center', gap: Space.s },
   presence: { gap: 6 },
   presenceItem: { flexDirection: 'row', alignItems: 'center', gap: Space.s },

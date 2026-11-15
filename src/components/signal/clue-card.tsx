@@ -93,11 +93,13 @@ export function ClueCardSkeleton({ role }: { role: Role }) {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   card: {
-    backgroundColor: Palette.paper,
-    borderRadius: Radius.m,
+    backgroundColor: Palette.card,
+    borderWidth: 1,
+    borderColor: Palette.hairline,
+    borderRadius: Radius.l,
     overflow: 'hidden',
     flexDirection: 'row',
-    boxShadow: '0 8px 24px rgba(14,15,19,0.4)',
+    boxShadow: '0 1px 2px rgba(26,25,22,0.04), 0 8px 24px rgba(26,25,22,0.05)',
   },
   edge: { width: 4 },
   paperGrain: { ...StyleSheet.absoluteFill, opacity: 0.03 },

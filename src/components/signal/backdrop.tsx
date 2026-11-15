@@ -1,32 +1,15 @@
 import type { ReactNode } from 'react';
 import { Image, ScrollView, StyleSheet, View, type ViewStyle } from 'react-native';
-import Animated, { useAnimatedStyle, useFrameCallback, useSharedValue } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Palette, Space } from '@/constants/signal';
 
-import { useMotionReduced } from './settings';
-
 const grain = require('@/assets/images/signal/grain.png');
 
 export function Atmosphere() {
-  const reduced = useMotionReduced();
-  const x = useSharedValue(0);
-  const y = useSharedValue(0);
-  const last = useSharedValue(0);
-  useFrameCallback((frame) => {
-    if (frame.timestamp - last.value < 125) return;
-    last.value = frame.timestamp;
-    x.value = -Math.floor(Math.random() * 48);
-    y.value = -Math.floor(Math.random() * 48);
-  }, !reduced);
-  const grainStyle = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }, { translateY: y.value }] }));
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <Animated.View style={[styles.grainWrap, grainStyle]}>
-        <Image source={grain} resizeMode="repeat" style={styles.grain} />
-      </Animated.View>
-      <View style={styles.vignette} />
+      <Image source={grain} resizeMode="repeat" style={styles.grain} />
     </View>
   );
 }
@@ -74,10 +57,5 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   content: { paddingHorizontal: Space.xl, paddingTop: Space.l, paddingBottom: Space.xxl, gap: Space.l },
   footer: { paddingHorizontal: Space.xl, paddingTop: Space.m, paddingBottom: Space.s, gap: Space.m },
-  grainWrap: { position: 'absolute', top: 0, left: 0, right: -64, bottom: -64 },
-  grain: { width: '100%', height: '100%', opacity: 0.06 },
-  vignette: {
-    ...StyleSheet.absoluteFill,
-    backgroundImage: 'radial-gradient(ellipse farthest-corner at 50% 40%, transparent 55%, rgba(0,0,0,0.55) 100%)',
-  },
+  grain: { width: '100%', height: '100%', opacity: 0.035 },
 });

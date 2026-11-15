@@ -87,7 +87,7 @@ export function RealPackCard({ pack, onBuy }: { pack: SeasonPackView; onBuy?: ()
             $4.99 · one-time · sandbox
           </Txt>
           <Pressable style={styles.buy} accessibilityRole="button" onPress={onBuy}>
-            <Txt variant="button" color={Palette.ink}>
+            <Txt variant="button" color={Palette.onAccent}>
               Get the season
             </Txt>
           </Pressable>
@@ -162,11 +162,13 @@ const styles = StyleSheet.create({
   crewDot: { width: 10, height: 10, borderRadius: 5 },
   coming: { borderRadius: Radius.l, padding: Space.l, gap: 6, borderWidth: 1, borderColor: Palette.hairline },
   real: {
-    backgroundColor: Palette.paper,
+    backgroundColor: Palette.card,
+    borderWidth: 1,
+    borderColor: Palette.hairline,
     borderRadius: Radius.l,
     padding: Space.xl,
     gap: Space.m,
-    boxShadow: '0 18px 40px rgba(0,0,0,0.45)',
+    boxShadow: '0 1px 2px rgba(26,25,22,0.04), 0 8px 24px rgba(26,25,22,0.05)',
   },
   realTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   realTitle: { fontFamily: FontFamily.display, fontSize: 28, lineHeight: 34, color: Palette.inkOnPaper },
