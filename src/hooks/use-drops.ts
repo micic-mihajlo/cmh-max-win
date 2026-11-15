@@ -1,6 +1,6 @@
 import { api } from '@convex/_generated/api';
 import { useMutation, useQuery } from 'convex/react';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { useDeviceToken } from '@/hooks/use-device-token';
 import type {
@@ -10,6 +10,7 @@ import type {
   UseLeaderboard,
   UseLeaveDrop,
   UseMyAward,
+  UseServerOffset,
 } from '@/lib/contract';
 import { getDeviceToken } from '@/lib/device';
 
@@ -28,6 +29,21 @@ export const useLeaderboard: UseLeaderboard = (dropId) => {
 export const useMyAward: UseMyAward = (code) => {
   const deviceToken = useDeviceToken();
   return useQuery(api.drops.myAward, deviceToken && code ? { deviceToken, code } : 'skip');
+};
+
+export const useServerOffset: UseServerOffset = () => {
+  const serverTime = useMutation(api.drops.serverTime);
+  const [offset, setOffset] = useState<number | null>(null);
+  useEffect(() => {
+    const sent = Date.now();
+    serverTime({})
+      .then((server) => {
+        const received = Date.now();
+        setOffset(server - (sent + received) / 2);
+      })
+      .catch(() => {});
+  }, [serverTime]);
+  return offset;
 };
 
 export const useEnterDrop: UseEnterDrop = (dropId) => {

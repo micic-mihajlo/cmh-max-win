@@ -247,7 +247,7 @@ describe('ranking and awards', () => {
     for (const deviceToken of winner.members) {
       expect(await t.query(api.drops.myAward, { deviceToken, code: winner.code })).toEqual({
         place: 1,
-        amountCents: 10_000,
+        amountCents: 9_999,
         perPlayerCents: 3_333,
         currency: 'usd',
         mode: 'concept',
@@ -255,6 +255,7 @@ describe('ranking and awards', () => {
         claimUrl: null,
         redeemableCount: 3,
         label: CONCEPT_LABEL,
+        expiresAt: null,
       });
     }
     for (const deviceToken of loser.members) {

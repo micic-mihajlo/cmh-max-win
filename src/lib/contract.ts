@@ -139,11 +139,17 @@ export type LockInResult =
 export type DropStatus = 'scheduled' | 'live' | 'ended';
 export type BountyMode = 'concept' | 'sandbox';
 
+// Squad-assignment choreography runs this long after startsAt on every phone; the race clock and solveMs start
+// at startsAt + RACE_REVEAL_MS. Rank is commit order and doesn't depend on it.
+export const RACE_REVEAL_MS = 2400;
+
+// Rounding: perPlayerCents = floor(totalCents / winnerSlots / squadSize), and a squad's share is
+// perPlayerCents * squadSize. Any remainder stays with the creator.
 export type BountyView = {
   totalCents: number;
   currency: 'usd';
   winnerSlots: number; // X: the first X correct squads split the pool
-  perSquadCents: number; // totalCents / winnerSlots, floored
+  perSquadCents: number; // floor(totalCents / winnerSlots), before the per-player rounding above
   mode: BountyMode; // 'concept' moves no money and must be labeled as a concept in the UI
 };
 
@@ -176,7 +182,7 @@ export type LeaderboardRow = {
   squadLabel: string; // 'Squad 3'
   memberNames: string[];
   status: 'solving' | 'solved' | 'winner';
-  solveMs: number | null; // server time from drop start to the correct final lock-in
+  solveMs: number | null; // commit time of the correct final lock-in minus (startsAt + RACE_REVEAL_MS), floored at 0
   attempts: number;
   isMine: boolean;
 };
@@ -192,13 +198,14 @@ export type LeaderboardView = {
 // Only the members of the winning squad ever receive this; everyone else gets null.
 export type SquadAwardView = {
   place: number;
-  amountCents: number; // the squad's share
-  perPlayerCents: number; // amountCents / squad size, floored
+  amountCents: number; // the squad's share = perPlayerCents * redeemableCount
+  perPlayerCents: number; // floor(totalCents / winnerSlots / squadSize)
   currency: 'usd';
   mode: BountyMode;
   status: 'pending' | 'ready' | 'failed';
   claimUrl: string | null; // a Whop claim link, one claim per player; null in concept mode
   redeemableCount: number; // = squad size
+  expiresAt: number | null; // ms epoch the claim link expires (Whop default 24h); null in concept mode
   label: string; // e.g. 'Concept payout — no real money moves'
 };
 
@@ -249,3 +256,6 @@ export type UseLeaderboard = (dropId: string | null) => LeaderboardView | null |
 export type UseMyAward = (code: string | null) => SquadAwardView | null | undefined;
 export type UseEnterDrop = (dropId: string) => (args: { name: string }) => Promise<void>; // free, idempotent
 export type UseLeaveDrop = (dropId: string) => () => Promise<void>; // waiting room only
+// Milliseconds to add to Date.now() to get server time, measured once per mount with a mutation round-trip
+// (queries are cached, so a serverNow field on a query can be arbitrarily stale). null until measured.
+export type UseServerOffset = () => number | null;

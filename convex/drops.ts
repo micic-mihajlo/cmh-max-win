@@ -390,6 +390,12 @@ export const leaderboard = query({
   },
 });
 
+// Server clock for the client's offset. A mutation, so the value is never a cached query result.
+export const serverTime = mutation({
+  args: {},
+  handler: async () => Date.now(),
+});
+
 // The claim link is a bearer secret: only members of the room that won it ever receive it.
 export const myAward = query({
   args: { deviceToken: v.string(), code: v.string() },
@@ -419,6 +425,7 @@ export const myAward = query({
       claimUrl: award.claimUrl,
       redeemableCount: award.redeemableCount,
       label: award.label,
+      expiresAt: award.expiresAt ? Date.parse(award.expiresAt) : null,
     };
   },
 });

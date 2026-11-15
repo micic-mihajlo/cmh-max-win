@@ -16,6 +16,7 @@ import type {
   RoomView,
   SignalErrorCode,
 } from '../src/lib/contract';
+import { RACE_REVEAL_MS } from '../src/lib/contract';
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const MAX_MEMBERS = 3;
@@ -30,8 +31,8 @@ function evidenceFor(room: Doc<'rooms'>, r: Role): DossierView {
 }
 
 export function bountyShares(totalCents: number, winnerSlots: number, squadSize: number) {
-  const amountCents = Math.floor(totalCents / winnerSlots);
-  return { amountCents, perPlayerCents: Math.floor(amountCents / squadSize) };
+  const perPlayerCents = Math.floor(totalCents / winnerSlots / squadSize);
+  return { amountCents: perPlayerCents * squadSize, perPlayerCents };
 }
 
 async function findDrop(ctx: QueryCtx, dropId: string) {
@@ -152,7 +153,7 @@ async function recordSolve(ctx: MutationCtx, room: Doc<'rooms'>, now: number) {
     roomId: room._id,
     place,
     solvedAt: now,
-    solveMs: now - drop.startsAt,
+    solveMs: Math.max(0, now - (drop.startsAt + RACE_REVEAL_MS)),
     attempts: room.attempts,
   });
   if (place > drop.bounty.winnerSlots) return;
