@@ -355,15 +355,19 @@ describe('mixer mode', () => {
     t.mutation(api.challenges.linkPlayer, { deviceToken, challengeId, playerCode });
 
   test('a fragment secret cannot be recomputed from the challenge id and join index', async () => {
-    const { challengeId, me } = await mixer();
+    // Secrets come from a small word-and-number space, so a guessed seed can land on the same secret by chance.
+    // What must hold is that the seed itself carries a server nonce no client can derive.
+    const { t, challengeId, me } = await mixer();
     const engine = mixerTemplate('split-passphrase');
+    const entries = await t.run((ctx) => ctx.db.query('challengeEntries').collect());
     for (const [i, m] of me.entries()) {
-      for (let salt = 0; salt < 20; salt++) {
-        for (const seed of [challengeId + ':' + i + ':' + salt, challengeId + ':' + i, challengeId + ':p' + (i + 1)]) {
-          expect(engine.fragment(seed, m.color, i).secret).not.toBe(keyOf(m.fragment.text));
-        }
-      }
+      const seed = entries.find((e) => e.deviceToken === 'p' + (i + 1))!.fragmentSeed!;
+      expect(seed).toMatch(new RegExp('^' + challengeId + ':' + i + ':\\d+:[0-9a-f]{32}$'));
+      expect(engine.fragment(seed, m.color, i).secret).toBe(keyOf(m.fragment.text));
+      const guesses = [challengeId + ':' + i, challengeId + ':p' + (i + 1), ...Array.from({ length: 20 }, (_, salt) => challengeId + ':' + i + ':' + salt)];
+      expect(guesses).not.toContain(seed);
     }
+    expect(new Set(entries.map((e) => e.fragmentSeed!.split(':')[3])).size).toBe(entries.length);
   });
 
   test('colors are balanced round-robin, fragments and codes are unique', async () => {
