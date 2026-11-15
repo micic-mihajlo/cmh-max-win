@@ -138,6 +138,7 @@ export type SignalErrorCode =
   | 'TEAM_NOT_LOCKED'
   | 'CHALLENGE_FULL' // a new device joining a challenge at capacity (contract-hardening.ts)
   | 'BAD_ANSWER' // split passphrase: the answer doesn't have one word per slot
+  | 'NOT_CASE_ROOM' // a Case 01 call (setTheory, lockIn, claimRole, startCase, restart) on a split-passphrase squad
 
 export type SignalError = { code: SignalErrorCode; message: string };
 

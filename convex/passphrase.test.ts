@@ -180,6 +180,29 @@ describe('split passphrase in the live room', () => {
     expect(await errorCode(t.mutation(api.passphrase.confirmPassphrase, { deviceToken: squad.tokens[1], code: squad.code, revision: proposed.revision - 1 }))).toBe('STALE_REVISION');
   });
 
+  test('the Case 01 theory and lock-in route is refused: no solve, no award', async () => {
+    const t = newTest();
+    const { dropId, squads } = await dealt(t, 'split-passphrase');
+    const squad = squads[0];
+    for (const d of squad.tokens) await t.mutation(api.signal.setPresence, { deviceToken: d, code: squad.code, presence: 'ready' });
+    expect(await errorCode(t.mutation(api.signal.setTheory, { deviceToken: squad.tokens[0], code: squad.code, culprit: 'jun' }))).toBe('NOT_CASE_ROOM');
+    for (const d of squad.tokens) expect(await errorCode(t.mutation(api.signal.lockIn, { deviceToken: d, code: squad.code, revision: 0 }))).toBe('NOT_CASE_ROOM');
+    expect(await errorCode(t.mutation(api.signal.restart, { deviceToken: squad.tokens[0], code: squad.code, confirm: true }))).toBe('NOT_CASE_ROOM');
+    expect(await errorCode(t.mutation(api.signal.claimRole, { deviceToken: squad.tokens[0], code: squad.code, role: 'detective' }))).toBe('NOT_CASE_ROOM');
+    expect(await errorCode(t.mutation(api.signal.startCase, { deviceToken: squad.tokens[0], code: squad.code }))).toBe('NOT_CASE_ROOM');
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    const [solves, awards, room] = await t.run(async (ctx) => [
+      await ctx.db.query('solves').collect(),
+      await ctx.db.query('bountyAwards').collect(),
+      await ctx.db.query('rooms').withIndex('by_code', (q) => q.eq('code', squad.code)).unique(),
+    ]);
+    expect(solves).toEqual([]);
+    expect(awards).toEqual([]);
+    expect(room).toMatchObject({ status: 'playing', theory: { culprit: null, revision: 0 } });
+    expect((await t.query(api.drops.leaderboard, { deviceToken: 'p0', dropId }))!.rows.every((r) => r.rank === null)).toBe(true);
+    expect(await t.query(api.drops.myAward, { deviceToken: squad.tokens[0], code: squad.code })).toBeNull();
+  });
+
   test('a winning squad gets its award', async () => {
     const t = newTest();
     const { squads } = await dealt(t, 'split-passphrase');

@@ -82,6 +82,11 @@ async function requireCaller(ctx: MutationCtx, code: string, deviceToken: string
   return { room, me };
 }
 
+// A split-passphrase squad (passphrase.ts) solves only through submitPassphrase/confirmPassphrase, never Case 01.
+function requireCaseRoom(room: Doc<'rooms'>) {
+  if (room.passphrase) fail('NOT_CASE_ROOM', 'This squad plays a passphrase, not the case.');
+}
+
 function requireHost(room: Doc<'rooms'>, deviceToken: string) {
   if (!room.hostToken || room.hostToken !== deviceToken) fail('NOT_HOST', 'Only the host can do that.');
 }
@@ -405,6 +410,7 @@ export const claimRole = mutation({
   args: { deviceToken: v.string(), code: v.string(), role },
   handler: async (ctx, { deviceToken, code, role }) => {
     const { room, me } = await requireCaller(ctx, code, deviceToken);
+    requireCaseRoom(room);
     if (room.status !== 'lobby') fail('CASE_STARTED', 'Roles are locked once the case starts.');
     const holder = (await members(ctx, room._id)).find((m) => m.role === role);
     if (holder && holder._id !== me._id) fail('ROLE_TAKEN', 'Someone already took that role.');
@@ -416,6 +422,7 @@ export const startCase = mutation({
   args: { deviceToken: v.string(), code: v.string() },
   handler: async (ctx, { deviceToken, code }) => {
     const { room } = await requireCaller(ctx, code, deviceToken);
+    requireCaseRoom(room);
     requireHost(room, deviceToken);
     if (room.status !== 'lobby') fail('WRONG_STATUS', 'The case has already started.');
     const all = await members(ctx, room._id);
@@ -443,6 +450,7 @@ export const setTheory = mutation({
   args: { deviceToken: v.string(), code: v.string(), culprit: v.union(suspect, v.null()) },
   handler: async (ctx, { deviceToken, code, culprit }) => {
     const { room, me } = await requireCaller(ctx, code, deviceToken);
+    requireCaseRoom(room);
     if (room.status !== 'playing') fail('WRONG_STATUS', 'The theory can only change while playing.');
     if (culprit === room.theory.culprit) return { revision: room.theory.revision };
     const revision = room.theory.revision + 1;
@@ -456,6 +464,7 @@ export const lockIn = mutation({
   args: { deviceToken: v.string(), code: v.string(), revision: v.number() },
   handler: async (ctx, { deviceToken, code, revision }): Promise<LockInResult> => {
     const { room, me } = await requireCaller(ctx, code, deviceToken);
+    requireCaseRoom(room);
     if (room.status !== 'playing') fail('WRONG_STATUS', 'Nothing to lock in right now.');
     if (room.challengeId && !(await challengeIsPlayable(ctx, room.challengeId))) fail('CHALLENGE_CLOSED', 'This challenge is over.');
     if (revision !== room.theory.revision) fail('STALE_REVISION', 'The theory changed. Review it and lock in again.');
@@ -526,6 +535,7 @@ export const restart = mutation({
   args: { deviceToken: v.string(), code: v.string(), confirm: v.boolean() },
   handler: async (ctx, { deviceToken, code, confirm }) => {
     const { room } = await requireCaller(ctx, code, deviceToken);
+    requireCaseRoom(room);
     requireHost(room, deviceToken);
     if (!confirm) fail('CONFIRM_REQUIRED', 'Confirm the restart first.');
     await clearLockIns(ctx, room._id);
