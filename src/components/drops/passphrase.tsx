@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
 
 import { Screen } from '@/components/signal/backdrop';
@@ -16,6 +16,16 @@ function placeLine(piece: PassphrasePieceView) {
   if (piece.position === 0) return `You’re ${of} · you go first`;
   const before = piece.teammates.find((t) => t.position === piece.position - 1);
   return `You’re ${of}${before ? ` · after ${before.name}` : ''}`;
+}
+
+// Mounts open and stamps on the next frame, so a confirm lands with the stamp instead of appearing already sealed.
+function ConfirmSeal({ initial, haptic }: { initial: string; haptic: boolean }) {
+  const [locked, setLocked] = useState(false);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setLocked(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
+  return <Seal locked={locked} color={Palette.paper} initial={initial} size={40} haptic={haptic} />;
 }
 
 // Split passphrase: my word big, the shared slots in order with a name under each, one proposal, everyone confirms.
@@ -109,7 +119,15 @@ export function PassphraseScreen({
               const done = t.isMe ? proposal.confirmedByMe : proposal.confirmedBy.includes(t.name);
               return (
                 <View key={t.position} style={styles.sealCol}>
-                  <Seal locked={done} color={Palette.paper} initial={t.name.charAt(0).toUpperCase()} size={40} haptic={t.isMe} />
+                  {done ? (
+                    <ConfirmSeal initial={t.name.charAt(0).toUpperCase()} haptic={t.isMe} />
+                  ) : (
+                    <View style={styles.pending}>
+                      <Txt variant="smallStrong" color={Palette.paperMuted}>
+                        {t.name.charAt(0).toUpperCase()}
+                      </Txt>
+                    </View>
+                  )}
                   <Txt variant="caption" color={Palette.paperMuted}>
                     {t.isMe ? 'You' : t.name}
                   </Txt>
@@ -171,4 +189,5 @@ const styles = StyleSheet.create({
   cellFilled: { borderColor: Palette.paper, backgroundColor: Palette.card },
   seals: { flexDirection: 'row', justifyContent: 'center', gap: Space.l },
   sealCol: { alignItems: 'center', gap: 4 },
+  pending: { width: 40, height: 40, borderRadius: 20, backgroundColor: Palette.inkDeep, alignItems: 'center', justifyContent: 'center' },
 });
