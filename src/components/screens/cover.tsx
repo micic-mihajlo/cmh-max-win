@@ -1,0 +1,276 @@
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { Screen } from '@/components/signal/backdrop';
+import { CodeCells } from '@/components/signal/code-cells';
+import { Button, Label } from '@/components/signal/primitives';
+import { useMotionReduced } from '@/components/signal/settings';
+import { Txt } from '@/components/signal/txt';
+import { Palette, Radius, RoleMeta, Space } from '@/constants/signal';
+import { Case01 } from '@/constants/case01';
+import type { ActiveRoomView, Role, SignalErrorCode } from '@/mocks/contract';
+
+export type JoinState = {
+  code: string;
+  phase: 'typing' | 'joining' | 'error' | 'reclaim';
+  error?: SignalErrorCode;
+  seats?: { role: Role; holder: string }[];
+};
+
+const joinErrors: Partial<Record<SignalErrorCode, (code: string) => string>> = {
+  ROOM_NOT_FOUND: (code) => `No case with code ${code}. Check the code with your host.`,
+  ROOM_FULL: () => 'That case already has three players. Ask your host to start a new one.',
+  CASE_STARTED: () => 'That case has already started. Your host can restart it to let you in.',
+};
+
+export function CoverScreen({
+  active,
+  join,
+  creating,
+}: {
+  active: ActiveRoomView | undefined;
+  join?: JoinState;
+  creating?: boolean;
+}) {
+  const banner =
+    active === undefined ? (
+      <View style={[styles.banner, styles.bannerLoading]} accessibilityLabel="Checking for a case in progress" />
+    ) : active && active.status === 'resolved' ? (
+      <View style={[styles.banner, { borderColor: Palette.ok }]}>
+        <View style={styles.bannerText}>
+          <Label color={Palette.ok}>Case 01 · solved</Label>
+          <Txt variant="bodyStrong">Your crew solved Case 01.</Txt>
+        </View>
+        <Button title="See the reveal" variant="secondary" style={styles.bannerButton} />
+      </View>
+    ) : active ? (
+      <View style={[styles.banner, { borderColor: active.role ? RoleMeta[active.role].color : Palette.ember }]}>
+        <View style={styles.bannerText}>
+          <Label color={active.role ? RoleMeta[active.role].color : Palette.paperMuted}>{`Case in progress · ${active.code}`}</Label>
+          <Txt variant="bodyStrong">
+            {active.role ? `Case 01 is still open. Rejoin as ${RoleMeta[active.role].label}.` : 'Case 01 is still open. Rejoin the lobby.'}
+          </Txt>
+        </View>
+        <Button title="Rejoin" style={styles.bannerButton} />
+      </View>
+    ) : null;
+
+  return (
+    <Screen
+      overlay={join ? <JoinSheet join={join} /> : null}
+      footer={
+        <>
+          {creating ? (
+            <View style={styles.joining}>
+              <ActivityIndicator color={Palette.ink} />
+              <Txt variant="button" color={Palette.ink}>
+                Opening a new case file…
+              </Txt>
+            </View>
+          ) : (
+            <Button title="Start case" />
+          )}
+          <Button title="Join with code" variant="secondary" disabled={creating} />
+        </>
+      }>
+      <View style={styles.mast}>
+        <Txt variant="label" color={Palette.paper} style={styles.wordmark}>
+          S I G N A L
+        </Txt>
+        <Txt variant="small" color={Palette.paperMuted}>
+          3 players · 10 min
+        </Txt>
+      </View>
+      {banner}
+      <View style={styles.hero}>
+        <View style={styles.caseRow}>
+          <View style={styles.rule} />
+          <Label color={Palette.paper}>{`Case ${Case01.number}`}</Label>
+        </View>
+        <Txt variant="hero">{'The\nAurora\nSeed'}</Txt>
+        <Txt variant="serif" color={Palette.paperMuted} style={styles.logline}>
+          {Case01.logline}
+        </Txt>
+        <View style={styles.roles}>
+          {(['detective', 'hacker', 'witness'] as const).map((r) => (
+            <View key={r} style={styles.rolePill}>
+              <View style={[styles.dot, { backgroundColor: RoleMeta[r].color }]} />
+              <Txt variant="smallStrong" color={Palette.paper}>
+                {RoleMeta[r].label}
+              </Txt>
+            </View>
+          ))}
+        </View>
+        <Txt variant="body" color={Palette.paperMuted}>
+          A 10-minute mystery for three friends. Each of you holds evidence the others can’t see.
+        </Txt>
+      </View>
+    </Screen>
+  );
+}
+
+function JoinSheet({ join }: { join: JoinState }) {
+  const insets = useSafeAreaInsets();
+  const reduced = useMotionReduced();
+  if (join.phase === 'reclaim') return <ReclaimSheet join={join} />;
+  const error = join.phase === 'error' && join.error ? joinErrors[join.error]?.(join.code) : null;
+  const ready = join.code.length === 4;
+  return (
+    <>
+      <Animated.View entering={reduced ? undefined : FadeIn} style={styles.scrim} />
+      <Animated.View
+        entering={reduced ? undefined : SlideInDown.springify().damping(20)}
+        style={[styles.sheet, { paddingBottom: insets.bottom + Space.l }]}>
+        <View style={styles.handle} />
+        <Txt variant="title">Join a case</Txt>
+        <Txt variant="body" color={Palette.paperMuted}>
+          Enter the 4-letter code from your host.
+        </Txt>
+        <View style={styles.cells}>
+          <CodeCells value={join.code} error={!!error} />
+        </View>
+        {error ? (
+          <Txt variant="bodyStrong" color={Palette.danger} accessibilityRole="alert" style={styles.center}>
+            {error}
+          </Txt>
+        ) : (
+          <Txt variant="small" color={Palette.paperMuted} style={styles.center}>
+            {join.phase === 'joining' ? ' ' : ready ? 'Ready to join.' : '4 letters. No 0, O, 1 or I.'}
+          </Txt>
+        )}
+        {join.phase === 'joining' ? (
+          <View style={styles.joining}>
+            <ActivityIndicator color={Palette.ink} />
+            <Txt variant="button" color={Palette.ink}>
+              Joining {join.code}…
+            </Txt>
+          </View>
+        ) : (
+          <Button title={error ? 'Try another code' : 'Join'} disabled={!ready && !error} variant={error ? 'secondary' : 'primary'} />
+        )}
+      </Animated.View>
+    </>
+  );
+}
+
+function ReclaimSheet({ join }: { join: JoinState }) {
+  const insets = useSafeAreaInsets();
+  const seats = join.seats ?? [];
+  return (
+    <>
+      <View style={styles.scrim} />
+      <View style={[styles.sheet, { paddingBottom: insets.bottom + Space.l }]}>
+        <View style={styles.handle} />
+        <Label color={Palette.paperMuted}>{`Case in progress · ${join.code}`}</Label>
+        {seats.length ? (
+          <>
+            <Txt variant="title">Pick your seat back</Txt>
+            <Txt variant="body" color={Palette.paperMuted}>
+              This case already started. These players stepped away, so you can take over their seat, evidence and lock-in.
+            </Txt>
+            {seats.map((s, i) => {
+              const meta = RoleMeta[s.role];
+              return (
+                <View key={s.role} style={[styles.seat, i === 0 && { borderColor: meta.color }]}>
+                  <View style={[styles.dot, { backgroundColor: meta.color }]} />
+                  <View style={styles.seatBody}>
+                    <Txt variant="bodyStrong" color={meta.color}>
+                      {meta.label}
+                    </Txt>
+                    <Txt variant="small" color={Palette.paperMuted}>
+                      {s.holder}’s seat · stepped away
+                    </Txt>
+                  </View>
+                  <Txt variant="label" color={Palette.paperMuted}>
+                    {meta.docLabel}
+                  </Txt>
+                </View>
+              );
+            })}
+            <Button title={`Take the ${RoleMeta[seats[0].role].label} seat`} />
+          </>
+        ) : (
+          <>
+            <Txt variant="title">No free seat</Txt>
+            <Txt variant="body" color={Palette.paperMuted}>
+              Everyone’s here and the case is underway. Ask your host to restart it, or start your own.
+            </Txt>
+            <Button title="Start your own case" variant="secondary" />
+          </>
+        )}
+      </View>
+    </>
+  );
+}
+
+const styles = StyleSheet.create({
+  seat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Space.m,
+    padding: Space.l,
+    borderRadius: Radius.m,
+    borderWidth: 1,
+    borderColor: Palette.hairline,
+    backgroundColor: Palette.ink,
+  },
+  seatBody: { flex: 1, gap: 2 },
+  center: { textAlign: 'center' },
+  mast: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  wordmark: { letterSpacing: 2 },
+  hero: { gap: Space.l, marginTop: Space.xl },
+  caseRow: { flexDirection: 'row', alignItems: 'center', gap: Space.m },
+  rule: { width: 28, height: 1, backgroundColor: Palette.paper },
+  bannerLoading: { height: 128, borderColor: Palette.hairline, opacity: 0.6 },
+  logline: { maxWidth: 300 },
+  roles: { flexDirection: 'row', gap: Space.s, flexWrap: 'wrap' },
+  rolePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Palette.hairline,
+    backgroundColor: Palette.panel,
+  },
+  dot: { width: 7, height: 7, borderRadius: 4 },
+  banner: {
+    borderWidth: 1,
+    borderRadius: Radius.l,
+    padding: Space.l,
+    gap: Space.m,
+    backgroundColor: Palette.panel,
+  },
+  bannerText: { gap: 4 },
+  bannerButton: { minHeight: 46 },
+  scrim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(5,6,8,0.72)' },
+  sheet: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: Palette.panel,
+    borderTopLeftRadius: Radius.xl,
+    borderTopRightRadius: Radius.xl,
+    borderTopWidth: 1,
+    borderColor: Palette.hairline,
+    paddingHorizontal: Space.xl,
+    paddingTop: Space.s,
+    gap: Space.m,
+  },
+  handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: Palette.hairline, marginBottom: Space.s },
+  cells: { paddingVertical: Space.m },
+  joining: {
+    minHeight: 54,
+    borderRadius: Radius.pill,
+    backgroundColor: Palette.ember,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Space.s,
+    opacity: 0.85,
+  },
+});
