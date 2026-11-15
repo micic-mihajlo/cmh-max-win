@@ -62,6 +62,16 @@ export default defineSchema({
     squadIndex: v.optional(v.number()),
     squadLabel: v.optional(v.string()),
     cooldownUntil: v.optional(v.number()),
+    // Split-passphrase drop squads (passphrase.ts): the template session (engine.Session) and who proposed the slots.
+    // typed: the current proposal exactly as its proposer typed it (shown as-is); nudge: the last wrong answer's.
+    passphrase: v.optional(
+      v.object({
+        session: v.any(),
+        proposedBy: v.union(v.id('members'), v.null()),
+        typed: v.union(v.array(v.string()), v.null()),
+        nudge: v.union(v.object({ text: v.string(), holderName: v.union(v.string(), v.null()) }), v.null()),
+      }),
+    ),
     status: v.union(v.literal('lobby'), v.literal('intro'), v.literal('playing'), v.literal('resolved')),
     theory: v.object({
       culprit: v.union(suspect, v.null()),
@@ -116,6 +126,7 @@ export default defineSchema({
     hostToken: v.optional(v.string()), // drops:hostDrop: the device that runs the host screen and deals
     conceptOnly: v.optional(v.boolean()), // hosted drops never take the sandbox payout path
     strictSquadSize: v.optional(v.boolean()), // demo controls: every squad is exactly squadSize, leftovers unmatched
+    template: v.optional(v.literal('split-passphrase')), // hostDrop: squads play a split passphrase instead of the mystery
     startsAt: v.number(),
     status: v.union(v.literal('scheduled'), v.literal('live'), v.literal('ended')),
     bounty: v.object({ totalCents: v.number(), currency: v.literal('usd'), winnerSlots: v.number() }),
