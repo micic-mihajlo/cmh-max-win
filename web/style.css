@@ -5,7 +5,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 Inter,system-u
 main{max-width:680px;margin:0 auto;padding:48px 24px 64px}
 header.site{max-width:680px;margin:0 auto;padding:24px 24px 0;display:flex;justify-content:space-between;align-items:center}
 .brand{font-family:Fraunces,Georgia,serif;font-weight:700;letter-spacing:.08em;color:var(--ink);text-decoration:none;font-size:18px}
-.brand span{color:var(--accent)}
+.brand img{display:block;height:35px;width:auto}
 nav a{color:var(--muted);text-decoration:none;margin-left:18px;font-size:15px}
 nav a:hover{color:var(--ink)}
 h1,h2{font-family:Fraunces,Georgia,serif;font-weight:700;letter-spacing:-.01em;line-height:1.15}
