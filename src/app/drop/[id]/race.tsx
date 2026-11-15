@@ -3,6 +3,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { LeaderboardScreen } from '@/components/drops/leaderboard';
 import { Atmosphere } from '@/components/signal/backdrop';
+import { lockedIds } from '@/components/signal/room';
 import { suspectById } from '@/constants/case01';
 import { Palette } from '@/constants/signal';
 import { useDrop, useLeaderboard, useServerOffset } from '@/hooks/use-drops';
@@ -37,6 +38,8 @@ export default function RaceRoute() {
               size: room.squadSize,
               nudge: room.lastNudge?.text ?? null,
               cooldownUntil: room.cooldownUntil,
+              agreed: room.members.filter((m) => !m.isMe && lockedIds(room).has(m.memberId)).map((m) => m.name),
+              meLocked: !!room.me && lockedIds(room).has(room.me.memberId),
             }
           : undefined
       }
