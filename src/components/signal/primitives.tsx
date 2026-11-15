@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FontFamily, Palette, Radius, RoleMeta, Space } from '@/constants/signal';
 import type { Presence, Role } from '@/lib/contract';
+import { PressScale } from '@/motion';
 
 import { Icon } from './icon';
 import { useMotionReduced } from './settings';
@@ -17,6 +18,7 @@ export function Button({
   disabled,
   icon,
   style,
+  haptic = true,
 }: {
   title: string;
   onPress?: () => void;
@@ -24,27 +26,29 @@ export function Button({
   disabled?: boolean;
   icon?: ReactNode;
   style?: ViewStyle;
+  haptic?: boolean;
 }) {
   const fg = variant === 'primary' ? Palette.ink : variant === 'danger' ? Palette.onAccent : Palette.paper;
   return (
-    <Pressable
+    <PressScale
       accessibilityRole="button"
       accessibilityState={{ disabled }}
-      onPress={disabled ? undefined : onPress}
-      style={({ pressed }) => [
+      disabled={disabled}
+      haptic={haptic && onPress ? 'tap' : undefined}
+      onPress={onPress}
+      style={[
         styles.button,
         variant === 'primary' && styles.primary,
         variant === 'secondary' && styles.secondary,
         variant === 'danger' && styles.danger,
         disabled && styles.disabled,
-        pressed && !disabled && { transform: [{ scale: 0.97 }] },
         style,
       ]}>
       {icon}
       <Txt variant="button" color={disabled ? Palette.disabledText : fg}>
         {title}
       </Txt>
-    </Pressable>
+    </PressScale>
   );
 }
 
