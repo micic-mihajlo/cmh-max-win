@@ -16,6 +16,7 @@ export function JoinCodeScreen({
   code,
   phase,
   name,
+  hostName,
   onChange,
   onSubmit,
   onScan,
@@ -23,6 +24,7 @@ export function JoinCodeScreen({
   code: string;
   phase: JoinPhase;
   name: string;
+  hostName?: string | null;
   onChange?: (code: string) => void;
   onSubmit?: (code: string) => void;
   onScan?: () => void;
@@ -102,7 +104,7 @@ export function JoinCodeScreen({
         </Animated.View>
       </Pressable>
       <Txt variant="small" color={phase === 'error' ? Palette.danger : Palette.paperMuted} style={styles.text}>
-        {phase === 'error' ? 'That code isn’t live yet. Check the host’s chat.' : phase === 'checking' ? 'Checking…' : ' '}
+        {phase === 'error' ? `That code isn’t live yet. Check ${hostName ? `${hostName}’s` : 'the host’s'} chat.` : phase === 'checking' ? 'Checking…' : ' '}
       </Txt>
       <TextInput
         ref={input}
