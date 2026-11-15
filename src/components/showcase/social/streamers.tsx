@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { Txt } from '@/components/signal/txt';
+import { PressScale } from '@/motion';
 import { Palette, Space } from '@/constants/signal';
 import type { StreamerCardView } from '@/lib/contract';
 
@@ -20,7 +21,7 @@ export function StreamersScreen({ streamers, sample }: { streamers: StreamerCard
       ) : (
         <View style={[showcase.gutter, showcase.list, styles.list]}>
           {(streamers ?? []).map((s) => (
-            <Pressable key={s.streamerId} accessibilityRole="button" style={showcase.row} onPress={() => router.push(streamerHref(s.streamerId))}>
+            <PressScale scaleTo={0.98} haptic="tap" key={s.streamerId} accessibilityRole="button" style={showcase.row} onPress={() => router.push(streamerHref(s.streamerId))}>
               {s.live ? <LiveAvatar initials={s.name.slice(0, 1)} uri={s.avatarUrl} size={44} /> : <Avatar initials={s.name.slice(0, 1)} uri={s.avatarUrl} size={44} />}
               <View style={showcase.flex}>
                 <Txt variant="bodyStrong">{s.name}</Txt>
@@ -35,7 +36,7 @@ export function StreamersScreen({ streamers, sample }: { streamers: StreamerCard
                   Following
                 </Txt>
               ) : null}
-            </Pressable>
+            </PressScale>
           ))}
         </View>
       )}
