@@ -28,7 +28,7 @@ export function RevealScreen({
 }) {
   const reduced = useMotionReduced();
   const culprit = suspectById(reveal.culprit);
-  const enter = (i: number) => (reduced ? undefined : FadeInDown.duration(500).delay(120 * i));
+  const enter = (i: number) => (reduced ? undefined : FadeInDown.duration(220).delay(60 * i));
   const footer = {
     reconstruction: <Button title="What happens next" onPress={() => on.onPage?.('next')} />,
     credits: <Button title="What happens to Jun" onPress={() => on.onPage?.('choice')} />,
@@ -134,7 +134,6 @@ export function RevealScreen({
         <>
           <Txt variant="display">Case closed. For now.</Txt>
           <View style={styles.teaser}>
-            <Label color={Palette.paperMuted}>Next episode</Label>
             <Txt variant="title">{reveal.teaser.title}</Txt>
             <Txt variant="serif" color={Palette.paper}>
               {reveal.teaser.text}

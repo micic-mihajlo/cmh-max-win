@@ -1,7 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/signal/backdrop';
-import { Label } from '@/components/signal/primitives';
 import { Txt } from '@/components/signal/txt';
 import { Palette, Radius, RoleColors, Space } from '@/constants/signal';
 import { Enter, PressScale, Stagger } from '@/motion';
@@ -25,17 +24,12 @@ export function SquadRevealScreen({
   onOpen?: () => void;
 }) {
   const squad = drop.me.squad;
-  const me = members.find((m) => m.isMe);
   const ordered = [...members].sort((a, b) => Number(b.isMe) - Number(a.isMe));
-  const mine = me?.roles ?? [];
   return (
     <Screen
       footer={
         <Enter play={play} delay={RACE_REVEAL_MS - 400}>
           <View style={styles.footer}>
-            <Txt variant="small" color={Palette.paperMuted} style={styles.center}>
-              Read it out to your squad.
-            </Txt>
             <PressScale style={styles.cta} onPress={onOpen}>
               <Txt variant="button" color={Palette.onAccent}>
                 Open the case
@@ -44,35 +38,23 @@ export function SquadRevealScreen({
           </View>
         </Enter>
       }>
-      <Label>{mine.length > 1 ? 'Your pieces' : 'Your squad'}</Label>
       <Enter play={play} delay={900}>
         <View style={styles.card}>
           <View style={styles.cardHead}>
             <Txt variant="title">{squad?.label ?? 'Your squad'}</Txt>
-            <Txt variant="smallStrong" color={Palette.paperMuted}>
-              {members.length} players
-            </Txt>
           </View>
           <View style={styles.members}>
             <Stagger play={play} delay={900}>
               {ordered.map((m) => (
                 <View key={m.memberId} style={styles.mem}>
-                  <View style={[styles.avatar, { backgroundColor: m.isMe ? Palette.ember : m.role ? RoleColors[m.role] : Palette.paperMuted }]}>
-                    <Txt variant="smallStrong" color={m.isMe ? Palette.onAccent : Palette.ink}>
+                  <View style={[styles.avatar, { backgroundColor: m.isMe ? Palette.paper : m.role ? RoleColors[m.role] : Palette.paperMuted }]}>
+                    <Txt variant="smallStrong" color={Palette.ink}>
                       {m.name.charAt(0)}
                     </Txt>
                   </View>
                   <Txt variant="bodyStrong" style={styles.flex}>
                     {m.isMe ? `${m.name} · you` : m.name}
                   </Txt>
-                  <Txt variant="small" color={Palette.paperMuted}>
-                    {m.roles.length} {m.roles.length === 1 ? 'piece' : 'pieces'}
-                  </Txt>
-                  <View style={styles.mini}>
-                    {m.roles.map((r) => (
-                      <View key={r} style={[styles.miniPiece, { backgroundColor: m.isMe ? RoleColors[r] : Palette.hairline }]} />
-                    ))}
-                  </View>
                 </View>
               ))}
             </Stagger>
@@ -83,9 +65,6 @@ export function SquadRevealScreen({
         <Enter key={p.role} play={play} delay={1400 + i * 120}>
           <View style={[styles.piece, { borderColor: Palette.hairline }]}>
             <Txt variant="bodyStrong">{p.docLabel.split(' · ')[0].charAt(0) + p.docLabel.split(' · ')[0].slice(1).toLowerCase()}</Txt>
-            <Txt variant="small" color={Palette.paperMuted}>
-              {p.title}
-            </Txt>
             <Txt variant="quote">{`“${p.lines.map((l) => l.text).join(' ')}”`}</Txt>
             <Txt variant="small" color={Palette.paperFaint}>
               Only you can see this. Read it out.

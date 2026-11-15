@@ -33,12 +33,12 @@ export function BountyResultScreen({
       footer={
         <>
           {real ? <Button title="Claim your share on Whop" onPress={on?.onClaim} /> : null}
-          <Button title="Continue" variant="secondary" onPress={on?.onContinue} />
+          <Button title="Continue" onPress={on?.onContinue} />
         </>
       }>
       <View style={[styles.card, concept ? styles.concept : styles.real]}>
         <View style={styles.cardHead}>
-          <ModeTag mode={award.mode} />
+          {concept ? null : <ModeTag mode={award.mode} />}
           <Txt variant="display">{`${money2(award.perPlayerCents)} each`}</Txt>
         </View>
         <Txt variant="body" color={Palette.paperMuted}>
