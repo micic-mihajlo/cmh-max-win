@@ -3701,6 +3701,7 @@ __metadata:
     expo-device: "npm:~58.0.5"
     expo-font: "npm:~58.0.12"
     expo-glass-effect: "npm:~58.0.5"
+    expo-haptics: "npm:~58.0.8"
     expo-image: "npm:~58.0.18"
     expo-linking: "npm:~58.0.17"
     expo-router: "npm:~58.0.31"
@@ -4776,6 +4777,15 @@ __metadata:
     react: "*"
     react-native: "*"
   checksum: 10c0/a4fcf07afcb5d97561b60bf460fb59caa980eea1a1e69b0b19d0c094ba59cb1907d883e504ca73fd61e1f0f5d3549b01ee33d79fd2a1d0012b1e248b7690bc33
+  languageName: node
+  linkType: hard
+
+"expo-haptics@npm:~58.0.8":
+  version: 58.0.8
+  resolution: "expo-haptics@npm:58.0.8"
+  peerDependencies:
+    expo: "*"
+  checksum: 10c0/42c0baa406282ac2e023c7ae286c5374028702ea362292f2f199b409f41c1b5c1879701dcf4eab3617dfe6092b64c391fa1a4c17295291bc66fd97fc71f938b6
   languageName: node
   linkType: hard
 
