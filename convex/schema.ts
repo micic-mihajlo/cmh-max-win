@@ -11,7 +11,7 @@ export const challengeConfig = v.object({
   title: v.string(),
   blurb: v.string(),
   templateId: v.literal('mystery-aurora'),
-  teamSize: v.number(),
+  teamSize: v.union(v.literal(1), v.literal(2), v.literal(3), v.literal(4)),
   leftover: v.union(v.literal('smaller_teams'), v.literal('wait_next_round')),
   startMode: v.union(v.literal('live'), v.literal('scheduled'), v.literal('window')),
   startsAt: v.union(v.number(), v.null()),
@@ -23,7 +23,7 @@ export const challengeConfig = v.object({
   reward: v.union(
     v.object({ kind: v.literal('winner_takes_all') }),
     v.object({ kind: v.literal('top_x_equal'), places: v.number() }),
-    v.object({ kind: v.literal('tiered'), percents: v.array(v.number()) }),
+    v.object({ kind: v.literal('placement'), percents: v.array(v.number()) }),
   ),
   poolCents: v.number(),
   currency: v.literal('usd'),
@@ -39,7 +39,6 @@ export const payoutStatus = v.union(
   v.literal('sent'),
   v.literal('sent_concept'),
   v.literal('failed'),
-  v.literal('duplicate'),
   v.literal('expired'),
 );
 
@@ -54,7 +53,7 @@ export default defineSchema({
     // Drop squads only: a squad is a room with no host, dealt pieces, and a cooldown after a wrong check.
     dropId: v.optional(v.string()),
     challengeId: v.optional(v.id('challenges')), // a challenge team's room
-    squadSize: v.optional(squadSize),
+    squadSize: v.optional(v.number()), // 2 or 3 for drop squads, 1 to 4 for challenge teams
     squadIndex: v.optional(v.number()),
     squadLabel: v.optional(v.string()),
     cooldownUntil: v.optional(v.number()),

@@ -22,6 +22,7 @@ import type {
   ChallengeDraftView,
   ChallengeRecapView,
   ChallengeResultRow,
+  ChallengeStandingsView,
   ChallengeSummaryView,
   ChallengeTeamView,
   ChallengeTemplateView,
@@ -36,6 +37,7 @@ import type {
   RewardPolicy,
   SignalErrorCode,
   SquadSize,
+  TeamSize,
 } from '../src/lib/contract';
 
 type Ctx = QueryCtx;
@@ -52,7 +54,7 @@ export const TEMPLATES: ChallengeTemplateView[] = [
     id: 'mystery-aurora',
     name: 'The Aurora Seed',
     blurb: 'Everyone holds a piece. Nobody solves it alone.',
-    teamSizes: [2, 3],
+    teamSizes: [1, 2, 3, 4],
   },
 ];
 
@@ -66,7 +68,7 @@ export const DEFAULT_CONFIG: ChallengeConfig = {
   startsAt: null,
   endsAt: null,
   eligibility: { kind: 'open' },
-  reward: { kind: 'winner_takes_all' },
+  reward: { kind: 'placement', percents: [50, 30, 20] },
   poolCents: 0,
   currency: 'usd',
   payoutAdapter: 'concept',
@@ -87,6 +89,8 @@ export function paidPlaceCount(reward: RewardPolicy) {
   if (reward.kind === 'top_x_equal') return reward.places;
   return reward.percents.length;
 }
+
+export const MAX_TEAM_SIZE = 4;
 
 export function placeBudgets(poolCents: number, reward: RewardPolicy): number[] {
   if (reward.kind === 'winner_takes_all') return [poolCents];
@@ -120,7 +124,7 @@ export function computePreview(poolCents: number, reward: RewardPolicy, finisher
     poolCents,
     paidCents,
     returnedCents: unfilled,
-    returned: { unfilledPlaces: unfilled, duplicateWhopAccount: 0, expired: 0 },
+    returned: { unfilledPlacesCents: unfilled, expiredCents: 0 },
     lines,
   };
 }
@@ -133,7 +137,7 @@ export function validateConfig(c: ChallengeConfig, serverCreated: boolean, now: 
   if (c.blurb.length > 280) add('blurb', 'Keep the blurb under 280 characters.');
   const template = TEMPLATES.find((t) => t.id === c.templateId);
   if (!template) add('templateId', 'Unknown template.');
-  if (!Number.isInteger(c.teamSize) || c.teamSize < 1) add('teamSize', 'Team size must be a whole number of at least 1.');
+  if (!Number.isInteger(c.teamSize) || c.teamSize < 1 || c.teamSize > MAX_TEAM_SIZE) add('teamSize', 'Teams are 1 to ' + MAX_TEAM_SIZE + ' players.');
   else if (template && !template.teamSizes.includes(c.teamSize)) {
     add('teamSize', template.name + ' plays in teams of ' + template.teamSizes.join(' or ') + ' for now.');
   }
@@ -146,7 +150,7 @@ export function validateConfig(c: ChallengeConfig, serverCreated: boolean, now: 
   if (c.reward.kind === 'top_x_equal' && (!Number.isInteger(c.reward.places) || c.reward.places < 1 || c.reward.places > 50)) {
     add('reward', 'Pay between 1 and 50 places.');
   }
-  if (c.reward.kind === 'tiered') {
+  if (c.reward.kind === 'placement') {
     const p = c.reward.percents;
     if (!p.length || p.length > 50 || p.some((x) => !Number.isInteger(x) || x < 1)) add('reward', 'Tiers are whole percentages of at least 1.');
     else if (p.reduce((a, b) => a + b, 0) !== 100) add('reward', 'Tier percentages must add up to 100.');
@@ -276,11 +280,10 @@ async function previewFor(ctx: Ctx, c: Challenge) {
     line.players.forEach((p, i) => {
       const row = rows.find((r) => r.place === line.place && r.playerIndex === i);
       p.status = row?.status ?? null;
-      if (row?.status === 'duplicate') preview.returned.duplicateWhopAccount += p.cents;
-      if (row?.status === 'expired') preview.returned.expired += p.cents;
+      if (row?.status === 'expired') preview.returned.expiredCents += p.cents;
     });
   }
-  const moved = preview.returned.duplicateWhopAccount + preview.returned.expired;
+  const moved = preview.returned.expiredCents;
   preview.paidCents -= moved;
   preview.returnedCents += moved;
   return { preview, finishers, rows };
@@ -315,16 +318,25 @@ async function createTeam(ctx: MutationCtx, c: Challenge, seats: Doc<'challengeE
   }
 }
 
+// smaller_teams: trios and duos split exactly as drops do today; solo is all singles; fours take the remainder as one
+// smaller team, and a lone leftover turns the last four into a trio and a duo.
+export function leftoverSizes(count: number, n: number): number[] {
+  if (n === 2 || n === 3) return splitSizes(count, n as SquadSize);
+  if (n === 1) return Array(count).fill(1);
+  if (count < n) return count ? [count] : [];
+  const r = count % n;
+  const full = Math.floor(count / n);
+  if (r === 1) return [...Array(full - 1).fill(n), n - 1, 2];
+  return [...Array(full).fill(n), ...(r ? [r] : [])];
+}
+
 // Deals waiting entrants into teams in entry order. final: the leftover policy applies to the remainder.
 async function formTeams(ctx: MutationCtx, c: Challenge, final: boolean) {
   const now = Date.now();
   const [entries, teams] = await Promise.all([entriesOf(ctx, c._id), teamsOf(ctx, c._id)]);
   const waiting = entries.filter((e) => !e.teamId && !e.waitingNextRound).sort((a, b) => a.joinedAt - b.joinedAt);
   const n = c.config.teamSize;
-  const sizes =
-    final && c.config.leftover === 'smaller_teams'
-      ? splitSizes(waiting.length, n as SquadSize)
-      : Array(Math.floor(waiting.length / n)).fill(n);
+  const sizes = final && c.config.leftover === 'smaller_teams' ? leftoverSizes(waiting.length, n) : Array(Math.floor(waiting.length / n)).fill(n);
   let next = 0;
   for (const [i, size] of sizes.entries()) {
     await createTeam(ctx, c, waiting.slice(next, next + size), teams.length + i, now);
@@ -523,7 +535,7 @@ async function playerView(ctx: Ctx, c: Challenge, deviceToken: string): Promise<
     me: {
       entered: !!mine,
       name: mine?.name ?? null,
-      team: team && room ? { teamId: team._id, label: team.label, roomCode: room.code, size: team.size } : null,
+      team: team && room ? { teamId: team._id, label: team.label, roomCode: room.code, size: team.size as TeamSize } : null,
       waitingNextRound: mine?.waitingNextRound ?? false,
     },
     requireWhopToJoin: c.config.requireWhopToJoin,
@@ -675,18 +687,9 @@ export const cancelChallenge = mutation({
 
 const PAYOUT_LABELS = { concept: CONCEPT_LABEL, whop: 'Paid through Whop' } as const;
 
-async function holdsShare(ctx: Ctx, challengeId: Id<'challenges'>, whopUserId: string, except: Id<'payouts'>) {
-  const rows = await payoutsOf(ctx, challengeId);
-  return rows.some((r) => r._id !== except && r.whopUserId === whopUserId && !['duplicate', 'expired', 'claim_pending_whop', 'pending'].includes(r.status));
-}
-
-// A row with a linked Whop account: one share per Whop account per challenge, then the adapter.
+// A winning row whose device has a linked Whop account: pay it through the adapter.
 async function settle(ctx: MutationCtx, row: Doc<'payouts'>, whopUserId: string) {
   const now = Date.now();
-  if (await holdsShare(ctx, row.challengeId, whopUserId, row._id)) {
-    await ctx.db.patch(row._id, { status: 'duplicate', whopUserId, updatedAt: now });
-    return;
-  }
   if (row.adapter === 'concept') {
     await ctx.db.patch(row._id, { status: 'sent_concept', method: 'concept', whopUserId, updatedAt: now });
     return;
@@ -755,12 +758,7 @@ async function payoutView(ctx: Ctx, row: Doc<'payouts'>): Promise<MyPayoutView> 
     claimUrl: row.claimUrl ?? null,
     claimExpiresAt: row.status === 'claim_pending_whop' ? (row.claimExpiresAt ?? null) : null,
     needsWhopSignIn: row.status === 'claim_pending_whop' && !me.whopUserId,
-    label:
-      row.status === 'duplicate'
-        ? 'This Whop account already has a share in this challenge.'
-        : row.status === 'expired'
-          ? 'Unclaimed in time; the share went back to the pool.'
-          : PAYOUT_LABELS[row.adapter],
+    label: row.status === 'expired' ? 'Unclaimed in time; the share went back to the pool.' : PAYOUT_LABELS[row.adapter],
   };
 }
 
@@ -856,6 +854,53 @@ export const sendWhopPayout = internalAction({
   },
 });
 
+// ---------- Standings ----------
+
+const STAGES = ['briefing', 'investigating', 'locking_in', 'finished'] as const;
+
+export const challengeStandings = query({
+  args: { deviceToken: v.string(), challengeId: v.string() },
+  handler: async (ctx, { deviceToken, challengeId }): Promise<ChallengeStandingsView | null> => {
+    const c = await getChallenge(ctx, challengeId);
+    if (!c || c.status === 'draft') return null;
+    const [entries, teams] = await Promise.all([entriesOf(ctx, c._id), teamsOf(ctx, c._id)]);
+    const mine = entries.find((e) => e.deviceToken === deviceToken)?.teamId;
+    const rows = await Promise.all(
+      teams.map(async (t) => {
+        const room = await ctx.db.get(t.roomId);
+        const locks = room
+          ? (await ctx.db.query('lockIns').withIndex('by_room', (q) => q.eq('roomId', room._id)).collect()).filter((l) => l.revision === room.theory.revision)
+          : [];
+        const step = t.place !== undefined || room?.status === 'resolved' ? 3 : room?.status === 'playing' ? (locks.length ? 2 : 1) : 0;
+        return {
+          teamId: t._id as string,
+          label: t.label,
+          index: t.index,
+          memberNames: entries.filter((e) => e.teamId === t._id).map((e) => e.name),
+          rank: 0,
+          place: t.place ?? null,
+          progress: { stage: STAGES[step], step, steps: 3, lockedIn: locks.length, attempts: room?.attempts ?? 0 },
+          finishedAt: t.finishedAt ?? null,
+          finishMs: t.finishedAt !== undefined ? t.finishedAt - t.dealtAt : null,
+          isMine: mine === t._id,
+        };
+      }),
+    );
+    rows.sort((a, b) => {
+      if (a.place !== null || b.place !== null) return (a.place ?? Infinity) - (b.place ?? Infinity);
+      return b.progress.step - a.progress.step || a.progress.attempts - b.progress.attempts || a.index - b.index;
+    });
+    return {
+      challengeId: c._id,
+      status: c.status,
+      serverNow: Date.now(),
+      endsAt: c.config.endsAt,
+      paidPlaces: paidPlaceCount(c.config.reward),
+      rows: rows.map(({ index: _index, ...r }, i) => ({ ...r, rank: i + 1 })),
+    };
+  },
+});
+
 // ---------- Recap ----------
 
 export const challengeRecap = query({
@@ -884,7 +929,7 @@ export const challengeRecap = query({
           ? []
           : preview.lines.map((l) => {
               const t = tv.find((x) => x.label === l.teamLabel)!;
-              const cents = l.players.filter((p) => p.status !== 'duplicate' && p.status !== 'expired').reduce((s, p) => s + p.cents, 0);
+              const cents = l.players.filter((p) => p.status !== 'expired').reduce((s, p) => s + p.cents, 0);
               return { place: l.place, teamLabel: l.teamLabel, memberNames: t.memberNames, finishMs: t.finishMs ?? 0, inMoney: true, cents };
             }),
       fastestFinishMs: finishMs.length ? Math.min(...finishMs) : null,

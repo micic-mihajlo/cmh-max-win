@@ -15,6 +15,7 @@ import type {
   RevealView,
   RoomView,
   SignalErrorCode,
+  TeamSize,
 } from '../src/lib/contract';
 import { RACE_REVEAL_MS } from '../src/lib/contract';
 
@@ -219,7 +220,7 @@ export const room = query({
       code: room.code,
       status: room.status,
       caseId: room.caseId,
-      squadSize: room.squadSize ?? 3,
+      squadSize: (room.squadSize ?? 3) as TeamSize,
       drop: drop
         ? {
             dropId: drop.dropId,
