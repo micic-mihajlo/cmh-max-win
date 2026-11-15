@@ -14,6 +14,7 @@ import { ShelfScreen } from '@/components/screens/shelf';
 import { Dossiers, Reveal } from './case01';
 import type { Role, RoomView, SeasonPackView } from '@/lib/contract';
 import { room, whoByRole, type RoomFixture } from './fixtures';
+import { DropStates } from './drops';
 
 export type MockState = {
   id: string;
@@ -266,6 +267,7 @@ export const MockStates: MockState[] = [
     render: () => sheet(asRole('hacker', { culprit: 'theo', editedBy: 'maya', locked: ['maya'] }), { fullHeight: true }),
   },
   { id: '09-reduce-motion', ref: '9.12', section: 'System', title: 'Reduce motion', display: { reduceMotion: true }, render: () => <AgreementScreen phase="checking" room={asRole('witness', allLocked)} /> },
+  ...DropStates,
 ];
 
 export const mockById = (id: string) => MockStates.find((s) => s.id === id);
