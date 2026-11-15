@@ -10,6 +10,7 @@ import { Enter, Haptic } from '@/motion';
 
 import { dropTime, followers, nameList } from './copy';
 import { SampleNote } from './feed';
+import { pushAvailable } from './push';
 import { Avatar, BigButton, Screen, Section, TextAction, showcase } from './kit';
 
 let askedForPings = false;
@@ -70,13 +71,17 @@ export function StreamerScreen({
         </View>
 
         {page.liveDrop ? (
-          <Pressable accessibilityRole="button" style={[showcase.gutter, showcase.row, styles.live]} onPress={() => onOpenLive(page.liveDrop!)}>
+          <Pressable
+            accessibilityRole="button"
+            disabled={page.liveDrop.dropStatus === 'live'}
+            style={[showcase.gutter, showcase.row, styles.live]}
+            onPress={() => onOpenLive(page.liveDrop!)}>
             <View style={styles.dot} />
             <Txt variant="bodyStrong" style={showcase.flex}>
               Live now · {page.liveDrop.title}
             </Txt>
-            <Txt variant="label" color={Palette.paper}>
-              Join
+            <Txt variant="label" color={page.liveDrop.dropStatus === 'live' ? Palette.paperMuted : Palette.paper}>
+              {page.liveDrop.dropStatus === 'live' ? 'In progress' : 'Join'}
             </Txt>
           </Pressable>
         ) : null}
@@ -121,10 +126,21 @@ function PingSheet({ name, visible, onTurnOn, onClose }: { name: string; visible
         <Txt variant="title" style={styles.centerText}>
           Get a ping when {name} goes live?
         </Txt>
-        <BigButton title="Turn on" onPress={onTurnOn} />
-        <View style={styles.center}>
-          <TextAction title="Not now" muted onPress={onClose} />
-        </View>
+        {pushAvailable ? (
+          <>
+            <BigButton title="Turn on" onPress={onTurnOn} />
+            <View style={styles.center}>
+              <TextAction title="Not now" muted onPress={onClose} />
+            </View>
+          </>
+        ) : (
+          <>
+            <Txt variant="body" color={Palette.paperMuted} style={styles.centerText}>
+              Pings work in the SIGNAL app.
+            </Txt>
+            <BigButton title="Got it" onPress={onClose} />
+          </>
+        )}
       </View>
     </Modal>
   );

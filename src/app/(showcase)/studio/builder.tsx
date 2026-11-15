@@ -4,7 +4,7 @@ import { StyleSheet, TextInput, View } from 'react-native';
 
 import { FontFamily, Space } from '@/constants/signal';
 import { Txt } from '@/components/signal/txt';
-import { auroraDraft, draftStore, type Draft } from '@/components/showcase/draft-store';
+import { auroraDraft, blankDraft, draftStore, type Draft } from '@/components/showcase/draft-store';
 import { NecessityCheck } from '@/components/showcase/necessity-check';
 import { Caption, Card, Chip, G, PrimaryButton, RoleCaption, Section, StudioScreen, docName, studio } from '@/components/showcase/studio-ui';
 import { splitPieces, validatePuzzle } from '@/components/showcase/validate';
@@ -18,7 +18,7 @@ export default function Builder() {
   const params = useLocalSearchParams<{ step?: string; fresh?: string; broken?: string }>();
   const [step, setStep] = useState(() => Math.max(0, steps.findIndex((s) => s.toLowerCase() === params.step)));
   const [draft, setDraftState] = useState<Draft>(() => {
-    const initial = params.broken ? { ...auroraDraft, ...auroraBroken } : params.fresh ? auroraDraft : draftStore.get();
+    const initial = params.broken ? { ...auroraDraft, ...auroraBroken } : params.fresh ? blankDraft : draftStore.get();
     draftStore.set(initial);
     return initial;
   });

@@ -15,7 +15,7 @@ export function ProfileScreen() {
         <Avatar initials={me.initials} size={84} />
         <Txt variant="display">@{me.handle}</Txt>
         <Txt variant="small" color={Palette.paperMuted}>
-          {me.name} · {me.joined}
+          Sample data · {me.joined}
         </Txt>
       </Enter>
 

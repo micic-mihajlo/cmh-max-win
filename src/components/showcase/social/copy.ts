@@ -1,13 +1,13 @@
 import type { FeedLiveRow, FeedUpcomingRow, FollowingFeedView } from '@/lib/contract';
 
-export type InboxItem = { id: string; kind: 'live' | 'starting'; streamerName: string; challenge: string; joinCode: string; dropId: string; when: string; squadmates?: string[] };
+export type InboxItem = { id: string; kind: 'live' | 'starting'; streamerName: string; challenge: string; joinCode: string; dropId: string; streamerId: string; inProgress?: boolean; when: string; squadmates?: string[] };
 
 export function nameList(names: string[]) {
   return names.length < 2 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
 }
 
 export function notificationCopy(n: InboxItem) {
-  if (n.kind === 'live') return { title: `${n.streamerName} is live · ${n.challenge}`, body: `Join with ${n.joinCode}.` };
+  if (n.kind === 'live') return { title: `${n.streamerName} is live · ${n.challenge}`, body: n.inProgress ? 'In progress.' : `Join with ${n.joinCode}.` };
   const waiting = n.squadmates?.length ? `${nameList(n.squadmates)} ${n.squadmates.length > 1 ? 'are' : 'is'} waiting.` : 'Your squad is waiting.';
   return { title: `${n.streamerName}'s room opens in 2 minutes`, body: waiting };
 }
@@ -40,6 +40,8 @@ export function inboxFromFeed(feed: FollowingFeedView): InboxItem[] {
     challenge: l.title,
     joinCode: l.joinCode,
     dropId: l.dropId,
+    streamerId: l.streamerId,
+    inProgress: l.dropStatus === 'live',
     when: ago(l.liveSince, feed.serverNow),
   }));
   const starting = feed.upcoming
@@ -51,6 +53,7 @@ export function inboxFromFeed(feed: FollowingFeedView): InboxItem[] {
       challenge: u.title,
       joinCode: u.joinCode,
       dropId: u.dropId,
+      streamerId: u.streamerId,
       when: 'Now',
     }));
   return [...starting, ...live];

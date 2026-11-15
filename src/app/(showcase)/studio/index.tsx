@@ -10,7 +10,7 @@ import { PressScale } from '@/motion';
 export default function Studio() {
   return (
     <StudioScreen
-      kicker={`${creator.handle} · ${creator.followers.toLocaleString('en-US')} followers`}
+      kicker="Sample data"
       title={`${creator.name}'s studio`}
       footer={<PrimaryButton title="New drop" onPress={() => router.push('/studio/builder?fresh=1')} />}>
       <View style={styles.live}>
