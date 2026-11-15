@@ -264,6 +264,27 @@ export type SeasonPackView = {
 // view is undefined while loading.
 export type UseSeasonPack = () => { view: SeasonPackView | undefined; buy: () => Promise<void> };
 
+// ---- Sign in with Whop (Lane B, CMHM-11) ----
+// Optional. Anyone plays on the device token; a winner signs in with Whop to claim, and the
+// payout goes to whopUserId. The server links the Whop account to the device token that started
+// sign-in, so a claim stays tied to the token that played. OAuth tokens never reach the client.
+export type WhopAccountView = {
+  whopUserId: string;
+  name: string;
+  username: string | null;
+  avatarUrl: string | null;
+  environment: 'sandbox' | 'production';
+};
+// available is false when the deployment has no Whop OAuth app; hide sign-in then.
+export type WhopAccountState = { available: boolean; account: WhopAccountView | null };
+// unavailable: no Whop OAuth app configured · cancelled: the person closed the sheet.
+export type WhopSignInResult = 'linked' | 'cancelled' | 'error' | 'unavailable';
+export type UseWhopAccount = () => WhopAccountState | undefined; // undefined while loading
+export type UseSignInWithWhop = () => () => Promise<WhopSignInResult>;
+// From the award screen: returnPath is the app route the sheet returns to (e.g. 'award/ABC123').
+export type UseLinkForClaim = (returnPath: string) => () => Promise<WhopSignInResult>;
+export type UseSignOutWhop = () => () => Promise<void>;
+
 export type UseDrops = () => DropSummaryView[] | undefined; // scheduled and live drops, soonest first
 export type UseDrop = (dropId: string | null) => DropView | null | undefined;
 export type UseLeaderboard = (dropId: string | null) => LeaderboardView | null | undefined;

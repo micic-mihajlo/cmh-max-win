@@ -19,6 +19,10 @@ export function whopEnvironment(): 'sandbox' | 'production' {
   return process.env.WHOP_ENVIRONMENT === 'production' ? 'production' : 'sandbox';
 }
 
+export function whopApiBase(): string {
+  return whopEnvironment() === 'production' ? 'https://api.whop.com/api/v1' : 'https://sandbox-api.whop.com/api/v1';
+}
+
 export async function whopRequest<T>(
   path: string,
   init: { method?: string; body?: unknown; headers?: Record<string, string> } = {},
@@ -27,8 +31,7 @@ export async function whopRequest<T>(
   if (!apiKey) {
     throw new ConvexError({ code: 'WHOP_NOT_CONFIGURED', message: 'Whop is not configured on this deployment.' });
   }
-  const base = whopEnvironment() === 'production' ? 'https://api.whop.com/api/v1' : 'https://sandbox-api.whop.com/api/v1';
-  const response = await fetch(base + path, {
+  const response = await fetch(whopApiBase() + path, {
     method: init.method ?? 'GET',
     headers: {
       Authorization: `Bearer ${apiKey}`,
