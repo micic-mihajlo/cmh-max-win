@@ -26,6 +26,9 @@ if ! grep -rq compassionate-puffin-914 dist/_expo; then
   echo "Convex URL is not inlined in dist/_expo; refusing to deploy" >&2
   exit 1
 fi
+if [ -d dist/assets/node_modules ]; then
+  mv dist/assets/node_modules dist/assets/nm
+fi
 cp web-app/vercel.json dist/vercel.json
 
 cd dist
