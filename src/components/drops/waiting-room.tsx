@@ -44,7 +44,7 @@ export function WaitingRoomScreen({ drop, offset, onBack }: { drop: DropView; of
             </Txt>
           </View>
           <View style={styles.live}>
-            <Txt variant="label" color={Palette.ink}>
+            <Txt variant="label" color={Palette.onAccent}>
               Live drop
             </Txt>
           </View>

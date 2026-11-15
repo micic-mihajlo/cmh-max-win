@@ -38,8 +38,8 @@ export function BountyResultScreen({
       <Label>{`${squadLabel} · #${award.place} of ${bounty.winnerSlots}`}</Label>
       <View style={[styles.card, concept ? styles.concept : styles.real]}>
         <View style={styles.cardHead}>
-          <Txt variant="display">{`${money2(award.perPlayerCents)} each`}</Txt>
           <ModeTag mode={award.mode} />
+          <Txt variant="display">{`${money2(award.perPlayerCents)} each`}</Txt>
         </View>
         <Txt variant="body" color={Palette.paperMuted}>
           {math}
@@ -66,5 +66,5 @@ const styles = StyleSheet.create({
   card: { gap: Space.m, padding: Space.xl, borderRadius: Radius.l, marginTop: Space.xl },
   concept: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: Brass },
   real: { borderWidth: 1, borderColor: Palette.ok, backgroundColor: Palette.panel },
-  cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Space.s },
+  cardHead: { alignItems: 'flex-start', gap: Space.s },
 });

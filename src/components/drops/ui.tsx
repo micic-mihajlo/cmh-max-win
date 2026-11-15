@@ -75,7 +75,7 @@ export function DropCard({ drop, children }: { drop: DropSummaryView; children?:
     <View style={styles.card}>
       <View style={styles.cardHead}>
         <View style={styles.avatar}>
-          <Txt variant="bodyStrong" color={Palette.ink}>
+          <Txt variant="bodyStrong" color={Palette.onAccent}>
             {drop.creatorName.replace('@', '').slice(0, 1).toUpperCase()}
           </Txt>
         </View>

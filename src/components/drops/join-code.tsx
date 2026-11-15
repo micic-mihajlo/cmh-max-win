@@ -32,6 +32,7 @@ export function JoinCodeScreen({
   const shake = useSharedValue(0);
   useEffect(() => {
     if (phase !== 'error') return;
+    input.current?.focus();
     Haptic.warning();
     if (reduced) return;
     shake.set(withSequence(...[6, -6, 6, -6, 6, 0].map((x) => withTiming(x, { duration: 40 }))));
@@ -59,6 +60,7 @@ export function JoinCodeScreen({
   }
 
   const type = (raw: string) => {
+    if (phase === 'checking') return;
     const next = raw
       .toUpperCase()
       .replace(/[^A-Z0-9]/g, '')
@@ -109,7 +111,6 @@ export function JoinCodeScreen({
         autoFocus
         autoCapitalize="characters"
         autoCorrect={false}
-        editable={phase !== 'checking'}
         maxLength={JOIN_CODE_LENGTH}
         caretHidden
         style={styles.hidden}
