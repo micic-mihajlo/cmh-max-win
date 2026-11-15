@@ -3,6 +3,7 @@ import { convexTest } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { api, internal } from './_generated/api';
+import { DEFAULT_CONFIG } from './challenges';
 import schema from './schema';
 import { resolveIdentity } from './whopAuth';
 
@@ -178,6 +179,49 @@ describe('Sign in with Whop', () => {
     expect(await start(t, 'spectator-device')).toEqual({ url: null, reason: 'not_winner' });
     expect(await t.action(api.whopAuth.startSignIn, { deviceToken: DEVICE, claimCode: 'NOPE' })).toEqual({ url: null, reason: 'not_winner' });
     expect((await start(t)).url).toMatch(/\/oauth\/authorize\?/);
+  });
+
+  test('a challenge team winner with a payout row can start claim sign-in', async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('creators', { deviceToken: 'host', displayName: 'Host', handle: 'host' });
+      const challengeId = await ctx.db.insert('challenges', {
+        creatorToken: 'host',
+        config: DEFAULT_CONFIG,
+        status: 'ended',
+        serverCreated: false,
+        createdAt: 0,
+        finishedCount: 1,
+      });
+      await ctx.db.insert('rooms', {
+        code: 'TEAM01',
+        hostToken: '',
+        caseId: 'case01',
+        challengeId,
+        status: 'resolved',
+        theory: { culprit: null, revision: 0, lastEditedBy: null },
+        attempts: 1,
+        lastNudge: null,
+        checkedRevision: null,
+        checkSeq: 0,
+        lastCheck: null,
+      });
+      await ctx.db.insert('payouts', {
+        challengeId,
+        place: 1,
+        teamLabel: 'A',
+        playerIndex: 0,
+        deviceToken: DEVICE,
+        name: 'Nova',
+        cents: 100,
+        status: 'claim_pending_whop',
+        adapter: 'concept',
+        idempotencyKey: 'k',
+        updatedAt: 0,
+      });
+    });
+    expect((await t.action(api.whopAuth.startSignIn, { deviceToken: DEVICE, claimCode: 'TEAM01' })).url).toMatch(/\/oauth\/authorize\?/);
+    expect(await t.action(api.whopAuth.startSignIn, { deviceToken: 'loser', claimCode: 'TEAM01' })).toEqual({ url: null, reason: 'not_winner' });
   });
 
   test('checkWhopAccess reads has_access for a resource', async () => {

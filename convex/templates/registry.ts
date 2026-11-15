@@ -1,9 +1,11 @@
 import { auroraTemplate } from './aurora';
+import { quickQuizTemplate } from './quickQuiz';
 import { splitCodeTemplate } from './splitCode';
 import type { AnyTemplate } from './types';
 
-// Every challenge type the platform can host. Add a template here and nothing else in the platform changes.
-export const TEMPLATES = [auroraTemplate, splitCodeTemplate] as const satisfies readonly AnyTemplate[];
+// Every challenge type the platform can host, in gallery order. Add a template here and nothing else in the
+// platform changes.
+export const TEMPLATES = [quickQuizTemplate, splitCodeTemplate, auroraTemplate] as const satisfies readonly AnyTemplate[];
 
 export type TemplateId = (typeof TEMPLATES)[number]['id'];
 

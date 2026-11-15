@@ -73,6 +73,7 @@ export const Type = {
   evidence: { fontFamily: FontFamily.ui, fontSize: 17, lineHeight: 26 },
   evidenceItalic: { fontFamily: FontFamily.ui, fontStyle: 'italic', fontSize: 17, lineHeight: 26 },
   small: { fontFamily: FontFamily.ui, fontSize: 15, lineHeight: 20 },
+  caption: { fontFamily: FontFamily.ui, fontSize: 13, lineHeight: 17 },
   smallStrong: { fontFamily: FontFamily.uiSemi, fontSize: 15, lineHeight: 20 },
   label: { fontFamily: FontFamily.uiMedium, fontSize: 15, lineHeight: 20 },
   time: { fontFamily: FontFamily.uiMedium, fontSize: 15, lineHeight: 26, fontVariant: ['tabular-nums'] },
