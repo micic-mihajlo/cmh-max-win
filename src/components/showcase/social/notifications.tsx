@@ -4,18 +4,14 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Txt } from '@/components/signal/txt';
 import { Palette, Space } from '@/constants/signal';
-import type { FeedNotification, Streamer } from '@/mocks/showcase/feed';
 
-import { notificationCopy } from './copy';
+import { notificationCopy, type InboxItem } from './copy';
 import { SampleNote } from './feed';
 import { InAppBanner } from './in-app-banner';
 import { Avatar, Screen, TextAction, showcase } from './kit';
 
-export function NotificationsScreen({ streamers, items, sample }: { streamers: Streamer[]; items: FeedNotification[]; sample?: boolean }) {
-  const byId = (id: string) => streamers.find((s) => s.id === id)!;
-  const [banner, setBanner] = useState<FeedNotification | null>(items[0] ?? null);
-  const open = (n: FeedNotification) => router.push({ pathname: '/showcase/creator', params: { id: n.streamerId } } as unknown as Href);
-  const bannerStreamer = banner ? byId(banner.streamerId) : null;
+export function NotificationsScreen({ items, onOpen, sample }: { items: InboxItem[]; onOpen: (n: InboxItem) => void; sample?: boolean }) {
+  const [banner, setBanner] = useState<InboxItem | null>(items[0] ?? null);
 
   return (
     <View style={styles.flex}>
@@ -27,11 +23,10 @@ export function NotificationsScreen({ streamers, items, sample }: { streamers: S
         ) : (
           <View style={[showcase.gutter, showcase.list, styles.list]}>
             {items.map((n) => {
-              const s = byId(n.streamerId);
-              const copy = notificationCopy(n, s);
+              const copy = notificationCopy(n);
               return (
-                <Pressable key={n.id} accessibilityRole="button" style={[showcase.row, styles.item]} onPress={() => open(n)}>
-                  <Avatar initials={s.initials} size={40} />
+                <Pressable key={n.id} accessibilityRole="button" style={[showcase.row, styles.item]} onPress={() => onOpen(n)}>
+                  <Avatar initials={n.streamerName.slice(0, 1)} size={40} />
                   <View style={showcase.flex}>
                     <Txt variant="bodyStrong" numberOfLines={1}>
                       {copy.title}
@@ -47,13 +42,8 @@ export function NotificationsScreen({ streamers, items, sample }: { streamers: S
         )}
         {sample ? <SampleNote /> : null}
       </Screen>
-      {banner && bannerStreamer ? (
-        <InAppBanner
-          initials={bannerStreamer.initials}
-          {...notificationCopy(banner, bannerStreamer)}
-          onPress={() => open(banner)}
-          onDone={() => setBanner(null)}
-        />
+      {banner ? (
+        <InAppBanner initials={banner.streamerName.slice(0, 1)} {...notificationCopy(banner)} onPress={() => onOpen(banner)} onDone={() => setBanner(null)} />
       ) : null}
     </View>
   );
