@@ -3,8 +3,8 @@ import { StyleSheet, View } from 'react-native';
 import { Screen } from '@/components/signal/backdrop';
 import { Button, Label } from '@/components/signal/primitives';
 import { Txt } from '@/components/signal/txt';
-import { Palette, Radius, RoleColors, Space } from '@/constants/signal';
-import { NudgeEntrance, Seal, Stagger } from '@/motion';
+import { Palette, Radius, Space } from '@/constants/signal';
+import { NudgeEntrance, Stagger } from '@/motion';
 import { RACE_REVEAL_MS, type DropView, type LeaderboardRow, type LeaderboardView, type Role } from '@/lib/contract';
 
 import { useServerClock } from './clock';
@@ -17,7 +17,7 @@ export type RacingSquad = { pick: string | null; locked: number; size: number; n
 function Row({ row }: { row: LeaderboardRow }) {
   return (
     <View style={[styles.row, row.isMine ? styles.rowMine : styles.rowOther]}>
-      <Txt variant="bodyStrong" color={row.isMine ? Palette.ember : Palette.paperMuted} style={styles.rank}>
+      <Txt variant="bodyStrong" color={row.isMine ? Palette.paper : Palette.paperMuted} style={styles.rank}>
         {row.rank ?? '–'}
       </Txt>
       <Txt variant="bodyStrong" color={row.isMine ? Palette.paper : Palette.paperMuted} style={styles.flex}>
@@ -84,11 +84,6 @@ export function LeaderboardScreen({
           </View>
         ) : inMoney ? (
           <>
-            <View style={styles.seals}>
-              {(roles ?? []).map((r, i) => (
-                <Seal key={i} locked color={RoleColors[r]} initial={r.charAt(0).toUpperCase()} size={44} />
-              ))}
-            </View>
             <Txt variant="small" color={Palette.paperMuted} style={styles.center}>
               Jun took the seed. All three pieces counted.
             </Txt>
@@ -153,7 +148,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Palette.hairline,
   },
-  rowMine: { borderWidth: 1, borderColor: Palette.ember },
+  rowMine: { borderWidth: 1, borderColor: Palette.paper, backgroundColor: Palette.accentSoft },
   rowOther: { opacity: 0.5 },
   rank: { width: 20, fontVariant: ['tabular-nums'] },
   card: {

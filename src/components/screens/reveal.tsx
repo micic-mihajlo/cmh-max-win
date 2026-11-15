@@ -76,9 +76,6 @@ export function RevealScreen({
       {page === 'credits' ? (
         <>
           <Txt variant="display">Every clue mattered.</Txt>
-          <Txt variant="body" color={Palette.paperMuted}>
-            Remove any one of these and two suspects stay possible. Nobody could have solved it alone.
-          </Txt>
           {reveal.credits.map((c, i) => {
             const meta = RoleMeta[c.role];
             const cleared = suspectById(c.cleared);

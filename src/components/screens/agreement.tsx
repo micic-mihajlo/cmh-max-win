@@ -24,7 +24,7 @@ export function AgreementScreen({ room, phase, onBack }: { room: RoomView; phase
   return (
     <Screen
       scroll={phase === 'wrong'}
-      contentStyle={phase === 'checking' ? styles.centerContent : undefined}
+      contentStyle={phase === 'checking' ? styles.centerContent : styles.centerBlock}
       footer={
         phase === 'wrong' ? (
           cooldown > 0 ? (
@@ -39,7 +39,7 @@ export function AgreementScreen({ room, phase, onBack }: { room: RoomView; phase
           <View style={styles.sealsBig}>
             {seals(room).map(({ role, member }) => (
               <View key={member.memberId} style={styles.sealCol}>
-                <Seal role={role} filled size={72} />
+                <Seal role={role} filled size={72} initial={member.name.charAt(0).toUpperCase()} />
                 <Txt variant="small" color={Palette.paperMuted}>
                   {member.isMe ? 'You' : member.name}
                 </Txt>
@@ -63,9 +63,6 @@ export function AgreementScreen({ room, phase, onBack }: { room: RoomView; phase
         <>
           <View style={styles.wrongHead}>
             <Txt variant="hero">Not {guessed.first}.</Txt>
-            <Txt variant="body" color={Palette.paperMuted}>
-              Lock-ins cleared.
-            </Txt>
           </View>
           <NudgeEntrance style={styles.nudge}>
             {nudged ? <Avatar name={nudged.name} size={48} filled={nudged.isMe} /> : null}
@@ -85,7 +82,8 @@ const styles = StyleSheet.create({
   sealsBig: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: Space.l, marginVertical: Space.l },
   sealCol: { alignItems: 'center', gap: Space.s },
   checking: { flexDirection: 'row', alignItems: 'center', gap: Space.s, marginTop: Space.s },
-  wrongHead: { gap: Space.s, marginTop: Space.xxl },
+  centerBlock: { flexGrow: 1, justifyContent: 'center' },
+  wrongHead: { gap: Space.s },
   nudge: {
     flexDirection: 'row',
     alignItems: 'center',

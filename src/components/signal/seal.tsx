@@ -2,13 +2,13 @@ import { RoleMeta } from '@/constants/signal';
 import type { Role } from '@/lib/contract';
 import { Seal as MotionSeal } from '@/motion';
 
-export function Seal({ role, filled, size = 64, broken, play }: { role: Role; filled: boolean; size?: number; broken?: boolean; play?: boolean }) {
+export function Seal({ role, filled, size = 64, broken, play, initial }: { role: Role; filled: boolean; size?: number; broken?: boolean; play?: boolean; initial?: string }) {
   const meta = RoleMeta[role];
   return (
     <MotionSeal
       locked={filled}
       color={meta.color}
-      initial={meta.glyph}
+      initial={initial ?? meta.glyph}
       size={size}
       dimmed={broken}
       play={play}
