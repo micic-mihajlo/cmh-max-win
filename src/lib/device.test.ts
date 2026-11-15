@@ -63,9 +63,25 @@ describe('getDeviceToken', () => {
     expect(store.setItemAsync).not.toHaveBeenCalled();
   });
 
-  test('a rejected read is a miss, not a hang', async () => {
+  test('a thrown read counts as a timeout, not a miss', async () => {
     store.getItemAsync.mockRejectedValue(new Error('keychain'));
     const { readStored } = await load();
-    expect(await readStored('signal.playerName')).toEqual({ value: null, timedOut: false });
+    expect(await readStored('signal.playerName')).toEqual({ value: null, timedOut: true });
+  });
+
+  test('after a thrown read (locked phone), nothing is written and the retry switches to the stored token', async () => {
+    store.getItemAsync.mockRejectedValueOnce(new Error('locked')).mockResolvedValueOnce('real');
+    const { getDeviceToken } = await load();
+    expect(await getDeviceToken()).toBe('real');
+    expect(store.getItemAsync).toHaveBeenCalledTimes(2);
+    expect(store.setItemAsync).not.toHaveBeenCalled();
+  });
+
+  test('if both reads throw, the generated token stays in memory and is never written', async () => {
+    store.getItemAsync.mockRejectedValue(new Error('locked'));
+    const { getDeviceToken } = await load();
+    expect(await getDeviceToken()).toBe('generated');
+    expect(await getDeviceToken()).toBe('generated');
+    expect(store.setItemAsync).not.toHaveBeenCalled();
   });
 });

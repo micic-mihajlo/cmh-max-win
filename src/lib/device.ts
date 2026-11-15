@@ -8,7 +8,8 @@ const KEY = 'signal.deviceToken';
 const TIMEOUT_MS = 1500;
 
 // SecureStore calls can hang forever on some simulators, so every read and write is raced
-// against a timeout. A read that timed out is not a miss: the stored value may still exist.
+// against a timeout. A read that timed out or threw (a locked phone at launch) is not a miss: the stored value may
+// still exist, so it reports timedOut.
 export async function readStored(key: string): Promise<{ value: string | null; timedOut: boolean }> {
   try {
     if (Platform.OS === 'web') return { value: globalThis.localStorage?.getItem(key) ?? null, timedOut: false };
@@ -16,7 +17,7 @@ export async function readStored(key: string): Promise<{ value: string | null; t
     const result = await Promise.race([SecureStore.getItemAsync(key), timeout]);
     return result === 'timeout' ? { value: null, timedOut: true } : { value: result, timedOut: false };
   } catch {
-    return { value: null, timedOut: false };
+    return { value: null, timedOut: true };
   }
 }
 
