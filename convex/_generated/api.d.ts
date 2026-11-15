@@ -8,7 +8,9 @@
  * @module
  */
 
+import type * as case01 from "../case01.js";
 import type * as pings from "../pings.js";
+import type * as signal from "../signal.js";
 
 import type {
   ApiFromModules,
@@ -17,7 +19,9 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  case01: typeof case01;
   pings: typeof pings;
+  signal: typeof signal;
 }>;
 
 /**
