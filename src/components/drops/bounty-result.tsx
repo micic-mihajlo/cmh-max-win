@@ -1,71 +1,102 @@
-import { StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/signal/backdrop';
 import { Button } from '@/components/signal/primitives';
 import { Txt } from '@/components/signal/txt';
 import { Palette, Radius, Space } from '@/constants/signal';
-import type { BountyView, SquadAwardView } from '@/lib/contract';
+import type { AwardPayoutView, BountyView, SquadAwardView } from '@/lib/contract';
+import { Enter } from '@/motion';
 
-import { useServerClock } from './clock';
-import { Brass, clock, ModeTag, money, money2 } from './ui';
+import { Brass, money, money2 } from './ui';
 
-// The payout beat: one static card with the math inline. Only the winning squad ever gets a SquadAwardView.
+const failures: Record<string, string> = {
+  kyc_required: 'Whop couldn’t send it yet. The host’s Whop business still needs to be verified.',
+  transfer_unavailable: 'Whop couldn’t send it yet. The prize balance isn’t available on Whop right now.',
+};
+
+function payoutLine(p: AwardPayoutView) {
+  if (p.status === 'sign_in_required') return `Sign in with Whop to receive ${money2(p.amountCents)}.`;
+  if (p.status === 'sending') return 'Sending to your Whop balance…';
+  if (p.status === 'sent') return 'Sent to your Whop balance.';
+  if (p.status === 'failed') return failures[p.failureCode ?? ''] ?? 'Whop couldn’t send it. Nothing was charged, and your share is still yours.';
+  return null;
+}
+
+// The payout beat: your share, where it is, and how the squad split it. Only the winning squad gets a SquadAwardView.
 export function BountyResultScreen({
   award,
   bounty,
-  squadLabel,
-  offset,
+  signingIn,
   on,
 }: {
   award: SquadAwardView;
   bounty: BountyView;
-  squadLabel: string;
-  offset: number | null;
-  on?: { onClaim?: () => void; onContinue?: () => void };
+  signingIn?: boolean;
+  on?: { onSignIn?: () => void; onContinue?: () => void };
 }) {
-  const now = useServerClock(offset);
-  const concept = award.mode === 'concept';
-  const real = !concept && award.status === 'ready' && award.claimUrl;
-  const math = `${money(bounty.totalCents)} ÷ ${bounty.winnerSlots} squads ÷ ${award.redeemableCount} players`;
+  const p = award.myPayout;
+  const concept = p.status === 'concept';
+  const line = payoutLine(p);
+  const split = [...award.split].sort((a, b) => Number(b.isMe) - Number(a.isMe));
   return (
     <Screen
       contentStyle={styles.centerBlock}
       footer={
-        <>
-          {real ? <Button title="Claim your share on Whop" onPress={on?.onClaim} /> : null}
-          <Button title="Continue" onPress={on?.onContinue} />
-        </>
-      }>
-      <View style={[styles.card, concept ? styles.concept : styles.real]}>
-        <View style={styles.cardHead}>
-          {concept ? null : <ModeTag mode={award.mode} />}
-          <Txt variant="display">{`${money2(award.perPlayerCents)} each`}</Txt>
-        </View>
-        <Txt variant="body" color={Palette.paperMuted}>
-          {math}
-        </Txt>
-        {concept ? (
-          <Txt variant="label" color={Brass}>
-            {award.label}
-          </Txt>
-        ) : real && award.expiresAt ? (
-          <Txt variant="small" color={Palette.paperMuted}>
-            Link expires in {clock(award.expiresAt - now)}
-          </Txt>
+        p.status === 'sign_in_required' ? (
+          <>
+            <Button title={signingIn ? 'Opening Whop…' : 'Sign in with Whop'} disabled={signingIn} onPress={on?.onSignIn} />
+            <Button title="Continue" variant="ghost" onPress={on?.onContinue} />
+          </>
         ) : (
-          <Txt variant="small" color={Palette.paperMuted}>
-            Creating your squad’s claim link on Whop…
-          </Txt>
-        )}
-      </View>
+          <Button title="Continue" onPress={on?.onContinue} />
+        )
+      }>
+      <Enter from={8}>
+        <View style={[styles.card, concept && styles.concept]}>
+          <Txt variant="display">{concept ? `${money2(award.perPlayerCents)} each` : money2(p.amountCents)}</Txt>
+          {concept ? (
+            <>
+              <Txt variant="body" color={Palette.paperMuted}>
+                {`${money(bounty.totalCents)} ÷ ${bounty.winnerSlots} squads ÷ ${award.redeemableCount} players`}
+              </Txt>
+              <Txt variant="label" color={Brass}>
+                {award.label}
+              </Txt>
+            </>
+          ) : (
+            <View style={styles.status}>
+              {p.status === 'sending' ? <ActivityIndicator size="small" color={Palette.paperMuted} /> : null}
+              <Txt variant="body" color={p.status === 'failed' ? Palette.danger : Palette.paperMuted} style={styles.flex}>
+                {line}
+              </Txt>
+            </View>
+          )}
+        </View>
+      </Enter>
+      <Enter from={8} delay={80}>
+        <View style={styles.split}>
+          {split.map((s, i) => (
+            <View key={`${s.name}-${i}`} style={styles.row}>
+              <Txt variant={s.isMe ? 'bodyStrong' : 'body'} color={s.isMe ? Palette.paper : Palette.paperMuted} style={styles.flex}>
+                {s.isMe ? `${s.name} · you` : s.name}
+              </Txt>
+              <Txt variant={s.isMe ? 'bodyStrong' : 'body'} color={s.isMe ? Palette.paper : Palette.paperMuted}>
+                {money2(s.cents)}
+              </Txt>
+            </View>
+          ))}
+        </View>
+      </Enter>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   centerBlock: { flexGrow: 1, justifyContent: 'center' },
-  card: { gap: Space.m, padding: Space.xl, borderRadius: Radius.l },
-  concept: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: Brass },
-  real: { borderWidth: 1, borderColor: Palette.ok, backgroundColor: Palette.panel },
-  cardHead: { alignItems: 'flex-start', gap: Space.s },
+  flex: { flex: 1 },
+  card: { gap: Space.m, padding: Space.xl, borderRadius: Radius.l, backgroundColor: Palette.panel },
+  concept: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: Brass, backgroundColor: 'transparent' },
+  status: { flexDirection: 'row', alignItems: 'center', gap: Space.s },
+  split: { paddingHorizontal: Space.xl },
+  row: { flexDirection: 'row', alignItems: 'center', gap: Space.m, height: 44 },
 });
