@@ -14,10 +14,13 @@ export const MIN_TO_DEAL = 4;
 const NEWEST = 3;
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL;
 
-// The shared big screen before the deal: the code is the hero, the QR (code only) is secondary.
+// The shared big screen before the deal: the code is the hero, the QR is the way in. On a phone the QR takes the
+// full width so the room can scan it at arm's length or off an AirPlay mirror.
 export function HostScreen({ view, hostName, dealing, onDeal }: { view: HostView; hostName: string; dealing?: boolean; onDeal?: () => void }) {
-  const wide = useWindowDimensions().width >= 768;
-  if (view.squads.length) return <HostBoard view={view} />;
+  const { width } = useWindowDimensions();
+  const wide = width >= 768;
+  if (view.squads.length) return wide ? <HostBoard view={view} /> : <PhoneBoard view={view} />;
+  const qr = wide ? 260 : Math.min(width - Space.xl * 2 - Space.m * 2, 280);
   const canDeal = view.entrantCount >= MIN_TO_DEAL && !dealing;
   return (
     <Screen
@@ -31,8 +34,8 @@ export function HostScreen({ view, hostName, dealing, onDeal }: { view: HostView
           </PressScale>
         </View>
       }>
-      <Wordmark style={styles.brand} />
-      <Txt variant="display" style={styles.center}>
+      {wide ? <Wordmark style={styles.brand} /> : null}
+      <Txt variant={wide ? 'display' : 'title'} style={styles.center}>
         {`Join ${hostName}’s drop`}
       </Txt>
       <View style={styles.codeRow}>
@@ -46,13 +49,15 @@ export function HostScreen({ view, hostName, dealing, onDeal }: { view: HostView
           </Stagger>
         </View>
       </View>
-      <Txt variant="body" color={Palette.paperMuted} style={styles.center}>
-        Open Signal → Join → type the code
-      </Txt>
+      {wide ? (
+        <Txt variant="body" color={Palette.paperMuted} style={styles.center}>
+          Open Signal → Join → type the code
+        </Txt>
+      ) : null}
       <View style={styles.qrCard}>
-        <QRCode value={WEB_URL ? `${WEB_URL}/join/${view.joinCode}` : view.joinCode} size={wide ? 260 : 160} color={Palette.paper} backgroundColor={Palette.card} />
-        <Txt variant="small" color={Palette.paperMuted}>
-          Scan with your camera · Expo Go or browser
+        <QRCode value={WEB_URL ? `${WEB_URL}/join/${view.joinCode}` : view.joinCode} size={qr} color={Palette.paper} backgroundColor={Palette.card} />
+        <Txt variant="small" color={Palette.paperMuted} style={styles.center}>
+          {wide ? 'Scan with your camera · Expo Go or browser' : 'Scan with your camera, or open Signal → Join → type the code'}
         </Txt>
       </View>
       <View style={styles.here}>
@@ -133,6 +138,87 @@ function HostBoard({ view }: { view: HostView }) {
   );
 }
 
+// Phone portrait: one compact row per squad, solved squads first in place order, winners revealed on top once
+// the bounty slots are full or the drop ends.
+function PhoneBoard({ view }: { view: HostView }) {
+  const solve = new Map(view.solves.map((s) => [s.squadLabel, s]));
+  const order = [...view.squads].sort((a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity));
+  const filled = Math.min(view.solves.length, view.bounty.winnerSlots);
+  const done = view.status === 'ended' || filled === view.bounty.winnerSlots;
+  const winners = view.solves.filter((s) => s.isWinner);
+  return (
+    <Screen>
+      <View style={styles.boardHead}>
+        <Txt variant="title" style={styles.flex}>
+          {done ? 'Winners' : view.solves.length ? 'Race' : 'Squads'}
+        </Txt>
+        <Txt variant="bodyStrong" color={Palette.paperMuted}>{`${filled} of ${view.bounty.winnerSlots} slots`}</Txt>
+      </View>
+      <View style={styles.bars}>
+        {Array.from({ length: view.bounty.winnerSlots }, (_, i) => (
+          <View key={i} style={styles.bar}>
+            {i < filled ? (
+              <Enter from={0} style={StyleSheet.absoluteFill}>
+                <View style={styles.barFill} />
+              </Enter>
+            ) : null}
+          </View>
+        ))}
+      </View>
+      {done && winners.length ? (
+        <View style={styles.podium}>
+          <Stagger stagger={120}>
+            {winners.map((w) => (
+              <View key={w.squadLabel} style={styles.podiumRow}>
+                <Seal locked color={Palette.ember} initial={String(w.place)} size={44} />
+                <View style={styles.flex}>
+                  <Txt variant="name">{w.squadLabel}</Txt>
+                  <Txt variant="small" color={Palette.paperMuted} numberOfLines={1}>
+                    {view.squads.find((s) => s.squadLabel === w.squadLabel)?.memberNames.join(', ')}
+                  </Txt>
+                </View>
+                <View style={styles.potRight}>
+                  <Txt variant="bodyStrong">{money(view.bounty.perSquadCents)}</Txt>
+                  <Txt variant="time" color={Palette.paperMuted}>
+                    {short(w.solveMs)}
+                  </Txt>
+                </View>
+              </View>
+            ))}
+          </Stagger>
+        </View>
+      ) : null}
+      <View style={styles.rows}>
+        {order.map((s) => {
+          const solved = solve.get(s.squadLabel);
+          if (done && solved?.isWinner) return null;
+          return (
+            <View key={s.squadLabel} style={[styles.row, solved?.isWinner && styles.squadWinner]}>
+              <View style={styles.flex}>
+                <Txt variant="bodyStrong">{s.squadLabel}</Txt>
+                <Txt variant="small" color={Palette.paperMuted} numberOfLines={1}>
+                  {s.memberNames.join(', ')}
+                </Txt>
+              </View>
+              {solved ? (
+                <>
+                  <Txt variant="time">{short(solved.solveMs)}</Txt>
+                  <Seal locked color={solved.isWinner ? Palette.ember : Palette.paperMuted} initial={String(solved.place)} size={32} />
+                </>
+              ) : (
+                <Txt variant="small" color={Palette.paperMuted}>
+                  solving
+                </Txt>
+              )}
+            </View>
+          );
+        })}
+      </View>
+      <Pot view={view} />
+    </Screen>
+  );
+}
+
 function Pot({ view, style }: { view: HostView; style?: StyleProp<ViewStyle> }) {
   return (
     <View style={style}>
@@ -163,6 +249,20 @@ const styles = StyleSheet.create({
     borderColor: Palette.hairline,
   },
   squadWinner: { borderColor: Palette.ember, borderWidth: 1 },
+  podium: { gap: Space.m, padding: Space.l, borderRadius: Radius.m, backgroundColor: Palette.accentSoft },
+  podiumRow: { flexDirection: 'row', alignItems: 'center', gap: Space.m },
+  rows: { gap: Space.s },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Space.m,
+    paddingHorizontal: Space.l,
+    paddingVertical: Space.m,
+    borderRadius: Radius.m,
+    backgroundColor: Palette.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Palette.hairline,
+  },
   squadHead: { flexDirection: 'row', alignItems: 'center', gap: Space.m },
   flex: { flex: 1 },
   center: { textAlign: 'center' },

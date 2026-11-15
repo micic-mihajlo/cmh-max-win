@@ -1,3 +1,4 @@
+import { useKeepAwake } from 'expo-keep-awake';
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
@@ -12,6 +13,7 @@ import { toSignalError } from '@/lib/signal-error';
 
 export default function HostRoute() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  useKeepAwake();
   const view = useHostView(id);
   const { name } = usePlayerName();
   const deal = useDealSquads(id);
@@ -29,7 +31,7 @@ export default function HostRoute() {
     <View style={styles.flex}>
       <HostScreen
         view={view}
-        hostName={name ?? 'Nova'}
+        hostName={name ?? 'Host'}
         dealing={dealing}
         onDeal={async () => {
           setDealing(true);
