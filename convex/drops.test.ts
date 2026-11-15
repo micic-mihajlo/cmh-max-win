@@ -368,6 +368,36 @@ describe('demo controls', () => {
     vi.unstubAllEnvs();
   });
 
+  test('startNow only starts demo drops, never aurora-demo or a real bounty drop', async () => {
+    vi.stubEnv('SIGNAL_DEMO_CONTROLS', 'on');
+    const t = await dropWith(3);
+    await t.mutation(internal.drops.seedDemo, { startsInSeconds: 600 });
+    await t.mutation(api.drops.enterDrop, { deviceToken: 'p9', dropId: DEMO_DROP_ID, name: 'P9' });
+    await t.mutation(api.drops.enterDrop, { deviceToken: 'p8', dropId: DEMO_DROP_ID, name: 'P8' });
+    await t.run(async (ctx) => {
+      await ctx.db.insert('drops', {
+        dropId: 'demo-forged',
+        title: 'Forged',
+        creatorName: 'X',
+        caseId: 'aurora01',
+        squadSize: 3,
+        startsAt: Date.now() + 600_000,
+        status: 'scheduled',
+        bounty: { totalCents: 100, currency: 'usd', winnerSlots: 1 },
+        solvedCount: 0,
+      });
+    });
+    for (const dropId of ['d1', DEMO_DROP_ID, 'demo-forged']) {
+      expect(await errorCode(t.mutation(api.demo.startNow, { dropId }))).toBe('WRONG_STATUS');
+      expect((await t.query(api.drops.drop, { deviceToken: 'p1', dropId }))?.status).toBe('scheduled');
+    }
+    expect(await errorCode(t.mutation(api.demo.startNow, { dropId: 'missing' }))).toBe('DROP_NOT_FOUND');
+    const { dropId } = await t.mutation(api.demo.openDrop, { squadSize: 2 });
+    await t.mutation(api.demo.startNow, { dropId });
+    expect((await t.query(api.drops.drop, { deviceToken: 'p1', dropId }))?.status).toBe('ended');
+    vi.unstubAllEnvs();
+  });
+
   test('when on, a forced squad size makes squads of exactly that size', async () => {
     vi.stubEnv('SIGNAL_DEMO_CONTROLS', 'on');
     const t = newTest();

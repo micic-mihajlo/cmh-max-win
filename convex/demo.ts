@@ -41,6 +41,13 @@ export const startNow = mutation({
   args: { dropId: v.string() },
   handler: async (ctx, { dropId }) => {
     requireDemoControls();
+    const drop = await ctx.db
+      .query('drops')
+      .withIndex('by_dropId', (q) => q.eq('dropId', dropId))
+      .unique();
+    if (drop && !(drop.dropId.startsWith('demo-') && drop.strictSquadSize)) {
+      throw new ConvexError({ code: 'WRONG_STATUS', message: 'demo:startNow only starts drops made by demo:openDrop.' });
+    }
     await startDropNow(ctx, dropId);
   },
 });
