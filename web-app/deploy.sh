@@ -15,8 +15,17 @@ config.expo.web = { ...config.expo.web, output: "single" };
 fs.writeFileSync("app.json", JSON.stringify(config, null, 2) + "\n");
 '
 
+export EXPO_PUBLIC_CONVEX_URL="$(grep '^EXPO_PUBLIC_CONVEX_URL=' .env | cut -d= -f2-)"
+export EXPO_PUBLIC_CONVEX_SITE_URL="$(grep '^EXPO_PUBLIC_CONVEX_SITE_URL=' .env | cut -d= -f2-)"
+: "${EXPO_PUBLIC_CONVEX_URL:?missing from .env}"
+: "${EXPO_PUBLIC_CONVEX_SITE_URL:?missing from .env}"
+
 rm -rf dist
 corepack yarn expo export --platform web --output-dir dist
+if ! grep -rq compassionate-puffin-914 dist/_expo; then
+  echo "Convex URL is not inlined in dist/_expo; refusing to deploy" >&2
+  exit 1
+fi
 cp web-app/vercel.json dist/vercel.json
 
 cd dist
