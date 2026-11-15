@@ -1,4 +1,4 @@
-import { router } from "expo-router";
+import { Redirect, router } from 'expo-router';
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 
@@ -22,6 +22,7 @@ import {
   StudioScreen,
   studio,
 } from "@/components/showcase/studio-ui";
+import { sampleStudio } from '@/components/studio/sample';
 import { validatePuzzle } from "@/components/showcase/validate";
 import {
   challengeTemplates,
@@ -29,7 +30,7 @@ import {
 } from "@/mocks/showcase/templates";
 import { Enter } from "@/motion";
 
-export default function Generate() {
+function Generate() {
   const [template, setTemplate] = useState<ChallengeTemplateId>("mystery");
   const picked = challengeTemplates.find((t) => t.id === template)!;
   const [setting, setSetting] = useState<Setting>("manor");
@@ -157,3 +158,7 @@ export default function Generate() {
 const styles = StyleSheet.create({
   head: { gap: Space.s, marginTop: Space.s },
 });
+
+export default function GenerateRoute() {
+  return sampleStudio ? <Generate /> : <Redirect href="/studio" />;
+}

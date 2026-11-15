@@ -1,8 +1,10 @@
 import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
+import { Platform } from 'react-native';
 
 import { CoverScreen, type JoinState } from '@/components/screens/cover';
 import { NameEntryScreen } from '@/components/screens/name-entry';
+import { WebHomeScreen } from '@/components/screens/web-home';
 import { usePlayerName } from '@/hooks/use-player-name';
 import { useActiveRoom, useCreateRoom, useJoinRoom, useReclaimRole } from '@/hooks/use-signal';
 import { toSignalError } from '@/lib/signal-error';
@@ -10,6 +12,7 @@ import { gallery } from '@/mocks/load';
 
 export default function Index() {
   if (gallery) return <Redirect href="/mocks" />;
+  if (Platform.OS === 'web') return <WebHomeScreen />;
   return <Cover />;
 }
 
