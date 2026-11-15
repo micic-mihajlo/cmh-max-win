@@ -24,6 +24,7 @@ import type * as hardening from "../hardening.js";
 import type * as http from "../http.js";
 import type * as live from "../live.js";
 import type * as liveTemplates from "../liveTemplates.js";
+import type * as passphrase from "../passphrase.js";
 import type * as pings from "../pings.js";
 import type * as presence from "../presence.js";
 import type * as push from "../push.js";
@@ -64,6 +65,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   live: typeof live;
   liveTemplates: typeof liveTemplates;
+  passphrase: typeof passphrase;
   pings: typeof pings;
   presence: typeof presence;
   push: typeof push;

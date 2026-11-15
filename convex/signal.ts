@@ -136,7 +136,7 @@ export async function generateCode(ctx: MutationCtx) {
 
 // Called inside the lock-in that resolves a drop squad. The drop doc is read and written in the same
 // serializable transaction, so places are the commit order: exactly winnerSlots winners, no ties, no chance.
-async function recordSolve(ctx: MutationCtx, room: Doc<'rooms'>, now: number) {
+export async function recordSolve(ctx: MutationCtx, room: Doc<'rooms'>, now: number) {
   const drop = await findDrop(ctx, room.dropId!);
   if (!drop) return;
   const place = drop.solvedCount + 1;
