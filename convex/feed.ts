@@ -22,8 +22,23 @@ import type {
 
 export const STARTING_LEAD_MS = 2 * 60 * 1000; // "Nova's room opens in 2 minutes"
 export const MAX_SCHEDULE_AHEAD_MS = 30 * 24 * 60 * 60 * 1000;
-const LIVE_HOLD_MS = 24 * 60 * 60 * 1000; // a drop that never ends stops counting as live a day after it opened
+export const IDLE_MS = 20 * 60 * 1000; // an open drop with no entry, lock-in or solve this long stops counting as live
+export const STALE_DROP_MS = 2 * 60 * 60 * 1000; // expireStaleDrops ends idle or test hosted drops older than this
+export const MIN_SHOWN_FOLLOWERS = 3;
+export const MAX_SQUADMATES = 3;
 const RECENT_DROPS = 20;
+
+// Load-test and QA hosts and drops, kept off the public feed.
+const TEST_LABELS = [/^load\b/i, /\bload ·/i, /^qa\b/i, /CMHM-\d+/, /\(ignore\)/i];
+export const isTestLabel = (label: string) => TEST_LABELS.some((p) => p.test(label.trim()));
+const isHiddenStreamer = (s: Doc<'streamers'>) => !!s.hidden || isTestLabel(s.name);
+
+// "Demo · Rio" -> "Rio", "Ana Lima" -> "Ana".
+export function firstName(name: string) {
+  return (name.split(' · ').at(-1) ?? '').trim().split(/\s+/)[0] ?? '';
+}
+
+export const safeAvatarUrl = (url: string | undefined) => (url && /^https:\/\/\S+$/.test(url) && url.length <= 300 ? url : undefined);
 
 function fail(code: SignalErrorCode, message: string): never {
   throw new ConvexError({ code, message });
@@ -38,14 +53,19 @@ export function checkScheduledStart(startsAt: number, now: number) {
 
 // ---------- Hosting: live status and the two scheduled triggers ----------
 
-export async function noteHostedDrop(ctx: MutationCtx, args: { hostToken: string; name: string; dropId: string; scheduledFor: number | null }) {
+export async function noteHostedDrop(
+  ctx: MutationCtx,
+  args: { hostToken: string; name: string; dropId: string; scheduledFor: number | null; avatarUrl?: string },
+) {
   const now = Date.now();
   const existing = await ctx.db
     .query('streamers')
     .withIndex('by_host', (q) => q.eq('hostToken', args.hostToken))
     .unique();
-  if (existing) await ctx.db.patch(existing._id, { name: args.name, updatedAt: now });
-  const streamerId = existing?._id ?? (await ctx.db.insert('streamers', { hostToken: args.hostToken, name: args.name, updatedAt: now }));
+  const avatar = safeAvatarUrl(args.avatarUrl);
+  const fields = { name: args.name, updatedAt: now, ...(avatar ? { avatarUrl: avatar } : {}) };
+  if (existing) await ctx.db.patch(existing._id, fields);
+  const streamerId = existing?._id ?? (await ctx.db.insert('streamers', { hostToken: args.hostToken, ...fields }));
   await ctx.db.insert('streamerDrops', {
     streamerId,
     dropId: args.dropId,
@@ -102,11 +122,25 @@ export const roomStarting = internalMutation({
         .collect(),
     ]);
     const devices = [...reminders, ...entries].map((r) => r.deviceToken).filter((t) => t !== drop.hostToken);
-    await queuePush(ctx, drop, devices, {
-      title: `${streamer.name}'s room opens in 2 minutes`,
-      body: 'Your squad is waiting.',
-      data: { kind: 'starting', dropId, joinCode: drop.joinCode ?? '', streamerId: streamer._id },
-    });
+    // squadmates: the first names of the others already waiting, or dealt into this device's squad. Never this device.
+    const squadmatesOf = (deviceToken: string) => {
+      const mine = entries.find((e) => e.deviceToken === deviceToken);
+      const pool = mine?.squadRoomId ? entries.filter((e) => e.squadRoomId === mine.squadRoomId) : entries.filter((e) => !e.squadRoomId && !e.unmatched);
+      const names = pool.filter((e) => e.deviceToken !== deviceToken && e.deviceToken !== drop.hostToken).map((e) => firstName(e.name));
+      const squadmates = [...new Set(names.filter(Boolean))].slice(0, MAX_SQUADMATES);
+      return squadmates.length ? { squadmates } : {};
+    };
+    await queuePush(
+      ctx,
+      drop,
+      devices,
+      {
+        title: `${streamer.name}'s room opens in 2 minutes`,
+        body: 'Your squad is waiting.',
+        data: { kind: 'starting', dropId, joinCode: drop.joinCode ?? '', streamerId: streamer._id },
+      },
+      squadmatesOf,
+    );
   },
 });
 
@@ -146,6 +180,7 @@ export async function queuePush(
   drop: Doc<'drops'>,
   deviceTokens: Iterable<string>,
   message: { title: string; body: string; data: FeedPushData },
+  dataFor?: (deviceToken: string) => Partial<FeedPushData>,
 ) {
   const messages: { to: string; title: string; body: string; data: FeedPushData }[] = [];
   for (const deviceToken of new Set(deviceTokens)) {
@@ -160,7 +195,8 @@ export async function queuePush(
       .collect();
     if (!tokens.length) continue;
     await ctx.db.insert('pushSends', { deviceToken, dropId: drop.dropId, kind: message.data.kind, sentAt: Date.now() });
-    for (const t of tokens) messages.push({ to: t.token, ...message });
+    const data = { ...message.data, ...dataFor?.(deviceToken) };
+    for (const t of tokens) messages.push({ to: t.token, ...message, data });
   }
   if (messages.length) await ctx.scheduler.runAfter(0, internal.push.send, { messages });
   return messages.length;
@@ -178,16 +214,63 @@ async function hostedDropsOf(ctx: QueryCtx, streamerId: Id<'streamers'>): Promis
     .take(RECENT_DROPS);
   const rows: HostedDrop[] = [];
   for (const sd of sds) {
+    if (sd.expiredAt !== undefined) continue;
     const drop = await dropById(ctx, sd.dropId);
-    if (drop) rows.push({ sd, drop });
+    if (drop && !isTestLabel(drop.title)) rows.push({ sd, drop });
   }
   return rows;
 }
 
-function liveSince({ sd, drop }: HostedDrop, now: number): number | null {
+// The newest sign of life: the drop opening or dealing, an entry, a lock-in or a solve.
+async function lastActivityAt(ctx: QueryCtx, { sd, drop }: HostedDrop): Promise<number> {
+  const [entry, solves, rooms] = await Promise.all([
+    ctx.db
+      .query('dropEntries')
+      .withIndex('by_drop', (q) => q.eq('dropId', drop.dropId))
+      .order('desc')
+      .first(),
+    ctx.db
+      .query('solves')
+      .withIndex('by_drop', (q) => q.eq('dropId', drop.dropId))
+      .collect(),
+    ctx.db
+      .query('rooms')
+      .withIndex('by_drop', (q) => q.eq('dropId', drop.dropId))
+      .collect(),
+  ]);
+  const lockIns = await Promise.all(
+    rooms.map((r) =>
+      ctx.db
+        .query('lockIns')
+        .withIndex('by_room', (q) => q.eq('roomId', r._id))
+        .order('desc')
+        .first(),
+    ),
+  );
+  return Math.max(
+    sd.openedAt ?? sd.createdAt,
+    drop.status === 'live' ? drop.startsAt : 0,
+    entry?._creationTime ?? 0,
+    ...solves.map((s) => s.solvedAt),
+    ...lockIns.map((l) => l?._creationTime ?? 0),
+  );
+}
+
+// "Live now", derived at read time: the drop is open (entries taken) or racing, and not idle for IDLE_MS.
+async function liveSince(ctx: QueryCtx, h: HostedDrop, now: number): Promise<number | null> {
+  const { sd, drop } = h;
   if (drop.status === 'ended') return null;
   const since = sd.openedAt ?? (drop.status === 'live' ? drop.startsAt : null);
-  return since !== null && now - since < LIVE_HOLD_MS ? since : null;
+  if (since === null) return null;
+  return now - (await lastActivityAt(ctx, h)) < IDLE_MS ? since : null;
+}
+
+async function liveDropOf(ctx: QueryCtx, hosted: HostedDrop[], now: number) {
+  for (const h of hosted) {
+    const since = await liveSince(ctx, h, now);
+    if (since !== null) return { h, since };
+  }
+  return null;
 }
 
 const isUpcoming = ({ sd, drop }: HostedDrop) => sd.scheduledFor !== null && sd.openedAt === null && drop.status === 'scheduled';
@@ -292,18 +375,23 @@ async function followerCount(ctx: QueryCtx, streamerId: Id<'streamers'>) {
 }
 
 async function card(ctx: QueryCtx, me: ResolvedIdentity, streamer: Doc<'streamers'>, hosted: HostedDrop[], now: number): Promise<StreamerCardView> {
+  const count = await followerCount(ctx, streamer._id);
   return {
     streamerId: streamer._id,
     name: streamer.name,
-    followerCount: await followerCount(ctx, streamer._id),
-    live: hosted.some((h) => liveSince(h, now) !== null),
+    ...(streamer.avatarUrl ? { avatarUrl: streamer.avatarUrl } : {}),
+    followerCount: count,
+    showFollowerCount: count >= MIN_SHOWN_FOLLOWERS,
+    live: (await liveDropOf(ctx, hosted, now)) !== null,
     following: (await followRows(ctx, me, streamer._id)).length > 0,
   };
 }
 
+// Hidden (test) streamers read as missing everywhere public.
 async function getStreamer(ctx: QueryCtx, streamerId: string) {
   const id = ctx.db.normalizeId('streamers', streamerId);
-  return id ? ctx.db.get(id) : null;
+  const streamer = id ? await ctx.db.get(id) : null;
+  return streamer && !isHiddenStreamer(streamer) ? streamer : null;
 }
 
 export const followingFeed = query({
@@ -326,11 +414,11 @@ export const followingFeed = query({
     const view: FollowingFeedView = { following: [], live: [], upcoming: [], results: [], serverNow: now };
     for (const streamerId of new Set([...byDevice, ...byWhop].map((f) => f.streamerId))) {
       const streamer = await ctx.db.get(streamerId);
-      if (!streamer) continue;
+      if (!streamer || isHiddenStreamer(streamer)) continue;
       const hosted = await hostedDropsOf(ctx, streamerId);
       view.following.push(await card(ctx, me, streamer, hosted, now));
       for (const h of hosted) {
-        const since = liveSince(h, now);
+        const since = await liveSince(ctx, h, now);
         if (since !== null) view.live.push(await liveRow(ctx, streamer, h, since));
         else if (isUpcoming(h)) view.upcoming.push(await upcomingRow(ctx, streamer, h, me.deviceToken));
         else if (h.drop.status === 'ended') view.results.push(await resultRow(ctx, streamer, h, me.deviceToken));
@@ -352,12 +440,12 @@ export const streamerPage = query({
     if (!streamer) return null;
     const me = await resolveIdentity(ctx, deviceToken);
     const hosted = await hostedDropsOf(ctx, streamer._id);
-    const live = hosted.find((h) => liveSince(h, now) !== null);
+    const live = await liveDropOf(ctx, hosted, now);
     const next = hosted.filter(isUpcoming).sort((a, b) => a.sd.scheduledFor! - b.sd.scheduledFor!)[0];
     const past = await Promise.all(hosted.filter((h) => h.drop.status === 'ended').map((h) => resultRow(ctx, streamer, h, me.deviceToken)));
     return {
       ...(await card(ctx, me, streamer, hosted, now)),
-      liveDrop: live ? await liveRow(ctx, streamer, live, liveSince(live, now)!) : null,
+      liveDrop: live ? await liveRow(ctx, streamer, live.h, live.since) : null,
       nextDrop: next ? await upcomingRow(ctx, streamer, next, me.deviceToken) : null,
       past: past.sort((a, b) => b.endedAt - a.endedAt).slice(0, 3),
       serverNow: now,
@@ -371,7 +459,7 @@ export const streamers = query({
   handler: async (ctx, { deviceToken }): Promise<StreamerCardView[]> => {
     const now = Date.now();
     const me = await resolveIdentity(ctx, deviceToken);
-    const recent = await ctx.db.query('streamers').withIndex('by_updated').order('desc').take(50);
+    const recent = (await ctx.db.query('streamers').withIndex('by_updated').order('desc').take(100)).filter((s) => !isHiddenStreamer(s)).slice(0, 50);
     const cards = await Promise.all(recent.map(async (s) => card(ctx, me, s, await hostedDropsOf(ctx, s._id), now)));
     return cards.sort((a, b) => Number(b.live) - Number(a.live) || b.followerCount - a.followerCount);
   },
@@ -382,7 +470,7 @@ export const streamerForDrop = query({
   args: { deviceToken: v.string(), dropId: v.string() },
   handler: async (ctx, { deviceToken, dropId }): Promise<StreamerCardView | null> => {
     const sd = await streamerDropOf(ctx, dropId);
-    const streamer = sd ? await ctx.db.get(sd.streamerId) : null;
+    const streamer = sd ? await getStreamer(ctx, sd.streamerId) : null;
     if (!streamer) return null;
     const me = await resolveIdentity(ctx, deviceToken);
     return card(ctx, me, streamer, await hostedDropsOf(ctx, streamer._id), Date.now());
@@ -452,5 +540,65 @@ export const cancelReminder = mutation({
       .withIndex('by_device', (q) => q.eq('deviceToken', deviceToken).eq('dropId', dropId))
       .collect();
     for (const row of rows) await ctx.db.delete(row._id);
+  },
+});
+
+// ---------- Showcase hygiene ----------
+
+// The streamer this device hosts as, if any: lets scripts/demo/seed-streamers.mjs stay idempotent.
+export const myStreamer = query({
+  args: { deviceToken: v.string() },
+  handler: async (ctx, { deviceToken }): Promise<string | null> => {
+    const s = await ctx.db
+      .query('streamers')
+      .withIndex('by_host', (q) => q.eq('hostToken', deviceToken))
+      .unique();
+    return s && !isHiddenStreamer(s) ? s._id : null;
+  },
+});
+
+// Flags load-test and QA hosts as hidden. Idempotent; reads also hide matching names that appear later.
+export const hideTestHosts = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    let hidden = 0;
+    for (const s of await ctx.db.query('streamers').collect()) {
+      if (s.hidden || !isTestLabel(s.name)) continue;
+      await ctx.db.patch(s._id, { hidden: true });
+      hidden++;
+    }
+    return { hidden };
+  },
+});
+
+// Cron: ends hosted drops older than STALE_DROP_MS that are idle (opened, nothing for IDLE_MS) or tests.
+// A scheduled drop still waiting for its start time is left alone. Idempotent: ended drops are skipped.
+export const expireStaleDrops = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now();
+    let expired = 0;
+    for (const status of ['scheduled', 'live'] as const) {
+      const drops = await ctx.db
+        .query('drops')
+        .withIndex('by_status', (q) => q.eq('status', status))
+        .take(500);
+      for (const drop of drops) {
+        if (!drop.hostToken) continue;
+        const sd = await streamerDropOf(ctx, drop.dropId);
+        if (!sd || now - sd.createdAt < STALE_DROP_MS) continue;
+        const streamer = await ctx.db.get(sd.streamerId);
+        const test = isTestLabel(drop.title) || (!!streamer && isHiddenStreamer(streamer));
+        if (!test) {
+          if (sd.openedAt === null && drop.status === 'scheduled') continue;
+          if (now - (await lastActivityAt(ctx, { sd, drop })) < IDLE_MS) continue;
+        }
+        if (drop.startJobId) await ctx.scheduler.cancel(drop.startJobId);
+        await ctx.db.patch(drop._id, { status: 'ended' });
+        await ctx.db.patch(sd._id, { expiredAt: now });
+        expired++;
+      }
+    }
+    return { expired };
   },
 });

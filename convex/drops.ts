@@ -569,8 +569,9 @@ export const hostDrop = mutation({
     totalCents: v.optional(v.number()),
     creatorName: v.optional(v.string()),
     startsAt: v.optional(v.number()), // a scheduled drop (feed.ts); omitted, the drop opens now
+    avatarUrl: v.optional(v.string()), // https only; shown on the streamer's card
   },
-  handler: async (ctx, { deviceToken, title, winnerSlots, totalCents, creatorName, startsAt }) => {
+  handler: async (ctx, { deviceToken, title, winnerSlots, totalCents, creatorName, startsAt, avatarUrl }) => {
     if (!deviceToken) fail('WRONG_STATUS', 'Missing device token.');
     await enforceRateLimit(ctx, 'hostDrop', deviceToken);
     if (startsAt !== undefined) checkScheduledStart(startsAt, Date.now());
@@ -584,7 +585,7 @@ export const hostDrop = mutation({
       bounty: { totalCents: totalCents ?? 30_000, winnerSlots: winnerSlots ?? 3 },
       hostToken: deviceToken,
     });
-    await noteHostedDrop(ctx, { hostToken: deviceToken, name, dropId: hosted.dropId, scheduledFor: startsAt ?? null });
+    await noteHostedDrop(ctx, { hostToken: deviceToken, name, dropId: hosted.dropId, scheduledFor: startsAt ?? null, avatarUrl });
     return hosted;
   },
 });
