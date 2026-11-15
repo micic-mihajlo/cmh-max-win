@@ -98,6 +98,12 @@ const award = (over: Partial<SquadAwardView> = {}): SquadAwardView => ({
   expiresAt: null,
   redeemableCount: 3,
   label: 'Concept payout — no real money moves',
+  myPayout: { status: 'concept', amountCents: 3333 },
+  split: [
+    { name: 'Nova', cents: 3333, isMe: true },
+    { name: 'Rex', cents: 3333, isMe: false },
+    { name: 'Ivy', cents: 3333, isMe: false },
+  ],
   ...over,
 });
 const winAt = loadedAt;
