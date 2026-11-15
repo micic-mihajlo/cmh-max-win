@@ -3,7 +3,7 @@ import type { Doc, Id } from './_generated/dataModel';
 import { internal } from './_generated/api';
 import { mutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
 import { AURORA_REVEAL, PIECES, nudgeText, ownNudgeText, pieceFor } from './aurora';
-import { awardMode } from './bounty';
+import { awardMode, createTransferRows } from './bounty';
 import { ANSWER, DOSSIERS, NUDGES, REVEAL, ROLES } from './case01';
 import { challengeIsPlayable, recordChallengeFinish } from './challenges';
 import { presence as presenceComponent } from './presence';
@@ -175,7 +175,8 @@ async function recordSolve(ctx: MutationCtx, room: Doc<'rooms'>, now: number) {
     claimUrl: null,
     label: '',
   });
-  await ctx.scheduler.runAfter(0, internal.bounty.payAward, { awardId, mode, perPlayerCents, redeemableCount: size });
+  if (mode === 'transfer') await createTransferRows(ctx, awardId);
+  else await ctx.scheduler.runAfter(0, internal.bounty.payAward, { awardId, mode, perPlayerCents, redeemableCount: size });
 }
 
 export const activeRoom = query({

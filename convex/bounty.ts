@@ -186,38 +186,42 @@ async function queueTransfer(ctx: MutationCtx, payoutId: Id<'bountyPayouts'>, wh
 
 export const startTransfers = internalMutation({
   args: { awardId: v.id('bountyAwards') },
-  handler: async (ctx, { awardId }) => {
-    const award = await ctx.db.get(awardId);
-    if (!award || award.mode !== 'transfer') return;
-    const existing = await ctx.db
-      .query('bountyPayouts')
-      .withIndex('by_award', (q) => q.eq('awardId', awardId))
-      .first();
-    if (existing) return;
-    const members = await ctx.db
-      .query('members')
-      .withIndex('by_room', (q) => q.eq('roomId', award.roomId))
-      .collect();
-    for (const m of members) {
-      const payoutId = await ctx.db.insert('bountyPayouts', {
-        awardId,
-        memberId: m._id,
-        deviceToken: m.deviceToken,
-        cents: award.perPlayerCents,
-        status: 'sign_in_required',
-        idempotencyKey: awardId + ':' + m._id,
-        attempts: 0,
-        updatedAt: Date.now(),
-      });
-      const identity = await ctx.db
-        .query('identities')
-        .withIndex('by_token', (q) => q.eq('deviceToken', m.deviceToken))
-        .unique();
-      if (identity) await queueTransfer(ctx, payoutId, identity.whopUserId);
-    }
-    await ctx.db.patch(awardId, { status: 'ready', label: TRANSFER_LABEL });
-  },
+  handler: (ctx, { awardId }) => createTransferRows(ctx, awardId),
 });
+
+// Snapshots the squad into payout rows. The lock-in that awards calls this in the same transaction that
+// inserts the award, so the rows reflect the squad at award time.
+export async function createTransferRows(ctx: MutationCtx, awardId: Id<'bountyAwards'>) {
+  const award = await ctx.db.get(awardId);
+  if (!award || award.mode !== 'transfer') return;
+  const existing = await ctx.db
+    .query('bountyPayouts')
+    .withIndex('by_award', (q) => q.eq('awardId', awardId))
+    .first();
+  if (existing) return;
+  const members = await ctx.db
+    .query('members')
+    .withIndex('by_room', (q) => q.eq('roomId', award.roomId))
+    .collect();
+  for (const m of members) {
+    const payoutId = await ctx.db.insert('bountyPayouts', {
+      awardId,
+      memberId: m._id,
+      deviceToken: m.deviceToken,
+      cents: award.perPlayerCents,
+      status: 'sign_in_required',
+      idempotencyKey: awardId + ':' + m._id,
+      attempts: 0,
+      updatedAt: Date.now(),
+    });
+    const identity = await ctx.db
+      .query('identities')
+      .withIndex('by_token', (q) => q.eq('deviceToken', m.deviceToken))
+      .unique();
+    if (identity) await queueTransfer(ctx, payoutId, identity.whopUserId);
+  }
+  await ctx.db.patch(awardId, { status: 'ready', label: TRANSFER_LABEL });
+}
 
 // Called when a device links Whop: its waiting transfers go out to the account it just linked.
 export async function releaseTransfersFor(ctx: MutationCtx, deviceToken: string, whopUserId: string) {
