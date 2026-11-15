@@ -1,4 +1,5 @@
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Keyboard, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -11,11 +12,26 @@ import { Palette, Radius, RoleMeta, Space } from '@/constants/signal';
 import { Case01 } from '@/constants/case01';
 import type { ActiveRoomView, Role, SignalErrorCode } from '@/lib/contract';
 
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+function useKeyboardHeight() {
+  const [height, setHeight] = useState(0);
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardWillShow', (e) => setHeight(e.endCoordinates.height));
+    const hide = Keyboard.addListener('keyboardWillHide', () => setHeight(0));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+  return height;
+}
+
 export type JoinState = {
   code: string;
   phase: 'typing' | 'joining' | 'error' | 'reclaim';
   error?: SignalErrorCode;
-  seats?: { role: Role; holder: string }[];
+  seats?: { role: Role; holder?: string }[];
 };
 
 const joinErrors: Partial<Record<SignalErrorCode, (code: string) => string>> = {
@@ -24,14 +40,26 @@ const joinErrors: Partial<Record<SignalErrorCode, (code: string) => string>> = {
   CASE_STARTED: () => 'That case has already started. Your host can restart it to let you in.',
 };
 
+export type CoverActions = {
+  onStart?: () => void;
+  onOpenJoin?: () => void;
+  onRejoin?: () => void;
+  onCodeChange?: (code: string) => void;
+  onJoin?: () => void;
+  onCloseJoin?: () => void;
+  onTakeSeat?: (role: Role) => void;
+};
+
 export function CoverScreen({
   active,
   join,
   creating,
+  on = {},
 }: {
   active: ActiveRoomView | undefined;
   join?: JoinState;
   creating?: boolean;
+  on?: CoverActions;
 }) {
   const banner =
     active === undefined ? (
@@ -42,7 +70,7 @@ export function CoverScreen({
           <Label color={Palette.ok}>Case 01 · solved</Label>
           <Txt variant="bodyStrong">Your crew solved Case 01.</Txt>
         </View>
-        <Button title="See the reveal" variant="secondary" style={styles.bannerButton} />
+        <Button title="See the reveal" variant="secondary" style={styles.bannerButton} onPress={on.onRejoin} />
       </View>
     ) : active ? (
       <View style={[styles.banner, { borderColor: active.role ? RoleMeta[active.role].color : Palette.ember }]}>
@@ -52,13 +80,13 @@ export function CoverScreen({
             {active.role ? `Case 01 is still open. Rejoin as ${RoleMeta[active.role].label}.` : 'Case 01 is still open. Rejoin the lobby.'}
           </Txt>
         </View>
-        <Button title="Rejoin" style={styles.bannerButton} />
+        <Button title="Rejoin" style={styles.bannerButton} onPress={on.onRejoin} />
       </View>
     ) : null;
 
   return (
     <Screen
-      overlay={join ? <JoinSheet join={join} /> : null}
+      overlay={join ? <JoinSheet join={join} on={on} /> : null}
       footer={
         <>
           {creating ? (
@@ -69,9 +97,9 @@ export function CoverScreen({
               </Txt>
             </View>
           ) : (
-            <Button title="Start case" />
+            <Button title="Start case" onPress={on.onStart} />
           )}
-          <Button title="Join with code" variant="secondary" disabled={creating} />
+          <Button title="Join with code" variant="secondary" disabled={creating} onPress={on.onOpenJoin} />
         </>
       }>
       <View style={styles.mast}>
@@ -110,18 +138,19 @@ export function CoverScreen({
   );
 }
 
-function JoinSheet({ join }: { join: JoinState }) {
+function JoinSheet({ join, on }: { join: JoinState; on: CoverActions }) {
   const insets = useSafeAreaInsets();
   const reduced = useMotionReduced();
-  if (join.phase === 'reclaim') return <ReclaimSheet join={join} />;
+  const keyboard = useKeyboardHeight();
+  if (join.phase === 'reclaim') return <ReclaimSheet join={join} on={on} />;
   const error = join.phase === 'error' && join.error ? joinErrors[join.error]?.(join.code) : null;
   const ready = join.code.length === 4;
   return (
     <>
-      <Animated.View entering={reduced ? undefined : FadeIn} style={styles.scrim} />
+      <AnimatedPressable accessibilityLabel="Close" onPress={on.onCloseJoin} entering={reduced ? undefined : FadeIn} style={styles.scrim} />
       <Animated.View
         entering={reduced ? undefined : SlideInDown.springify().damping(20)}
-        style={[styles.sheet, { paddingBottom: insets.bottom + Space.l }]}>
+        style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, keyboard) + Space.l }]}>
         <View style={styles.handle} />
         <Txt variant="title">Join a case</Txt>
         <Txt variant="body" color={Palette.paperMuted}>
@@ -129,6 +158,20 @@ function JoinSheet({ join }: { join: JoinState }) {
         </Txt>
         <View style={styles.cells}>
           <CodeCells value={join.code} error={!!error} />
+          {on.onCodeChange ? (
+            <TextInput
+              value={join.code}
+              onChangeText={(t) => on.onCodeChange?.(t.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4))}
+              onSubmitEditing={ready ? on.onJoin : undefined}
+              autoFocus
+              autoCapitalize="characters"
+              autoCorrect={false}
+              maxLength={4}
+              caretHidden
+              accessibilityLabel="Invite code"
+              style={styles.hiddenInput}
+            />
+          ) : null}
         </View>
         {error ? (
           <Txt variant="bodyStrong" color={Palette.danger} accessibilityRole="alert" style={styles.center}>
@@ -147,19 +190,24 @@ function JoinSheet({ join }: { join: JoinState }) {
             </Txt>
           </View>
         ) : (
-          <Button title={error ? 'Try another code' : 'Join'} disabled={!ready && !error} variant={error ? 'secondary' : 'primary'} />
+          <Button
+            title={error ? 'Try another code' : 'Join'}
+            disabled={!ready && !error}
+            variant={error ? 'secondary' : 'primary'}
+            onPress={error ? () => on.onCodeChange?.('') : on.onJoin}
+          />
         )}
       </Animated.View>
     </>
   );
 }
 
-function ReclaimSheet({ join }: { join: JoinState }) {
+function ReclaimSheet({ join, on }: { join: JoinState; on: CoverActions }) {
   const insets = useSafeAreaInsets();
   const seats = join.seats ?? [];
   return (
     <>
-      <View style={styles.scrim} />
+      <Pressable accessibilityLabel="Close" onPress={on.onCloseJoin} style={styles.scrim} />
       <View style={[styles.sheet, { paddingBottom: insets.bottom + Space.l }]}>
         <View style={styles.handle} />
         <Label color={Palette.paperMuted}>{`Case in progress · ${join.code}`}</Label>
@@ -172,23 +220,27 @@ function ReclaimSheet({ join }: { join: JoinState }) {
             {seats.map((s, i) => {
               const meta = RoleMeta[s.role];
               return (
-                <View key={s.role} style={[styles.seat, i === 0 && { borderColor: meta.color }]}>
+                <Pressable
+                  key={s.role}
+                  accessibilityRole="button"
+                  onPress={() => on.onTakeSeat?.(s.role)}
+                  style={[styles.seat, i === 0 && { borderColor: meta.color }]}>
                   <View style={[styles.dot, { backgroundColor: meta.color }]} />
                   <View style={styles.seatBody}>
                     <Txt variant="bodyStrong" color={meta.color}>
                       {meta.label}
                     </Txt>
                     <Txt variant="small" color={Palette.paperMuted}>
-                      {s.holder}’s seat · stepped away
+                      {s.holder ? `${s.holder}’s seat · stepped away` : 'Its player stepped away'}
                     </Txt>
                   </View>
                   <Txt variant="label" color={Palette.paperMuted}>
                     {meta.docLabel}
                   </Txt>
-                </View>
+                </Pressable>
               );
             })}
-            <Button title={`Take the ${RoleMeta[seats[0].role].label} seat`} />
+            <Button title={`Take the ${RoleMeta[seats[0].role].label} seat`} onPress={() => on.onTakeSeat?.(seats[0].role)} />
           </>
         ) : (
           <>
@@ -196,7 +248,7 @@ function ReclaimSheet({ join }: { join: JoinState }) {
             <Txt variant="body" color={Palette.paperMuted}>
               Everyone’s here and the case is underway. Ask your host to restart it, or start your own.
             </Txt>
-            <Button title="Start your own case" variant="secondary" />
+            <Button title="Start your own case" variant="secondary" onPress={on.onStart} />
           </>
         )}
       </View>
@@ -263,6 +315,7 @@ const styles = StyleSheet.create({
   },
   handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: Palette.hairline, marginBottom: Space.s },
   cells: { paddingVertical: Space.m },
+  hiddenInput: { ...StyleSheet.absoluteFill, opacity: 0.02, color: 'transparent' },
   joining: {
     minHeight: 54,
     borderRadius: Radius.pill,

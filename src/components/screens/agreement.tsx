@@ -8,26 +8,27 @@ import { Txt } from '@/components/signal/txt';
 import { suspectById } from '@/constants/case01';
 import { Palette, Radius, RoleMeta, Space } from '@/constants/signal';
 import type { RoomView } from '@/lib/contract';
+import { NudgeEntrance } from '@/motion';
 
 // 'checking' is the shared seal beat every phone plays when a check lands (and the third phone's pending lock-in).
-export function AgreementScreen({ room, phase }: { room: RoomView; phase: 'checking' | 'wrong' }) {
+export function AgreementScreen({ room, phase, onBack }: { room: RoomView; phase: 'checking' | 'wrong'; onBack?: () => void }) {
   const nudge = room.lastNudge;
   const pick = (phase === 'wrong' || room.lastCheck?.result === 'wrong') && nudge ? nudge.wrongPick : room.theory.culprit;
   const guessed = pick ? suspectById(pick) : null;
-  const nudged = nudge ? room.members.find((m) => m.role === nudge.forRole) : null;
-  const forMe = !!nudge && room.me?.role === nudge.forRole;
+  const nudged = nudge ? room.members.find((m) => (nudge.holder ? m.memberId === nudge.holder.memberId : m.roles.includes(nudge.forRole))) : null;
+  const forMe = !!nudged?.isMe;
   return (
     <Screen
       scroll={phase === 'wrong'}
       contentStyle={phase === 'checking' ? styles.centerContent : undefined}
-      footer={phase === 'wrong' ? <Button title="Back to the evidence" /> : null}>
+      footer={phase === 'wrong' ? <Button title="Back to the evidence" onPress={onBack} /> : null}>
       {phase === 'checking' ? (
         <>
           <Label color={Palette.paper}>{`Shared theory · v${nudge?.revision ?? room.theory.revision}`}</Label>
           <View style={styles.sealsBig}>
-            {seals(room).map(({ role, member }, i) => (
+            {seals(room).map(({ role, member }) => (
               <View key={role} style={styles.sealCol}>
-                <Seal role={role} filled size={84} delay={i * 260} />
+                <Seal role={role} filled size={84} />
                 <Txt variant="smallStrong" color={RoleMeta[role].color}>
                   {member?.isMe ? 'You' : member?.name}
                 </Txt>
@@ -64,7 +65,7 @@ export function AgreementScreen({ room, phase }: { room: RoomView; phase: 'check
               Lock-ins cleared. Change the theory, then agree again.
             </Txt>
           </View>
-          <View style={[styles.nudge, { borderLeftColor: RoleMeta[nudge.forRole].color }]}>
+          <NudgeEntrance style={[styles.nudge, { borderLeftColor: RoleMeta[nudge.forRole].color }]}>
             <Txt variant="title">{nudge.text}</Txt>
             {nudged ? (
               <View style={[styles.chip, { borderColor: RoleMeta[nudge.forRole].color }]}>
@@ -74,7 +75,7 @@ export function AgreementScreen({ room, phase }: { room: RoomView; phase: 'check
                 </Txt>
               </View>
             ) : null}
-          </View>
+          </NudgeEntrance>
           {forMe ? <Banner tone="warn" title="This one’s yours." text="Read your evidence out loud." /> : null}
           <Txt variant="small" color={Palette.paperMuted}>
             The answer stays sealed. Nothing here says who did it.

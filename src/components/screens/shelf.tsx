@@ -15,14 +15,16 @@ export function ShelfScreen({
   attempts,
   crew,
   onBuy,
+  onNewCase,
 }: {
   pack: ShelfPack;
   attempts: number;
   crew: string[];
   onBuy?: () => void;
+  onNewCase?: () => void;
 }) {
   return (
-    <Screen footer={<Button title="Start a new case" variant="secondary" />}>
+    <Screen footer={<Button title="Start a new case" variant="secondary" onPress={onNewCase} />}>
       <View style={styles.head}>
         <Label color={Palette.paperMuted}>Your season</Label>
         <Txt variant="display">Kestrel Station</Txt>
