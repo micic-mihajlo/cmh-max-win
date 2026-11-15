@@ -91,8 +91,8 @@ export function CoverScreen({
         <>
           {creating ? (
             <View style={styles.joining}>
-              <ActivityIndicator color={Palette.ink} />
-              <Txt variant="button" color={Palette.ink}>
+              <ActivityIndicator color={Palette.onAccent} />
+              <Txt variant="button" color={Palette.onAccent}>
                 Opening a new case file…
               </Txt>
             </View>
@@ -184,8 +184,8 @@ function JoinSheet({ join, on }: { join: JoinState; on: CoverActions }) {
         )}
         {join.phase === 'joining' ? (
           <View style={styles.joining}>
-            <ActivityIndicator color={Palette.ink} />
-            <Txt variant="button" color={Palette.ink}>
+            <ActivityIndicator color={Palette.onAccent} />
+            <Txt variant="button" color={Palette.onAccent}>
               Joining {join.code}…
             </Txt>
           </View>

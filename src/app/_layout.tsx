@@ -7,7 +7,7 @@ import {
 } from '@expo-google-fonts/fraunces';
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, useFonts as useInter } from '@expo-google-fonts/inter';
 import { ConvexProvider } from 'convex/react';
-import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
+import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
@@ -18,8 +18,8 @@ import { convex } from '@/lib/convex';
 SplashScreen.preventAutoHideAsync();
 
 const theme = {
-  ...DarkTheme,
-  colors: { ...DarkTheme.colors, background: Palette.ink, card: Palette.ink, text: Palette.paper, primary: Palette.ember },
+  ...DefaultTheme,
+  colors: { ...DefaultTheme.colors, background: Palette.ink, card: Palette.ink, text: Palette.paper, primary: Palette.ember },
 };
 
 export default function RootLayout() {
@@ -35,7 +35,7 @@ export default function RootLayout() {
 
   const app = (
     <ThemeProvider value={theme}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Palette.ink } }} />
     </ThemeProvider>
   );

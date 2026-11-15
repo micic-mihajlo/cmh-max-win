@@ -123,7 +123,7 @@ function RoleCard({ role, member, onPress }: { role: Role; member: MemberView | 
           {member ? (
             <>
               <View style={[styles.avatar, { backgroundColor: offline ? 'transparent' : meta.color }, offline && styles.avatarOff]}>
-                <Txt variant="smallStrong" color={offline ? Palette.paperMuted : Palette.ink}>
+                <Txt variant="smallStrong" color={offline ? Palette.paperMuted : Palette.onAccent}>
                   {member.name[0]}
                 </Txt>
               </View>
