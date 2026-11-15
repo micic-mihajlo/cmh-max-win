@@ -71,7 +71,8 @@ async function onlineMemberIds(ctx: QueryCtx, room: Doc<'rooms'>) {
   return new Set(online.map((p) => p.userId));
 }
 
-function reclaimable(all: Doc<'members'>[], online: Set<string>): Role[] {
+function reclaimable(room: Doc<'rooms'>, all: Doc<'members'>[], online: Set<string>, me: Doc<'members'> | null): Role[] {
+  if (room.status === 'lobby' || me) return [];
   return ROLES.filter((r) => all.some((m) => m.role === r && !online.has(m._id)));
 }
 
@@ -151,7 +152,7 @@ export const room = query({
       checkedRevision: room.checkedRevision,
       checkSeq: room.checkSeq,
       lastCheck: room.lastCheck,
-      reclaimableRoles: reclaimable(all, online),
+      reclaimableRoles: reclaimable(room, all, online, me),
     };
   },
 });
@@ -226,7 +227,7 @@ export const joinRoom = mutation({
       });
       return { code: room.code, status: 'joined', reclaimableRoles: [] };
     }
-    const seats = reclaimable(all, await onlineMemberIds(ctx, room));
+    const seats = reclaimable(room, all, await onlineMemberIds(ctx, room), null);
     if (seats.length) return { code: room.code, status: 'reclaim', reclaimableRoles: seats };
     if (room.status === 'lobby') fail('ROOM_FULL', 'This room already has 3 players.');
     fail('CASE_STARTED', 'This case has already started.');
@@ -238,6 +239,7 @@ export const reclaimRole = mutation({
   handler: async (ctx, { deviceToken, code, role }) => {
     const room = await requireRoom(ctx, code);
     const all = await members(ctx, room._id);
+    if (room.status === 'lobby') fail('WRONG_STATUS', 'Seats can only be reclaimed once the case has started.');
     if (all.some((m) => m.deviceToken === deviceToken)) fail('WRONG_STATUS', 'You are already in this room.');
     const holder = all.find((m) => m.role === role);
     if (!holder) fail('WRONG_STATUS', 'Nobody holds that role. Join and claim it instead.');

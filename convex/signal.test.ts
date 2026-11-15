@@ -242,6 +242,29 @@ describe('rejoin and restart', () => {
 });
 
 describe('battle-test fixes', () => {
+  test('nothing is reclaimable in the lobby, and a member never sees seats to reclaim', async () => {
+    const { t, code, sessions } = await lobby();
+    await t.mutation(api.presence.disconnect, { sessionToken: sessions[HOST] });
+    await t.mutation(api.presence.disconnect, { sessionToken: sessions[C] });
+    for (const deviceToken of [HOST, B, 'outsider']) {
+      expect((await t.query(api.signal.room, { deviceToken, code }))?.reclaimableRoles).toEqual([]);
+    }
+    expect(await errorCode(t.mutation(api.signal.joinRoom, { deviceToken: 'outsider', code, name: 'Dee' }))).toBe(
+      'ROOM_FULL',
+    );
+    expect(await errorCode(t.mutation(api.signal.reclaimRole, { deviceToken: 'outsider', code, role: 'hacker' }))).toBe(
+      'WRONG_STATUS',
+    );
+    await online(t, code, HOST);
+    await t.mutation(api.signal.startCase, { deviceToken: HOST, code });
+    await t.mutation(api.presence.disconnect, { sessionToken: sessions[C] });
+    expect((await t.query(api.signal.room, { deviceToken: B, code }))?.reclaimableRoles).toEqual([]);
+    expect((await t.query(api.signal.room, { deviceToken: C, code }))?.reclaimableRoles).toEqual([]);
+    expect((await t.query(api.signal.room, { deviceToken: 'outsider', code }))?.reclaimableRoles).toEqual([
+      'detective',
+    ]);
+  });
+
   test('a checked revision cannot be locked again, so replays never add an attempt', async () => {
     const { t, code } = await playing();
     const { revision } = await t.mutation(api.signal.setTheory, { deviceToken: B, code, culprit: 'theo' });
