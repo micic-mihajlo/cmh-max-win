@@ -58,7 +58,7 @@ export function SquadRevealScreen({
               {ordered.map((m) => (
                 <View key={m.memberId} style={styles.mem}>
                   <View style={[styles.avatar, { backgroundColor: m.isMe ? Palette.ember : m.role ? RoleColors[m.role] : Palette.paperMuted }]}>
-                    <Txt variant="smallStrong" color={Palette.onAccent}>
+                    <Txt variant="smallStrong" color={m.isMe ? Palette.onAccent : Palette.ink}>
                       {m.name.charAt(0)}
                     </Txt>
                   </View>

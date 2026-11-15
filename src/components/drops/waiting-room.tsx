@@ -66,7 +66,7 @@ export function WaitingRoomScreen({ drop, offset, onBack }: { drop: DropView; of
             <View style={styles.stack}>
               {drop.entrants.slice(0, 4).map((p, i) => (
                 <View key={p.name + i} style={[styles.avatar, { backgroundColor: avatarColors[i % 4] }]}>
-                  <Txt variant="smallStrong" color={Palette.onAccent}>
+                  <Txt variant="smallStrong" color={i % 4 === 0 ? Palette.onAccent : Palette.ink}>
                     {p.name.charAt(0)}
                   </Txt>
                 </View>
