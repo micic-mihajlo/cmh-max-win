@@ -100,6 +100,13 @@ export const runHostAction = mutation({
     if (isSessionTemplate(c.config.templateId)) {
       if (action !== NEXT) fail('UNKNOWN_HOST_ACTION', 'This challenge has no host action called ' + action + '.');
       if (c.status !== 'live') fail('NOT_LIVE', 'Start the challenge first.');
+      // A Next for a round the host no longer sees (a slow double tap) is a no-op, not a skipped question.
+      const seen = (payload ?? {}) as { expectedIndex?: number | null; expectedPhase?: string };
+      const current = await board(ctx, c);
+      const round = current.round as { index: number | null; phase: string } | null;
+      if (seen.expectedIndex !== undefined && round && (round.index !== seen.expectedIndex || (seen.expectedPhase !== undefined && round.phase !== seen.expectedPhase))) {
+        return { view: current };
+      }
       rateLimit(session, action, DEFAULT_MIN_INTERVAL_MS, now);
       await ctx.db.patch(session._id, { lastActionAt: { ...session.lastActionAt, [action]: now } });
       const rows = await teamSessionsOf(ctx, c._id);

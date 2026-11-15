@@ -41,8 +41,10 @@ export type LiveView = {
   leaderboard: LiveLeaderboardRow[] | null; // top 10 once ended; null before
 };
 
-// Engine-session templates (quick-quiz): the host's runHostAction('next') opens or closes the next question for every
-// team at once, a scheduled tick closes it at its time limit, and play ends when the last question closes.
+// Engine-session templates (quick-quiz): the host's runHostAction('next', { expectedIndex, expectedPhase }) opens or
+// closes the next question for every team at once. Pass the board round's index and phase the host saw: if the round
+// has moved on (a double tap), Next does nothing and returns the current board. Index alone can't tell an open
+// question from its closed leaderboard, so send both; a scheduled tick closes it at its time limit, and play ends when the last question closes.
 // view is the template's publicBoard: { round, rows: [{ label, points, answeredCurrent, rank }] }.
 export type TeamSessionView = {
   teamLabel: string;

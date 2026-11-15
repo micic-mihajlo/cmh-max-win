@@ -288,4 +288,28 @@ describe('quick-quiz on the live layer', () => {
     expect(b.map((p) => cents[players.indexOf(p)])).toEqual([2000, 2000]);
     expect(cents.reduce((x, y) => x + y, 0)).toBe(10_000);
   });
+
+  test('a double tap on Next is a no-op once the round has moved on', async () => {
+    const { t, challengeId, joinCode } = await published({ templateId: 'quick-quiz', teamSize: 1, templateConfig: QUIZ });
+    await join(t, joinCode, 'viewer-token-1');
+    await t.mutation(api.live.startLive, { deviceToken: HOST, challengeId });
+    const round = async () => ((await t.query(api.live.liveView, { code: joinCode }))!.view as { round: { phase: string; index: number | null } }).round;
+    const tap = async () => {
+      const { phase, index } = await round();
+      return () => t.mutation(api.live.runHostAction, { deviceToken: HOST, challengeId, action: 'next', payload: { expectedIndex: index, expectedPhase: phase } });
+    };
+    for (const expected of [
+      { phase: 'question', index: 0 },
+      { phase: 'leaderboard', index: 0 },
+      { phase: 'question', index: 1 },
+    ]) {
+      const next = await tap();
+      await next();
+      vi.advanceTimersByTime(1_000);
+      await next();
+      expect(await round()).toMatchObject(expected);
+      vi.advanceTimersByTime(1_000);
+    }
+  });
 });
+
