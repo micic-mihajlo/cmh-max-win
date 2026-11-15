@@ -28,7 +28,7 @@ export const PaperColors: MotionColors = {
   accent: '#E39B5B',
   onAccent: '#1A1916',
   accentSoft: '#FFF1E6',
-  onRole: '#1A1916',
+  onRole: '#FAFAF7',
   owned: '#D9B26F',
 };
 
