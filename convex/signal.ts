@@ -18,6 +18,10 @@ import type {
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const MAX_MEMBERS = 3;
 
+export function rolesOf(m: Doc<'members'>): Role[] {
+  return m.roles ?? (m.role ? [m.role] : []);
+}
+
 function fail(code: SignalErrorCode, message: string): never {
   throw new ConvexError({ code, message });
 }
@@ -152,7 +156,7 @@ export const room = query({
         memberId: m._id,
         name: m.name,
         role: m.role,
-        roles: m.role ? [m.role] : [],
+        roles: rolesOf(m),
         presence: !online.has(m._id)
           ? 'offline'
           : room.status === 'playing' && locked.has(m._id)
@@ -185,6 +189,18 @@ export const myDossier = query({
     const me = await findMember(ctx, room._id, deviceToken);
     if (!me?.role) return null;
     return DOSSIERS[me.role];
+  },
+});
+
+// Every dossier the caller holds (1 in a private room or a squad of 3, 1 or 2 in a squad of 2). Same gating as myDossier.
+export const myEvidence = query({
+  args: { deviceToken: v.string(), code: v.string() },
+  handler: async (ctx, { deviceToken, code }): Promise<DossierView[] | null> => {
+    const room = await findRoom(ctx, code);
+    if (!room || room.status === 'lobby') return null;
+    const me = await findMember(ctx, room._id, deviceToken);
+    if (!me?.role) return null;
+    return rolesOf(me).map((r) => DOSSIERS[r]);
   },
 });
 
