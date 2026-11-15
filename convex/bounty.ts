@@ -2,7 +2,7 @@ import { ConvexError, v } from 'convex/values';
 
 import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
-import { internalAction, internalMutation, type MutationCtx } from './_generated/server';
+import { internalAction, internalMutation, type MutationCtx, type QueryCtx } from './_generated/server';
 import { WHOP_API_VERSION_DATE, whopApiBase, whopEnvironment, whopRequest } from './whop';
 
 type WhopClaimLink = {
@@ -182,18 +182,19 @@ export function realPayoutBudgetCents(): number {
 
 export function awardMode(drop: Pick<Doc<'drops'>, 'conceptOnly'>, awardCents: number): 'concept' | 'sandbox' | 'transfer' {
   if (process.env.SIGNAL_REAL_PAYOUTS === 'on') {
-    return awardCents <= realPayoutCapCents() && awardCents <= realPayoutBudgetCents() ? 'transfer' : 'concept';
+    return awardCents > 0 && awardCents <= realPayoutCapCents() && awardCents <= realPayoutBudgetCents() ? 'transfer' : 'concept';
   }
   return !drop.conceptOnly && process.env.BOUNTY_MODE === 'sandbox' ? 'sandbox' : 'concept';
 }
 
 // The mode an award actually gets: a 'transfer' award that would push the cents already committed to real
-// transfers (waiting for sign-in, sending or sent; failed rows release theirs) past the budget stays concept.
-export async function awardModeWithBudget(ctx: MutationCtx, drop: Pick<Doc<'drops'>, 'conceptOnly'>, awardCents: number) {
+// transfers past the budget stays concept. Waiting, sending and sent rows count. A failed row releases its cents
+// only when Whop definitely refused it; retries_exhausted stays counted, since the last attempt may have landed.
+export async function awardModeWithBudget(ctx: Pick<QueryCtx, 'db'>, drop: Pick<Doc<'drops'>, 'conceptOnly'>, awardCents: number) {
   const mode = awardMode(drop, awardCents);
   if (mode !== 'transfer') return mode;
   const committed = (await ctx.db.query('bountyPayouts').collect())
-    .filter((r) => r.status !== 'failed')
+    .filter((r) => r.status !== 'failed' || r.failureCode === 'retries_exhausted')
     .reduce((sum, r) => sum + r.cents, 0);
   return committed + awardCents <= realPayoutBudgetCents() ? 'transfer' : 'concept';
 }
@@ -212,7 +213,7 @@ export const startTransfers = internalMutation({
 // inserts the award, so the rows reflect the squad at award time.
 export async function createTransferRows(ctx: MutationCtx, awardId: Id<'bountyAwards'>) {
   const award = await ctx.db.get(awardId);
-  if (!award || award.mode !== 'transfer') return;
+  if (!award || award.mode !== 'transfer' || award.perPlayerCents <= 0) return;
   const existing = await ctx.db
     .query('bountyPayouts')
     .withIndex('by_award', (q) => q.eq('awardId', awardId))

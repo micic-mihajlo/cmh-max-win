@@ -3,7 +3,7 @@ import { ConvexError, v } from 'convex/values';
 import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, mutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
-import { awardMode } from './bounty';
+import { awardModeWithBudget } from './bounty';
 import { ROLES, type Role } from './case01';
 import { checkScheduledStart, noteHostedDrop } from './feed';
 import { presence as presenceComponent } from './presence';
@@ -105,17 +105,19 @@ async function findEntry(ctx: QueryCtx, dropId: string, deviceToken: string) {
     .unique();
 }
 
-export function bountyView(drop: Doc<'drops'>): BountyView {
+// mode is what an award would get right now, so it respects the remaining real-payout budget.
+export async function bountyView(ctx: Pick<QueryCtx, 'db'>, drop: Doc<'drops'>): Promise<BountyView> {
+  const perSquadCents = Math.floor(drop.bounty.totalCents / drop.bounty.winnerSlots);
   return {
     totalCents: drop.bounty.totalCents,
     currency: 'usd',
     winnerSlots: drop.bounty.winnerSlots,
-    perSquadCents: Math.floor(drop.bounty.totalCents / drop.bounty.winnerSlots),
-    mode: awardMode(drop, Math.floor(drop.bounty.totalCents / drop.bounty.winnerSlots)),
+    perSquadCents,
+    mode: await awardModeWithBudget(ctx, drop, perSquadCents),
   };
 }
 
-function summary(drop: Doc<'drops'>, entrantCount: number): DropSummaryView {
+async function summary(ctx: QueryCtx, drop: Doc<'drops'>, entrantCount: number): Promise<DropSummaryView> {
   return {
     dropId: drop.dropId,
     title: drop.title,
@@ -127,7 +129,7 @@ function summary(drop: Doc<'drops'>, entrantCount: number): DropSummaryView {
     startsAt: drop.startsAt,
     status: drop.status,
     entrantCount,
-    bounty: bountyView(drop),
+    bounty: await bountyView(ctx, drop),
     winnersSoFar: Math.min(drop.solvedCount, drop.bounty.winnerSlots),
   };
 }
@@ -146,7 +148,7 @@ export const listDrops = query({
         .collect()),
     ];
     const listed = open.filter((d) => !d.hostToken);
-    return Promise.all(listed.map(async (d) => summary(d, (await entriesOf(ctx, d.dropId)).length)));
+    return Promise.all(listed.map(async (d) => summary(ctx, d, (await entriesOf(ctx, d.dropId)).length)));
   },
 });
 
@@ -155,7 +157,7 @@ async function dropView(ctx: QueryCtx, drop: Doc<'drops'>, deviceToken: string):
     const mine = entries.find((e) => e.deviceToken === deviceToken);
     const room = mine?.squadRoomId ? await ctx.db.get(mine.squadRoomId) : null;
     return {
-      ...summary(drop, entries.length),
+      ...(await summary(ctx, drop, entries.length)),
       entrants: entries.map((e) => ({ name: e.name, isMe: e.deviceToken === deviceToken })),
       me: {
         entered: !!mine,
@@ -587,8 +589,9 @@ export const hostDrop = mutation({
     totalCents: v.optional(v.number()),
     creatorName: v.optional(v.string()),
     startsAt: v.optional(v.number()), // a scheduled drop (feed.ts); omitted, the drop opens now
+    avatarUrl: v.optional(v.string()), // https only; shown on the streamer's card
   },
-  handler: async (ctx, { deviceToken, title, winnerSlots, totalCents, creatorName, startsAt }) => {
+  handler: async (ctx, { deviceToken, title, winnerSlots, totalCents, creatorName, startsAt, avatarUrl }) => {
     if (!deviceToken) fail('WRONG_STATUS', 'Missing device token.');
     await enforceRateLimit(ctx, 'hostDrop', deviceToken);
     if (startsAt !== undefined) checkScheduledStart(startsAt, Date.now());
@@ -602,7 +605,7 @@ export const hostDrop = mutation({
       bounty: { totalCents: totalCents ?? 30_000, winnerSlots: winnerSlots ?? 3 },
       hostToken: deviceToken,
     });
-    await noteHostedDrop(ctx, { hostToken: deviceToken, name, dropId: hosted.dropId, scheduledFor: startsAt ?? null });
+    await noteHostedDrop(ctx, { hostToken: deviceToken, name, dropId: hosted.dropId, scheduledFor: startsAt ?? null, avatarUrl });
     return hosted;
   },
 });
@@ -658,7 +661,7 @@ export const hostView = query({
       title: drop.title,
       joinCode: drop.joinCode ?? '',
       status: drop.status,
-      bounty: bountyView(drop),
+      bounty: await bountyView(ctx, drop),
       entrantCount: entries.length,
       entrants: entries.map((e) => ({ name: e.name, joinedAt: e._creationTime })),
       squads,

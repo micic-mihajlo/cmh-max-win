@@ -212,6 +212,7 @@ export const MockStates: MockState[] = [
   { id: '07-reveal-credits', ref: '7.2', section: 'Reveal', title: 'Credits', render: () => <RevealScreen room={solved} reveal={Reveal} page="credits" /> },
   { id: '07-reveal-choice', ref: '7.3', section: 'Reveal', title: 'Crew choice (preview)', render: () => <RevealScreen room={solved} reveal={Reveal} page="choice" choice="informant" /> },
   { id: '07-reveal-next', ref: '7.4', section: 'Reveal', title: 'Episode 02 hook', render: () => <RevealScreen room={solved} reveal={Reveal} page="next" /> },
+  { id: '07-reveal-next-follow', ref: '7.4b', section: 'Reveal', title: 'Episode 02 hook · follow the host', render: () => <RevealScreen room={solved} reveal={Reveal} page="next" host={{ name: 'Nova', following: false }} /> },
   { id: '07-reveal-loading', ref: '7.5', section: 'Reveal', title: 'Reveal loading · hold seals', render: () => <AgreementScreen phase="checking" room={solved} /> },
   { id: '07-reveal-late', ref: '7.6', section: 'Reveal', title: 'Late arrival', render: () => <RevealScreen room={solved} reveal={Reveal} page="reconstruction" late /> },
 

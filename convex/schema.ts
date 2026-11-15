@@ -337,7 +337,14 @@ export default defineSchema({
   }).index('by_whop_user', ['whopUserId']),
   // ---------- Follow feed and push (CAP-45; signal/design/feed-notifications.md) ----------
   // A streamer is the device that hosts drops (drops.hostToken). Only streamers._id is ever shown to clients.
-  streamers: defineTable({ hostToken: v.string(), name: v.string(), updatedAt: v.number() })
+  // hidden: a load-test or QA host (feed.hideTestHosts), left out of every public list and page.
+  streamers: defineTable({
+    hostToken: v.string(),
+    name: v.string(),
+    avatarUrl: v.optional(v.string()),
+    hidden: v.optional(v.boolean()),
+    updatedAt: v.number(),
+  })
     .index('by_host', ['hostToken'])
     .index('by_updated', ['updatedAt']),
   // One row per hosted drop. scheduledFor: hostDrop got a start time. openedAt: the streamer went live with it.
@@ -347,6 +354,7 @@ export default defineSchema({
     createdAt: v.number(),
     scheduledFor: v.union(v.number(), v.null()),
     openedAt: v.union(v.number(), v.null()),
+    expiredAt: v.optional(v.number()), // feed.expireStaleDrops ended it as abandoned or a test; kept out of past lists
   })
     .index('by_streamer', ['streamerId', 'createdAt'])
     .index('by_drop', ['dropId']),
@@ -381,4 +389,18 @@ export default defineSchema({
   challengeReminders: defineTable({ deviceToken: v.string(), challengeId: v.id('challenges'), createdAt: v.number() })
     .index('by_device', ['deviceToken', 'challengeId'])
     .index('by_challenge', ['challengeId']),
+  // ---------- Platform hardening (CAP-44): convex/hardening.ts ----------
+  // One numbered seat per entrant in a scope ('challenge:<id>'), so capacity holds without counting entries.
+  capacitySeats: defineTable({
+    scope: v.string(),
+    seat: v.number(),
+    deviceToken: v.string(),
+  })
+    .index('by_scope_seat', ['scope', 'seat'])
+    .index('by_scope_token', ['scope', 'deviceToken']),
+  // A creator-set capacity below CHALLENGE_CAPACITY_MAX, set while the challenge is a draft.
+  challengeLimits: defineTable({
+    challengeId: v.id('challenges'),
+    capacity: v.number(),
+  }).index('by_challenge', ['challengeId']),
 });

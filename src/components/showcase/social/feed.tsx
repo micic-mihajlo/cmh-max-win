@@ -25,6 +25,7 @@ export function FeedScreen({
   sample?: boolean;
 }) {
   if (!view) return <Screen title="Following">{null}</Screen>;
+  const avatar = (streamerId: string) => view.following.find((s) => s.streamerId === streamerId)?.avatarUrl;
 
   if (view.following.length === 0)
     return (
@@ -46,7 +47,7 @@ export function FeedScreen({
             {view.live.map((l, i) => (
               <Enter key={l.dropId} index={i}>
                 <Pressable accessibilityRole="button" accessibilityLabel={`${l.streamerName} is live with ${l.title}`} style={styles.live} onPress={() => onOpenLive(l)}>
-                  <LiveAvatar initials={l.streamerName.slice(0, 1)} />
+                  <LiveAvatar initials={l.streamerName.slice(0, 1)} uri={avatar(l.streamerId)} />
                   <Txt variant="smallStrong">{l.streamerName}</Txt>
                   <Txt variant="small" color={Palette.paperMuted} numberOfLines={1}>
                     {l.title}
@@ -67,7 +68,7 @@ export function FeedScreen({
           <View>
             {view.upcoming.map((u) => (
               <Pressable key={u.dropId} style={[showcase.row, styles.row]} onPress={() => router.push(streamerHref(u.streamerId))}>
-                <Avatar initials={u.streamerName.slice(0, 1)} size={40} />
+                <Avatar initials={u.streamerName.slice(0, 1)} uri={avatar(u.streamerId)} size={40} />
                 <View style={showcase.flex}>
                   <Txt variant="bodyStrong" numberOfLines={1}>
                     {u.streamerName} · {dropTime(u.startsAt, view.serverNow)}

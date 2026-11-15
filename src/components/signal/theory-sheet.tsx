@@ -69,6 +69,16 @@ export function TheorySheet({
   const alreadyChecked = room.checkedRevision === room.theory.revision;
   const culprit = room.theory.culprit ? suspectById(room.theory.culprit) : null;
   const status = statusLine(room);
+  const agreed = room.members.filter((m) => !m.isMe && locked.has(m.memberId)).map((m) => m.name);
+  const editor = room.theory.lastEditedBy;
+  const caption =
+    agreed.length > 0
+      ? `${joinNames(agreed)} agreed`
+      : editor
+        ? editor.memberId === room.me?.memberId
+          ? 'Your pick'
+          : `${editor.name}’s pick`
+        : null;
   const ruledOut = room.lastNudge;
   const cooldown = useSecondsUntil(room.cooldownUntil, serverOffset);
 
@@ -96,9 +106,11 @@ export function TheorySheet({
           ) : (
             <View style={styles.summaryRow}>
               <View style={styles.flex}>
-                <Txt variant="small" color={Palette.paperMuted}>
-                  Squad theory
-                </Txt>
+                {caption ? (
+                  <Txt variant="small" color={Palette.paperMuted}>
+                    {caption}
+                  </Txt>
+                ) : null}
                 <Txt variant="name">{culprit ? culprit.name : 'No pick yet'}</Txt>
               </View>
               <View style={styles.dots}>
@@ -106,9 +118,6 @@ export function TheorySheet({
                   <View key={m.memberId} style={[styles.dot, locked.has(m.memberId) && styles.dotOn]} />
                 ))}
               </View>
-              <Txt variant="smallStrong" color={Palette.paperMuted} style={styles.tabular}>
-                {locked.size} of {room.members.length}
-              </Txt>
             </View>
           )}
         </Pressable>
@@ -121,14 +130,13 @@ export function TheorySheet({
                   key={s.id}
                   suspect={s}
                   selected={(pendingPick ?? room.theory.culprit) === s.id}
-                  pending={pendingPick === s.id}
                   ruledOutBy={
                     ruledOut && ruledOut.wrongPick === s.id
                       ? ruledOut.holder
                         ? ruledOut.holder.memberId === room.me?.memberId
-                          ? 'You'
+                          ? 'you'
                           : ruledOut.holder.name
-                        : RoleMeta[ruledOut.forRole].label
+                        : `the ${RoleMeta[ruledOut.forRole].label}`
                       : undefined
                   }
                   onPress={() => onPick?.(s.id)}
@@ -138,7 +146,7 @@ export function TheorySheet({
             <View style={styles.seals}>
               {seals(room).map(({ role, member }) => (
                 <View key={member.memberId} style={styles.sealCol}>
-                  <Seal role={role} filled={locked.has(member.memberId)} size={46} initial={member.name.charAt(0).toUpperCase()} />
+                  <Seal role={role} filled={locked.has(member.memberId)} haptic={member.isMe} size={46} initial={member.name.charAt(0).toUpperCase()} />
                   <Txt variant="small" color={Palette.paperMuted} numberOfLines={1}>
                     {member.isMe ? 'You' : member.name}
                   </Txt>
@@ -146,7 +154,7 @@ export function TheorySheet({
               ))}
             </View>
             <Txt variant="small" color={Palette.paperMuted} style={styles.center}>
-              {cooldown > 0 ? 'Wrong pick. Talk it through.' : `${locked.size} of ${room.members.length} locked${meLocked ? '' : ` · ${status.text}`}`}
+              {cooldown > 0 ? 'Wrong pick. Talk it through.' : status.text}
             </Txt>
             {cooldown > 0 ? (
               <Button title={`Try again in 0:${String(cooldown).padStart(2, '0')}`} disabled />
@@ -155,7 +163,7 @@ export function TheorySheet({
             ) : meLocked ? (
               <Button title="Locked in ✓" variant="secondary" />
             ) : (
-              <Button title={`Lock in ${culprit.first}`} onPress={onLockIn} />
+              <Button title={`Lock in ${culprit.first}`} haptic={false} onPress={onLockIn} />
             )}
           </ScrollView>
         ) : null}
@@ -166,7 +174,6 @@ export function TheorySheet({
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  tabular: { fontVariant: ['tabular-nums'] },
   center: { textAlign: 'center' },
   scrim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(26,25,22,0.25)' },
   sheetHead: { gap: 4, paddingTop: Space.s },

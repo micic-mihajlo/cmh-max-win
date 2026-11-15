@@ -134,6 +134,7 @@ export type SignalErrorCode =
   | 'TEAM_LOCKED' // mixer: the team locked, so nobody joins or leaves
   | 'TEAM_NOT_FULL' // mixer: confirming before every color is in
   | 'TEAM_NOT_LOCKED'
+  | 'CHALLENGE_FULL' // a new device joining a challenge at capacity (contract-hardening.ts)
 
 export type SignalError = { code: SignalErrorCode; message: string };
 
@@ -702,5 +703,6 @@ export type UseChallengeRecap = (challengeId: string | null) => ChallengeRecapVi
 export * from './contract-feed';
 export * from './contract-discovery';
 export * from './contract-growth';
+export * from './contract-hardening';
 export * from './contract-whop';
 export * from './contract-live'; // live layer: host start, lock and actions, public live view (CAP-40)

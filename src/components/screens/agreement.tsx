@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/signal/backdrop';
@@ -9,9 +10,29 @@ import { Txt } from '@/components/signal/txt';
 import { suspectById } from '@/constants/case01';
 import { FontFamily, Palette, Radius, Space } from '@/constants/signal';
 import type { RoomView } from '@/lib/contract';
-import { NudgeEntrance } from '@/motion';
+import { Haptic, NudgeEntrance } from '@/motion';
 
-export function AgreementScreen({ room, phase, onBack }: { room: RoomView; phase: 'checking' | 'wrong'; onBack?: () => void }) {
+export function AgreementScreen({
+  room,
+  phase,
+  stamp,
+  onBack,
+}: {
+  room: RoomView;
+  phase: 'checking' | 'wrong';
+  stamp?: string;
+  onBack?: () => void;
+}) {
+  const [stamped, setStamped] = useState(!stamp);
+  useEffect(() => {
+    if (!stamp) return;
+    const frame = requestAnimationFrame(() => setStamped(true));
+    const done = setTimeout(Haptic.success, 320);
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(done);
+    };
+  }, [stamp]);
   const nudge = room.lastNudge;
   const pick = (phase === 'wrong' || room.lastCheck?.result === 'wrong') && nudge ? nudge.wrongPick : room.theory.culprit;
   const guessed = pick ? suspectById(pick) : null;
@@ -39,7 +60,13 @@ export function AgreementScreen({ room, phase, onBack }: { room: RoomView; phase
           <View style={styles.sealsBig}>
             {seals(room).map(({ role, member }) => (
               <View key={member.memberId} style={styles.sealCol}>
-                <Seal role={role} filled size={72} initial={member.name.charAt(0).toUpperCase()} />
+                <Seal
+                  role={role}
+                  filled={member.memberId === stamp ? stamped : true}
+                  haptic={member.memberId === stamp}
+                  size={72}
+                  initial={member.name.charAt(0).toUpperCase()}
+                />
                 <Txt variant="small" color={Palette.paperMuted}>
                   {member.isMe ? 'You' : member.name}
                 </Txt>

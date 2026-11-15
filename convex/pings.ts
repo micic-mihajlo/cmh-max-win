@@ -1,4 +1,4 @@
-import { mutation, query } from './_generated/server';
+import { internalMutation, query } from './_generated/server';
 import { v } from 'convex/values';
 
 export const count = query({
@@ -6,7 +6,7 @@ export const count = query({
   handler: async (ctx) => (await ctx.db.query('pings').collect()).length,
 });
 
-export const send = mutation({
+export const send = internalMutation({
   args: { source: v.string() },
   handler: async (ctx, { source }) => {
     await ctx.db.insert('pings', { source });

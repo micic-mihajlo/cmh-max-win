@@ -7,13 +7,15 @@ import type { BountyView } from './contract';
 export type StreamerCardView = {
   streamerId: string;
   name: string; // the creatorName of their newest hosted drop
-  followerCount: number;
+  avatarUrl?: string; // https; absent: draw the initial
+  followerCount: number; // real follow rows only, never padded
+  showFollowerCount?: boolean; // false under 3 followers: hide the count rather than show "1 follower"
   live: boolean;
   following: boolean; // this device (or its Whop account) follows them
 };
 
-// "Live now": the streamer opened a drop (hostDrop with no start time, or a scheduled drop's start time came) and
-// it hasn't ended. Entries are open while dropStatus is 'scheduled'; 'live' means squads are dealt and racing.
+// "Live now": the streamer opened a drop (hostDrop with no start time, or a scheduled drop's start time came), it
+// hasn't ended, and it had an entry, lock-in or solve in the last 20 minutes. Derived on every read. Entries are open while dropStatus is 'scheduled'; 'live' means squads are dealt and racing.
 export type FeedLiveRow = {
   streamerId: string;
   streamerName: string;
@@ -72,7 +74,9 @@ export type PushPlatform = 'ios' | 'android';
 // live: "Nova is live · The Aurora Seed" / "Join with K7QX." Opens the join screen with the code filled in.
 // starting: "Nova's room opens in 2 minutes" / "Your squad is waiting." Opens the drop's waiting room.
 // Sent to followers (live) and to devices that tapped Remind me or already entered (starting).
-export type FeedPushData = { kind: 'live' | 'starting'; dropId: string; joinCode: string; streamerId: string };
+// squadmates (starting only, optional): first names of up to 3 others already waiting in, or dealt into, this
+// device's drop or squad, never this device. "Lou and Ana are waiting". Absent when nobody else is there yet.
+export type FeedPushData = { kind: 'live' | 'starting'; dropId: string; joinCode: string; streamerId: string; squadmates?: string[] };
 
 export type UseFollowingFeed = () => FollowingFeedView | undefined;
 export type UseStreamers = () => StreamerCardView[] | undefined; // "Find streamers": live first, then most followed
