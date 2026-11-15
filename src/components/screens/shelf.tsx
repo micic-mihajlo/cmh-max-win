@@ -37,7 +37,7 @@ export function ShelfScreen({
           <View style={styles.flex}>
             <Txt variant="name">01 The Aurora Seed</Txt>
             <Txt variant="small" color={Palette.paperMuted}>
-              {`Solved · attempt ${attempts}${crew.length ? ` · ${joinNames(crew)}` : ''}`}
+              {`Solved · attempt ${attempts + 1}${crew.length ? ` · ${joinNames(crew)}` : ''}`}
             </Txt>
           </View>
           <Icon name="checkmark" size={18} color={Palette.paper} />
