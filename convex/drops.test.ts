@@ -266,7 +266,13 @@ describe('ranking and awards', () => {
         redeemableCount: 3,
         label: CONCEPT_LABEL,
         expiresAt: null,
+        myPayout: { status: 'concept', amountCents: 3_333 },
+        split: expect.any(Array),
       });
+      const award = await t.query(api.drops.myAward, { deviceToken, code: winner.code });
+      expect(award!.split).toHaveLength(3);
+      expect(award!.split.reduce((sum, r) => sum + r.cents, 0)).toBe(award!.amountCents);
+      expect(award!.split.filter((r) => r.isMe)).toHaveLength(1);
     }
     for (const deviceToken of loser.members) {
       expect(await t.query(api.drops.myAward, { deviceToken, code: loser.code })).toBeNull();

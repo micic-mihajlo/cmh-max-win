@@ -218,17 +218,35 @@ export type LeaderboardView = {
   rows: LeaderboardRow[]; // solved squads by rank, then solving squads by squad label
 };
 
+// This device's own cut of a squad award (CMHM-11). Real payouts are a Whop balance transfer to the
+// player's linked whopUserId, behind SIGNAL_REAL_PAYOUTS=on; with the flag off every row is 'concept'.
+// concept: no real money moves · sign_in_required: sign in with Whop (useLinkForClaim) and the transfer
+// fires on link · sending: transfer in flight or retrying · sent: Whop accepted it · failed: see failureCode.
+export type AwardPayoutStatus = 'concept' | 'sign_in_required' | 'sending' | 'sent' | 'failed';
+export type AwardPayoutView = {
+  status: AwardPayoutStatus;
+  amountCents: number; // this device's share; equals its row in split
+  // Set only when failed: Whop's error code, e.g. 'kyc_required' (the business isn't verified),
+  // 'transfer_unavailable' (balance held or too low), or 'unknown'.
+  failureCode?: string;
+};
+export type AwardSplitRow = { name: string; cents: number; isMe: boolean };
+
 // Only the members of the winning squad ever receive this; everyone else gets null.
 export type SquadAwardView = {
   place: number;
-  amountCents: number; // the squad's share = perPlayerCents * redeemableCount
+  amountCents: number; // the squad's share = sum of split = perPlayerCents * redeemableCount
   perPlayerCents: number; // floor(totalCents / winnerSlots / squadSize)
   currency: 'usd';
   mode: BountyMode;
-  status: 'pending' | 'ready' | 'failed';
-  claimUrl: string | null; // a Whop claim link, one claim per player; null in concept mode
+  status: 'pending' | 'ready' | 'failed'; // the award as a whole
+  myPayout: AwardPayoutView;
+  split: AwardSplitRow[]; // every squad member's cut, seat order
+  /** @deprecated Claim links are KYC-blocked; real payouts are transfers (myPayout). Always null from now on. */
+  claimUrl?: string | null;
   redeemableCount: number; // = squad size
-  expiresAt: number | null; // ms epoch the claim link expires (Whop default 24h); null in concept mode
+  /** @deprecated Claim-link expiry; unused by transfers. */
+  expiresAt?: number | null;
   label: string; // e.g. 'Concept payout — no real money moves'
 };
 

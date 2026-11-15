@@ -23,6 +23,7 @@ import type * as rateLimits from "../rateLimits.js";
 import type * as signal from "../signal.js";
 import type * as templates_aurora from "../templates/aurora.js";
 import type * as templates_engine from "../templates/engine.js";
+import type * as templates_quickQuiz from "../templates/quickQuiz.js";
 import type * as templates_random from "../templates/random.js";
 import type * as templates_registry from "../templates/registry.js";
 import type * as templates_splitCode from "../templates/splitCode.js";
@@ -53,6 +54,7 @@ declare const fullApi: ApiFromModules<{
   signal: typeof signal;
   "templates/aurora": typeof templates_aurora;
   "templates/engine": typeof templates_engine;
+  "templates/quickQuiz": typeof templates_quickQuiz;
   "templates/random": typeof templates_random;
   "templates/registry": typeof templates_registry;
   "templates/splitCode": typeof templates_splitCode;

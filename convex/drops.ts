@@ -531,7 +531,13 @@ export const myAward = query({
       .withIndex('by_room', (q) => q.eq('roomId', room._id))
       .unique();
     if (!award) return null;
+    const squad = await ctx.db
+      .query('members')
+      .withIndex('by_room', (q) => q.eq('roomId', room._id))
+      .collect();
     return {
+      myPayout: { status: 'concept', amountCents: award.perPlayerCents },
+      split: squad.map((m) => ({ name: m.name, cents: award.perPlayerCents, isMe: m._id === member._id })),
       place: award.place,
       amountCents: award.amountCents,
       perPlayerCents: award.perPlayerCents,
