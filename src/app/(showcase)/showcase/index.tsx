@@ -11,10 +11,10 @@ const sections: { title: string; items: { href: Href; title: string; line: strin
     items: [
       { href: '/showcase/sign-in' as Href, title: 'Sign in', line: 'Whop or Apple, then a handle', preview: true },
       { href: '/showcase/profile' as Href, title: 'Profile', line: 'Stats, packs and squads', preview: true },
-      { href: '/showcase/creator' as Href, title: 'Creator page', line: "Nova's drops and season", preview: true },
-      { href: '/showcase/home' as Href, title: 'Following', line: 'Live, upcoming and results', preview: true },
-      { href: '/showcase/notifications' as Href, title: 'Notifications', line: 'Inbox and push banner', preview: true },
-      { href: '/showcase/notification-settings' as Href, title: 'Notification settings', line: 'Per creator', preview: true },
+      { href: '/showcase/creator' as Href, title: 'Streamer page', line: "Nova's page with Follow", preview: true },
+      { href: '/showcase/home' as Href, title: 'Following', line: 'Live now and coming up', preview: true },
+      { href: '/showcase/notifications' as Href, title: 'Notifications', line: 'Going live and room starting', preview: true },
+      { href: '/showcase/notification-settings' as Href, title: 'Notification settings', line: 'Per streamer', preview: true },
     ],
   },
   {
