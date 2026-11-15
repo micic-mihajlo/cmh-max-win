@@ -45,7 +45,7 @@ export type SquadSize = 2 | 3;
 export type RoomView = {
   code: string; // 4 chars, uppercase
   status: RoomStatus;
-  squadSize: SquadSize; // 3 for a private room
+  squadSize: SquadSize | TeamSize; // 3 for a private room, 2 or 3 in a drop, 1 to 4 for a challenge team
   drop: {
     dropId: string;
     title: string;
@@ -125,6 +125,12 @@ export type SignalErrorCode =
   | 'NOT_ELIGIBLE' // reserved: whop_members enforcement after Sign in with Whop
   | 'WHOP_SIGN_IN_REQUIRED' // joining a requireWhopToJoin challenge, or claiming, without a linked Whop account
   | 'CLAIM_EXPIRED'
+  | 'PLAYER_NOT_FOUND' // mixer: no entrant with that player code in this challenge
+  | 'DUPLICATE_COLOR' // mixer: the team already has that color
+  | 'ALREADY_IN_TEAM' // mixer: a player sits in one team at a time
+  | 'TEAM_LOCKED' // mixer: the team locked, so nobody joins or leaves
+  | 'TEAM_NOT_FULL' // mixer: confirming before every color is in
+  | 'TEAM_NOT_LOCKED'
 
 export type SignalError = { code: SignalErrorCode; message: string };
 
@@ -332,10 +338,21 @@ export type ChallengeTemplateView = {
   id: ChallengeTemplateId;
   name: string; // 'The Aurora Seed'
   blurb: string;
-  teamSizes: number[]; // team sizes this template can be played at; mystery-aurora: [2, 3] today
+  teamSizes: TeamSize[]; // team sizes this template can be played at (same field as the template interface, CAP-32); mystery-aurora: [1, 2, 3, 4]
 };
 
-export type LeftoverPolicy = 'smaller_teams' | 'wait_next_round'; // players who don't fill a whole team
+// Team sizes the platform supports in v1. A template declares the subset it handles.
+export type TeamSize = 1 | 2 | 3 | 4;
+
+export type LeftoverPolicy = 'smaller_teams' | 'wait_next_round'; // dealt mode: players who don't fill a whole team
+
+// dealt (the default): the server deals teams of teamSize in entry order, as drops do.
+// mixer: each player gets a color (round-robin over mixerColors) and a private fragment unique to them. A team is
+// exactly one player of each color, formed by entering each other's player codes; it locks when every member
+// confirms. The answer is checked against the fragments of that team's members, so a fragment shared outside the
+// team is useless. The first locked teams to submit a correct answer take the places.
+export type TeamFormation = 'dealt' | 'mixer';
+export type MixerColor = 'red' | 'blue' | 'green' | 'yellow';
 export type StartMode = 'live' | 'scheduled' | 'window';
 // live: the host deals. scheduled: teams are dealt at startsAt. window: open until endsAt, and a team forms each
 // time teamSize players are waiting; at endsAt the leftover policy applies to whoever is still waiting.
@@ -345,8 +362,9 @@ export type Eligibility = { kind: 'open' } | { kind: 'whop_members'; productId: 
 export type RewardPolicy =
   | { kind: 'winner_takes_all' }
   | { kind: 'top_x_equal'; places: number } // places >= 1
-  | { kind: 'tiered'; percents: number[] }; // percents[i] is place i+1's share; positive integers that sum to 100
-// Within a team the place's amount is split equally per player.
+  | { kind: 'placement'; percents: number[] }; // the default, [50, 30, 20]: percents[i] is place i+1's share; positive integers that sum to 100
+// Challenges are team vs team: teams finish in places 1st, 2nd, 3rd... on the server clock, and the pool is split by
+// place. Within a team the place's amount is split equally per player.
 
 export type PayoutAdapterId = 'concept' | 'whop';
 // concept (default): moves no money; rows end as sent_concept and must be labelled as a concept in the UI.
@@ -357,7 +375,9 @@ export type ChallengeConfig = {
   title: string; // 1..60 chars
   blurb: string; // 0..280 chars
   templateId: ChallengeTemplateId;
-  teamSize: number; // 1, 2, 3 or any N >= 1; must be one of the template's teamSizes to publish
+  teamFormation: TeamFormation;
+  teamSize: TeamSize; // dealt: must be one of the template's teamSizes. mixer: ignored, a team is one of each color
+  mixerColors: MixerColor[]; // mixer only: 2 to 4 distinct colors, default ['red', 'blue', 'green']
   leftover: LeftoverPolicy;
   startMode: StartMode;
   startsAt: number | null; // ms epoch; required for scheduled, ignored otherwise
@@ -431,16 +451,15 @@ export type ChallengeResultRow = {
 };
 
 // Exact integer cents. Each paid place gets its budget (winner_takes_all: the pool; top_x_equal:
-// floor(pool / places); tiered: floor(pool * percent / 100)), split per player rounding down. Every leftover
+// floor(pool / places); placement: floor(pool * percent / 100)), split per player rounding down. Every leftover
 // cent goes to first place's first player (entry order). Budgets of places nobody filled return to the creator.
 // Invariant: paidCents + returnedCents === poolCents, where returnedCents = sum(returned).
-// Before approval paidCents is what the policy allocates; afterwards the ledger moves shares into returned when a
-// Whop account already holds a share in this challenge (one share per Whop account) or a claim expires.
+// Before approval paidCents is what the policy allocates; afterwards an expired claim moves its share into returned.
 export type PayoutPreviewView = {
   poolCents: number;
   paidCents: number;
   returnedCents: number;
-  returned: { unfilledPlaces: number; duplicateWhopAccount: number; expired: number }; // cents back to the creator
+  returned: { unfilledPlacesCents: number; expiredCents: number }; // back to the creator
   lines: {
     place: number;
     teamLabel: string;
@@ -449,11 +468,10 @@ export type PayoutPreviewView = {
   }[];
 };
 
-// Whop is needed only to claim (unless requireWhopToJoin): anyone plays on the device identity, and a winner signs in
-// with Whop to receive their share. pending -> approved (Whop already linked) or claim_pending_whop (waiting for the
-// winner to sign in and claim) -> sent | sent_concept | failed. duplicate: this Whop account already has a share in
-// the challenge, so this one returns to the pool. expired: unclaimed after claimWindowMs, returned to the pool.
-// A claim is tied to the device token that played the seat; linking the same Whop account on another device can't claim it.
+// Whop is needed only to claim (unless requireWhopToJoin): anyone plays on the device identity, and only a winning
+// device is asked to sign in with Whop; whichever Whop account it signs in with is paid. pending -> approved (Whop
+// already linked) or claim_pending_whop (waiting for the winner to sign in and claim) -> sent | sent_concept | failed.
+// expired: unclaimed after claimWindowMs, returned to the pool. Only the device that played the seat can claim it.
 export type PayoutStatus =
   | 'pending'
   | 'claim_pending_whop'
@@ -461,7 +479,6 @@ export type PayoutStatus =
   | 'sent'
   | 'sent_concept'
   | 'failed'
-  | 'duplicate'
   | 'expired';
 export type PayoutRowView = {
   name: string;
@@ -513,10 +530,63 @@ export type PlayerChallengeView = {
   me: {
     entered: boolean;
     name: string | null;
-    team: { teamId: string; label: string; roomCode: string; size: number } | null; // open the RoomView with roomCode
+    team: { teamId: string; label: string; roomCode: string; size: TeamSize } | null; // open the RoomView with roomCode
     waitingNextRound: boolean; // left over under wait_next_round
+    mixer: MixerMeView | null; // mixer mode, once entered
   };
   requireWhopToJoin: boolean;
+  teamFormation: TeamFormation;
+};
+
+// ---------- Mixer mode ----------
+export type MixerFragmentView = {
+  title: string; // e.g. 'CAMERA LOG · RED'
+  text: string; // private to this player and unique to them; never shown to anyone else
+};
+
+export type MixerTeamMemberView = {
+  name: string;
+  color: MixerColor;
+  playerCode: string;
+  confirmed: boolean;
+  isMe: boolean;
+};
+
+export type MixerTeamView = {
+  teamId: string;
+  label: string; // 'Team 4', set when it forms
+  status: 'forming' | 'locked' | 'solved'; // forming: linking and confirming; locked: playing; solved: correct answer in
+  members: MixerTeamMemberView[]; // in link order
+  missingColors: MixerColor[]; // colors still needed before anyone can confirm
+  attempts: number; // wrong answers so far
+  cooldownUntil: number | null; // after a wrong answer, the next submit waits until this (ms epoch, server clock)
+  place: number | null; // once solved
+};
+
+export type MixerMeView = {
+  color: MixerColor;
+  playerCode: string; // 4 characters; teammates enter it to link with you
+  fragment: MixerFragmentView;
+  team: MixerTeamView | null; // null while still looking
+};
+
+export type MixerSubmitResult =
+  | { outcome: 'correct'; place: number }
+  | { outcome: 'wrong'; attempts: number; cooldownUntil: number; nudge: string | null }; // nudge from the template
+
+// Live mixer standings: teams formed, teams solved in order, and who is still looking by color.
+export type MixerStandingsView = {
+  challengeId: string;
+  status: ChallengeStatus;
+  serverNow: number;
+  endsAt: number | null;
+  colors: MixerColor[];
+  paidPlaces: number;
+  entrantCount: number;
+  teamsForming: number;
+  teamsLocked: number; // locked and still solving
+  solved: { place: number; teamLabel: string; memberNames: string[]; solvedAt: number; finishMs: number }[]; // by place
+  lookingByColor: { color: MixerColor; count: number }[]; // entrants in no team yet
 };
 
 export type MyPayoutView = {
@@ -569,5 +639,38 @@ export type UseLeaveChallenge = (challengeId: string) => () => Promise<void>; //
 export type UseMyChallenge = (challengeId: string | null) => PlayerChallengeView | null | undefined;
 export type UseMyPayout = (challengeId: string | null) => MyPayoutView | null | undefined; // null = nothing for you
 export type UseClaimPayout = (challengeId: string) => () => Promise<MyPayoutView>; // WHOP_SIGN_IN_REQUIRED, CLAIM_EXPIRED; idempotent
+// Live standings for dealt teams: every team's progress against the others. Readable by anyone with the challenge id.
+// Rank: finished teams by place (finish time on the server clock, commit order on ties), then unfinished teams by
+// how far along they are, then fewer wrong attempts, then team label.
+export type ChallengeStage = 'briefing' | 'investigating' | 'locking_in' | 'finished';
+export type ChallengeStandingRow = {
+  teamId: string;
+  label: string;
+  memberNames: string[];
+  rank: number; // 1-based current rank among all teams
+  place: number | null; // final placement once finished
+  progress: { stage: ChallengeStage; step: number; steps: number; lockedIn: number; attempts: number }; // step of steps (3 = finished)
+  finishedAt: number | null; // ms epoch, server clock
+  finishMs: number | null;
+  isMine: boolean;
+};
+export type ChallengeStandingsView = {
+  challengeId: string;
+  status: ChallengeStatus;
+  serverNow: number;
+  endsAt: number | null;
+  paidPlaces: number;
+  rows: ChallengeStandingRow[]; // by rank
+};
+export type UseChallengeStandings = (challengeId: string | null) => ChallengeStandingsView | null | undefined;
+
+export type UseMixerStandings = (challengeId: string | null) => MixerStandingsView | null | undefined;
+// Link with another player by their code: forms a team with them, adds them to yours, or joins theirs.
+// Errors: PLAYER_NOT_FOUND, DUPLICATE_COLOR, ALREADY_IN_TEAM (either of you is in another team), TEAM_LOCKED.
+export type UseLinkPlayer = (challengeId: string) => (playerCode: string) => Promise<MixerTeamView>;
+export type UseLeaveMixerTeam = (challengeId: string) => () => Promise<void>; // until the team locks; clears confirmations
+export type UseConfirmMixerTeam = (challengeId: string) => () => Promise<MixerTeamView>; // TEAM_NOT_FULL; locks on the last confirm
+export type UseSubmitMixerAnswer = (challengeId: string) => (answer: string) => Promise<MixerSubmitResult>; // TEAM_NOT_LOCKED, COOLDOWN
+
 export type UseChallengeRecap = (challengeId: string | null) => ChallengeRecapView | null | undefined; // null until ended
 
