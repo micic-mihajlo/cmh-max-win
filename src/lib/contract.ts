@@ -4,7 +4,7 @@
 
 export type Role = 'detective' | 'hacker' | 'witness';
 export type SuspectId = 'theo' | 'priya' | 'ines' | 'jun';
-export type CaseId = 'case01';
+export type CaseId = 'case01' | 'aurora01'; // aurora01 = the drops squad cut (signal/design/demo-challenge.md)
 
 // Coarse presence. 'offline' comes from the server's presence component (no heartbeat in ~25s, or the app
 // went to the background), never from a client. While playing, 'ready' means "locked in the current revision".
@@ -37,6 +37,7 @@ export type NudgeView = {
   forRole: Role;
   text: string;
   revision: number; // the theory revision this nudge answered
+  holder: { memberId: string; name: string } | null; // drops: who holds the piece that places wrongPick (render "Your …" when it's me)
 };
 
 export type SquadSize = 2 | 3;
@@ -45,7 +46,14 @@ export type RoomView = {
   code: string; // 4 chars, uppercase
   status: RoomStatus;
   squadSize: SquadSize; // 3 for a private room
-  drop: { dropId: string; title: string; squadLabel: string } | null; // set when this room is a drop squad
+  drop: {
+    dropId: string;
+    title: string;
+    squadLabel: string;
+    rank: number | null; // finishing place once solved
+    isWinner: boolean; // rank <= winnerSlots
+  } | null; // set when this room is a drop squad
+  cooldownUntil: number | null; // drops: lock-in is disabled until this server time after a wrong check (20s)
   caseId: CaseId;
   isHost: boolean;
   me: { memberId: string; role: Role | null; name: string } | null; // null = this device isn't a member (join / reclaim)
@@ -67,6 +75,7 @@ export type RoomView = {
 
 // Only ever the caller's own role; the server never sends another role's dossier.
 export type DossierView = {
+  pieceId?: 'camera' | 'witness' | 'scene'; // set for aurora01 pieces
   role: Role;
   docLabel: string; // 'SYSTEMS LOG' | 'STATEMENT' | 'SCENE NOTES'
   title: string;
@@ -77,6 +86,7 @@ export type DossierView = {
 // null until the room is resolved.
 export type RevealView = {
   culprit: SuspectId;
+  headline: string; // e.g. 'Jun took the seed.'
   timeline: { time: string; text: string }[];
   why: string;
   credits: { role: Role; memberName: string; cleared: SuspectId; line: string }[];
@@ -101,7 +111,8 @@ export type SignalErrorCode =
   | 'CONFIRM_REQUIRED'
   | 'DROP_NOT_FOUND'
   | 'DROP_CLOSED' // entries close at the start time; a late joiner gets this
-  | 'NOT_ENTERED';
+  | 'NOT_ENTERED'
+  | 'COOLDOWN'; // drops: a lock-in during the 20s after a wrong check
 
 export type SignalError = { code: SignalErrorCode; message: string };
 
@@ -119,9 +130,10 @@ export type LockInResult =
   | { outcome: 'resolved' };
 
 // ---------- Drops: creator challenges with a skill-only bounty ----------
-// A drop is free to enter. At startsAt the server splits entrants into squads of 3 (or 2 to absorb the
-// remainder: 4 -> 2+2, 5 -> 3+2, 7 -> 3+2+2) and each squad is a RoomView room that starts at 'intro' with
-// roles already assigned. The first winnerSlots squads to resolve correctly win, ranked by the order the
+// A drop is free to enter. At startsAt the server splits entrants, in entry order, into squads of the drop's
+// squadSize. N = 3: remainder 2 -> one duo, remainder 1 -> two duos (4 -> 2+2, 7 -> 3+2+2). N = 2: remainder 1
+// -> one trio. Fewer than 2 entrants: the drop ends and the lone entrant is unmatched. Each squad is a RoomView
+// room that starts at 'intro' with pieces already dealt (a duo has one 2-piece phone and one 1-piece phone). The first winnerSlots squads to resolve correctly win, ranked by the order the
 // server committed their correct final lock-in (serializable, so no ties and nothing random).
 
 export type DropStatus = 'scheduled' | 'live' | 'ended';
@@ -140,6 +152,7 @@ export type DropSummaryView = {
   title: string;
   creatorName: string;
   caseId: CaseId;
+  squadSize: SquadSize; // target size N
   startsAt: number; // ms epoch, server clock
   status: DropStatus;
   entrantCount: number;
