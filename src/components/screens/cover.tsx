@@ -9,7 +9,7 @@ import { useMotionReduced } from '@/components/signal/settings';
 import { Txt } from '@/components/signal/txt';
 import { Palette, Radius, RoleMeta, Space } from '@/constants/signal';
 import { Case01 } from '@/constants/case01';
-import type { ActiveRoomView, Role, SignalErrorCode } from '@/mocks/contract';
+import type { ActiveRoomView, Role, SignalErrorCode } from '@/lib/contract';
 
 export type JoinState = {
   code: string;

@@ -12,7 +12,7 @@ import { RevealScreen } from '@/components/screens/reveal';
 import { ShelfScreen } from '@/components/screens/shelf';
 
 import { Dossiers, Reveal } from './case01';
-import type { Role, RoomView, SeasonPackView } from './contract';
+import type { Role, RoomView, SeasonPackView } from '@/lib/contract';
 import { room, whoByRole, type RoomFixture } from './fixtures';
 
 export type MockState = {

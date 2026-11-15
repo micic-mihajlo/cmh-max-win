@@ -1,5 +1,5 @@
 import { RoleMeta, RoleOrder } from '@/constants/signal';
-import type { MemberView, RoomView } from '@/mocks/contract';
+import type { MemberView, RoomView } from '@/lib/contract';
 
 export function lockedIds(room: RoomView) {
   return new Set(room.lockIns.filter((l) => l.revision === room.theory.revision).map((l) => l.memberId));

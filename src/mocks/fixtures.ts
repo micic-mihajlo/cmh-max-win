@@ -1,5 +1,5 @@
 import { Nudges } from './case01';
-import type { MemberView, Presence, Role, RoomView, SuspectId } from './contract';
+import type { MemberView, Presence, Role, RoomView, SuspectId } from '@/lib/contract';
 
 export type Who = 'maya' | 'ravi' | 'lena';
 

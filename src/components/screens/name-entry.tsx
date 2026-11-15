@@ -9,8 +9,8 @@ export function NameEntryScreen({ name, onContinue }: { name: string; onContinue
   return (
     <Screen footer={<Button title="Continue" disabled={!name.trim()} onPress={onContinue} />}>
       <View style={styles.top}>
-        <Label color={Palette.ember}>Signal</Label>
-        <Txt variant="display">What should your friends call you?</Txt>
+        <Label color={Palette.paperMuted}>Signal</Label>
+        <Txt variant="display">What should your crew call you?</Txt>
         <Txt variant="body" color={Palette.paperMuted}>
           Your crew sees this name next to your role. Nobody else does.
         </Txt>

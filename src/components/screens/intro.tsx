@@ -7,7 +7,7 @@ import { Seal } from '@/components/signal/seal';
 import { Txt } from '@/components/signal/txt';
 import { Palette, Space } from '@/constants/signal';
 import { Case01 } from '@/constants/case01';
-import type { RoomView } from '@/mocks/contract';
+import type { RoomView } from '@/lib/contract';
 
 export function IntroScreen({ room, opening }: { room: RoomView; opening?: boolean }) {
   const ready = room.members.filter((m) => m.presence === 'ready');

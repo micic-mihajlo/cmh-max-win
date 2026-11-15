@@ -8,7 +8,7 @@ import { Button, IconButton, Label, NextStep, Toast, TopBar } from '@/components
 import { host, seated } from '@/components/signal/room';
 import { Txt } from '@/components/signal/txt';
 import { Palette, Radius, RoleMeta, Space } from '@/constants/signal';
-import type { MemberView, Role, RoomView } from '@/mocks/contract';
+import type { MemberView, Role, RoomView } from '@/lib/contract';
 
 const roleBlurb: Record<Role, string> = {
   detective: 'Station security’s notes from the scene.',

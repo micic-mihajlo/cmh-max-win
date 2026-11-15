@@ -9,7 +9,7 @@ import { TheorySheet, type SheetNotice } from '@/components/signal/theory-sheet'
 import { Txt } from '@/components/signal/txt';
 import { Suspects } from '@/constants/case01';
 import { Palette, RoleMeta, Space } from '@/constants/signal';
-import type { DossierView, Role, RoomView, SuspectId } from '@/mocks/contract';
+import type { DossierView, Role, RoomView, SuspectId } from '@/lib/contract';
 
 export type DossierUi = {
   tab?: 'evidence' | 'suspects';

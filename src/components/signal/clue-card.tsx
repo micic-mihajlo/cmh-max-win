@@ -2,7 +2,7 @@ import { Image, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 
 import { Palette, Radius, RoleMeta, Space } from '@/constants/signal';
-import type { DossierView, Role } from '@/mocks/contract';
+import type { DossierView, Role } from '@/lib/contract';
 
 import { Icon } from './icon';
 import { useMotionReduced, useTypeScale } from './settings';

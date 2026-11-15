@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming } from 'react-native-reanimated';
 
 import { FontFamily, Palette, RoleMeta } from '@/constants/signal';
-import type { Role } from '@/mocks/contract';
+import type { Role } from '@/lib/contract';
 
 import { useMotionReduced } from './settings';
 import { Txt } from './txt';

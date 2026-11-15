@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import type { RoomView } from '@/mocks/contract';
+import type { RoomView } from '@/lib/contract';
 
 export const SEAL_BEAT_MS = 1200;
 

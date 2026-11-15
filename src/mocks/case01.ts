@@ -1,7 +1,7 @@
 // Mock-only fixtures. These hold server-side content (dossiers, nudges, the answer and the reveal).
 // Only src/mocks/gallery.tsx imports this file, and the gallery is bundled only with EXPO_PUBLIC_MOCKS=1.
 
-import type { DossierView, NudgeView, RevealView, Role, SuspectId } from './contract';
+import type { DossierView, NudgeView, RevealView, Role, SuspectId } from '@/lib/contract';
 
 export const Dossiers: Record<Role, DossierView> = {
   hacker: {

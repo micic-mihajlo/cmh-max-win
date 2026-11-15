@@ -8,7 +8,7 @@ import { host } from '@/components/signal/room';
 import { useMotionReduced } from '@/components/signal/settings';
 import { Txt } from '@/components/signal/txt';
 import { Palette, Radius, Space } from '@/constants/signal';
-import type { RoomView } from '@/mocks/contract';
+import type { RoomView } from '@/lib/contract';
 
 export type MenuMode = 'menu' | 'lobby' | 'confirm-restart' | 'confirm-leave';
 

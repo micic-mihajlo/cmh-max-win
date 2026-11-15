@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Palette, Radius, RoleMeta, Space } from '@/constants/signal';
 import { Case01, Suspects, suspectById } from '@/constants/case01';
-import type { RoomView, SuspectId } from '@/mocks/contract';
+import type { RoomView, SuspectId } from '@/lib/contract';
 
 import { Banner, Button, Label } from './primitives';
 import { joinNames, lockedIds, seated } from './room';

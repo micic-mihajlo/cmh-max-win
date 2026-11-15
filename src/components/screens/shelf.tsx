@@ -6,7 +6,7 @@ import { Button, Label } from '@/components/signal/primitives';
 import { joinNames } from '@/components/signal/room';
 import { Txt } from '@/components/signal/txt';
 import { FontFamily, Palette, Radius, RoleMeta, Space } from '@/constants/signal';
-import type { SeasonPackView } from '@/mocks/contract';
+import type { SeasonPackView } from '@/lib/contract';
 
 export type ShelfPack = SeasonPackView | { real: false };
 

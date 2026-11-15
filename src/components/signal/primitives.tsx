@@ -4,7 +4,7 @@ import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Palette, Radius, RoleMeta, Space } from '@/constants/signal';
-import type { Presence, Role } from '@/mocks/contract';
+import type { Presence, Role } from '@/lib/contract';
 
 import { Icon } from './icon';
 import { useMotionReduced } from './settings';

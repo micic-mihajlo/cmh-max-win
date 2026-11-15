@@ -7,7 +7,7 @@ import { useMotionReduced } from '@/components/signal/settings';
 import { Txt } from '@/components/signal/txt';
 import { Palette, Radius, RoleMeta, Space } from '@/constants/signal';
 import { suspectById } from '@/constants/case01';
-import type { RevealView, RoomView } from '@/mocks/contract';
+import type { RevealView, RoomView } from '@/lib/contract';
 
 export type RevealPage = 'reconstruction' | 'credits' | 'choice' | 'next';
 

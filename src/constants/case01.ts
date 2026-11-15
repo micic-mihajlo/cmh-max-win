@@ -1,4 +1,4 @@
-import type { SuspectId } from '@/mocks/contract';
+import type { SuspectId } from '@/lib/contract';
 
 // Public case content: the intro and the suspect directory are the same on every phone.
 // Dossiers, nudges and the reveal never live here; they come from the server (fixtures in src/mocks).

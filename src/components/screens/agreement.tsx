@@ -7,7 +7,7 @@ import { Seal } from '@/components/signal/seal';
 import { Txt } from '@/components/signal/txt';
 import { suspectById } from '@/constants/case01';
 import { Palette, Radius, RoleMeta, Space } from '@/constants/signal';
-import type { RoomView } from '@/mocks/contract';
+import type { RoomView } from '@/lib/contract';
 
 // 'checking' is the shared seal beat every phone plays when a check lands (and the third phone's pending lock-in).
 export function AgreementScreen({ room, phase }: { room: RoomView; phase: 'checking' | 'wrong' }) {
