@@ -3,12 +3,12 @@ import { StyleSheet, View } from 'react-native';
 import { CaseMenu, type MenuActions, type MenuMode } from '@/components/screens/case-menu';
 import { Screen } from '@/components/signal/backdrop';
 import { ClueCard, ClueCardSkeleton } from '@/components/signal/clue-card';
-import { Banner, IconButton, Label, NextStep, PresenceLine, Segmented, Toast, TopBar } from '@/components/signal/primitives';
-import { SuspectCard } from '@/components/signal/suspect-card';
+import { Avatar, Banner, IconButton, Toast, TopBar } from '@/components/signal/primitives';
+import { SuspectList } from '@/components/signal/suspect-card';
 import { TheorySheet, type SheetNotice } from '@/components/signal/theory-sheet';
 import { Txt } from '@/components/signal/txt';
 import { Suspects } from '@/constants/case01';
-import { Palette, RoleMeta, Space } from '@/constants/signal';
+import { Palette, Space } from '@/constants/signal';
 import type { DossierView, Role, RoomView, SuspectId } from '@/lib/contract';
 
 export type DossierUi = {
@@ -42,19 +42,25 @@ export function DossierScreen({
 }) {
   const role: Role = room.me?.role ?? 'detective';
   const roles = pieces?.length ? pieces.map((p) => p.role) : [role];
-  const meta = RoleMeta[roles[0]];
-  const tab = ui.tab ?? 'evidence';
-  const others = room.members.filter((m) => !m.isMe);
-  const nudgeForMe = !!room.lastNudge && roles.includes(room.lastNudge.forRole);
-  const title = roles.length > 1 ? 'Your evidence' : meta.docLabel.charAt(0) + meta.docLabel.slice(1).toLowerCase();
+  const nudgeForMe = room.lastNudge?.holder ? room.lastNudge.holder.memberId === room.me?.memberId : !!room.lastNudge && roles.includes(room.lastNudge.forRole);
   return (
     <Screen
       header={
         <TopBar
-          left={<Label>Case 01 · The Aurora Seed</Label>}
+          left={
+            <Txt variant="small" color={Palette.paperMuted}>
+              {room.drop ? room.drop.squadLabel : `Room ${room.code}`}
+            </Txt>
+          }
           right={
             <View style={styles.actions}>
-              <IconButton name="speaker.slash" label="Sound off" />
+              <View style={styles.avatars}>
+                {room.members.map((m, i) => (
+                  <View key={m.memberId} style={i > 0 ? styles.overlap : undefined}>
+                    <Avatar name={m.name} size={32} filled={m.isMe} />
+                  </View>
+                ))}
+              </View>
               <IconButton name="ellipsis" label="Case menu" onPress={on.onMenu} />
             </View>
           }
@@ -78,41 +84,17 @@ export function DossierScreen({
         </>
       }>
       {ui.banner ? <Banner {...ui.banner} /> : null}
-      <View style={styles.head}>
-        <Label color={meta.color}>{`Your evidence · ${roles.map((r) => RoleMeta[r].label).join(' + ')}`}</Label>
-        <Txt variant="display">{tab === 'evidence' ? title : 'Suspects'}</Txt>
-      </View>
-      <PresenceLine people={others.map((m) => ({ name: m.name, role: m.role, presence: m.presence }))} />
-      <Segmented
-        value={tab}
-        onChange={on.onTab}
-        options={[
-          { value: 'evidence', label: 'Your evidence' },
-          { value: 'suspects', label: 'Suspects' },
-        ]}
-      />
-      {tab === 'evidence' ? (
-        <>
-          {nudgeForMe ? <Banner tone="warn" title="This one’s yours." text="Read your evidence out loud." /> : null}
-          {pieces ? pieces.map((p) => <ClueCard key={p.role} dossier={p} highlight={p.role === room.lastNudge?.forRole ? ui.highlight : undefined} />) : <ClueCardSkeleton role={role} />}
-          <NextStep>Read your evidence out loud. Then pick a suspect together.</NextStep>
-        </>
-      ) : (
-        <>
-          <Txt variant="small" color={Palette.paperMuted}>
-            Every phone shows the same directory. Claims cover 21:30–21:50.
-          </Txt>
-          {Suspects.map((s) => (
-            <SuspectCard key={s.id} suspect={s} />
-          ))}
-        </>
-      )}
+      <Txt variant="bodyStrong">Every piece is true and puts one suspect somewhere else. Whoever’s left is the thief.</Txt>
+      {nudgeForMe ? <Banner tone="warn" title="This one’s yours." text="Read your piece out loud." /> : null}
+      {pieces ? pieces.map((p) => <ClueCard key={p.role} dossier={p} highlight={p.role === room.lastNudge?.forRole ? ui.highlight : undefined} />) : <ClueCardSkeleton role={role} />}
+      <SuspectList suspects={Suspects} />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   content: { paddingBottom: 200 },
-  actions: { flexDirection: 'row', gap: Space.s },
-  head: { gap: Space.s },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: Space.s },
+  avatars: { flexDirection: 'row' },
+  overlap: { marginLeft: -8 },
 });

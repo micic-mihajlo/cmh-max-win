@@ -4,10 +4,10 @@ import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Palette, Radius, RoleMeta, Space } from '@/constants/signal';
-import { Case01, Suspects, suspectById } from '@/constants/case01';
+import { Suspects, suspectById } from '@/constants/case01';
 import type { RoomView, SuspectId } from '@/lib/contract';
 
-import { Banner, Button, Label } from './primitives';
+import { Banner, Button } from './primitives';
 import { joinNames, lockedIds, seals } from './room';
 import { Seal } from './seal';
 import { useMotionReduced } from './settings';
@@ -26,10 +26,10 @@ function statusLine(room: RoomView) {
   if (meLocked) return { text: `You’re in. Waiting for ${joinNames(waiting)}${waiting.length === 1 ? ' to agree' : ''}.`, strong: false };
   if (lockedOthers.length > 0)
     return { text: `${joinNames(lockedOthers)} ${lockedOthers.length === 1 ? 'agrees' : 'agree'}. Lock in if you do.`, strong: true };
-  return { text: 'Counts only for this version. Any change clears everyone.', strong: false };
+  return { text: 'Everyone locks in the same name.', strong: false };
 }
 
-function useSecondsUntil(until: number | null, offset: number) {
+export function useSecondsUntil(until: number | null, offset: number) {
   const [local, setNow] = useState(() => Date.now());
   const now = local + offset;
   const active = until !== null && until > now;
@@ -88,34 +88,35 @@ export function TheorySheet({
         ]}>
         <Pressable accessibilityRole="button" accessibilityLabel="Shared theory" onPress={onToggle} style={styles.summary}>
           <View style={styles.handle} />
-          <View style={styles.summaryRow}>
-            <Label color={Palette.paper}>{`Shared theory · v${room.theory.revision}`}</Label>
-            <Txt variant="smallStrong" color={Palette.paperMuted} style={styles.tabular}>
-              {locked.size} of {room.members.length} agree
-            </Txt>
-          </View>
-          {culprit ? (
-            <Txt variant="title">
-              <Txt variant="title" color={Palette.paperMuted}>
-                {editorName} picked{' '}
+          {expanded ? (
+            <View style={styles.sheetHead}>
+              <Txt variant="title">Who took the seed?</Txt>
+              <Txt variant="body" color={Palette.paperMuted}>
+                Whoever’s left is the thief.
               </Txt>
-              {culprit.first}
-            </Txt>
+            </View>
           ) : (
-            <Txt variant="title">
-              Who took the seed?{' '}
-              <Txt variant="title" color={Palette.paperFaint}>
-                · not chosen
+            <View style={styles.summaryRow}>
+              <View style={styles.flex}>
+                <Txt variant="small" color={Palette.paperMuted}>
+                  Squad theory
+                </Txt>
+                <Txt variant="name">{culprit ? culprit.name : 'No pick yet'}</Txt>
+              </View>
+              <View style={styles.dots}>
+                {room.members.map((m) => (
+                  <View key={m.memberId} style={[styles.dot, locked.has(m.memberId) && styles.dotOn]} />
+                ))}
+              </View>
+              <Txt variant="smallStrong" color={Palette.paperMuted} style={styles.tabular}>
+                {locked.size} of {room.members.length}
               </Txt>
-            </Txt>
+            </View>
           )}
         </Pressable>
         {expanded ? (
           <ScrollView style={fullHeight ? styles.flex : undefined} contentContainerStyle={styles.expanded} showsVerticalScrollIndicator={false}>
             {notice ? <Banner tone={notice.tone} title={notice.title} text={notice.text} /> : null}
-            <Txt variant="small" color={Palette.paperMuted}>
-              {room.drop ? 'Whoever’s left is the thief. Everyone locks in the same name.' : Case01.rule}
-            </Txt>
             <View style={styles.options}>
               {Suspects.map((s) => (
                 <SuspectOption
@@ -123,6 +124,8 @@ export function TheorySheet({
                   suspect={s}
                   selected={(pendingPick ?? room.theory.culprit) === s.id}
                   pending={pendingPick === s.id}
+                  pickedBy={!pendingPick && room.theory.culprit === s.id && editorName ? (editorName === 'You' ? 'Your pick' : `${editorName}’s pick`) : undefined}
+                  first={s === Suspects[0]}
                   ruledOutBy={
                     ruledOut && ruledOut.wrongPick === s.id
                       ? ruledOut.holder
@@ -146,20 +149,17 @@ export function TheorySheet({
                 </View>
               ))}
             </View>
-            <Txt
-              variant={status.strong ? 'bodyStrong' : 'small'}
-              color={status.strong ? Palette.paper : Palette.paperMuted}
-              style={styles.center}>
-              {cooldown > 0 ? 'Wrong pick. Talk it through before you try again.' : status.text}
+            <Txt variant="small" color={Palette.paperMuted} style={styles.center}>
+              {cooldown > 0 ? 'Wrong pick. Talk it through.' : `${locked.size} of ${room.members.length} locked · ${status.text}`}
             </Txt>
             {cooldown > 0 ? (
-              <Button title={`Try again in ${cooldown}s`} disabled />
+              <Button title={`Try again in 0:${String(cooldown).padStart(2, '0')}`} disabled />
             ) : !culprit || alreadyChecked ? (
-              <Button title="I agree with this theory" disabled />
+              <Button title={culprit ? `Lock in ${culprit.first}` : 'Pick a name first'} disabled />
             ) : meLocked ? (
               <Button title="Locked in ✓" variant="secondary" />
             ) : (
-              <Button title="I agree with this theory" onPress={onLockIn} />
+              <Button title={`Lock in ${culprit.first}`} onPress={onLockIn} />
             )}
             {meLocked ? (
               <Txt variant="small" color={Palette.paperMuted} style={styles.center}>
@@ -177,7 +177,11 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   tabular: { fontVariant: ['tabular-nums'] },
   center: { textAlign: 'center' },
-  scrim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(5,6,8,0.7)' },
+  scrim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(26,25,22,0.25)' },
+  sheetHead: { gap: 4, paddingTop: Space.s },
+  dots: { flexDirection: 'row', gap: 6 },
+  dot: { width: 10, height: 10, borderRadius: 5, borderWidth: 1.5, borderColor: Palette.paperMuted },
+  dotOn: { backgroundColor: Palette.paper, borderColor: Palette.paper },
   sheet: {
     position: 'absolute',
     left: 0,
@@ -189,13 +193,13 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderColor: Palette.hairline,
     paddingHorizontal: Space.xl,
-    boxShadow: '0 -12px 40px rgba(0,0,0,0.5)',
+    boxShadow: '0 -8px 32px rgba(26,25,22,0.10)',
   },
   summary: { paddingTop: Space.s, paddingBottom: Space.s, gap: 4 },
   handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: Palette.hairline, marginBottom: Space.s },
   summaryRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Space.m },
   expanded: { gap: Space.m, paddingTop: Space.s, paddingBottom: Space.xs },
-  options: { gap: Space.s },
+  options: { backgroundColor: Palette.card, borderRadius: Radius.l, borderWidth: 1, borderColor: Palette.hairline, overflow: 'hidden' },
   seals: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', rowGap: Space.s },
   sealCol: { alignItems: 'center', gap: 6, width: 80 },
 });
