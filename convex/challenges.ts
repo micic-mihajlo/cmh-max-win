@@ -499,6 +499,9 @@ export const publishChallenge = mutation({
     const c = await requireOwned(ctx, deviceToken, challengeId);
     if (c.status !== 'draft') fail('CHALLENGE_CLOSED', 'Already published.');
     const now = Date.now();
+    if (c.config.eligibility.kind === 'whop_members' && !whopOAuthConfigured()) {
+      fail('WHOP_NOT_CONFIGURED', 'Whop sign-in is not set up on this deployment, so nobody could join a members-only challenge.');
+    }
     const issues = validateConfig(c.config, c.serverCreated, now);
     if (issues.length) fail('INVALID_CONFIG', issues[0].message, { issues });
     const joinCode = await generateChallengeCode(ctx);
@@ -989,7 +992,8 @@ async function mixerSeat(ctx: MutationCtx, c: Challenge) {
   const secrets = new Set(entries.map((e) => fragmentOf(c, e)?.secret));
   let fragmentSeed = '';
   for (let salt = 0; !fragmentSeed || secrets.has(template.fragment(fragmentSeed, color, entries.length).secret); salt++) {
-    fragmentSeed = c._id + ':' + entries.length + ':' + salt;
+    const nonce = Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, '0')).join('');
+    fragmentSeed = c._id + ':' + entries.length + ':' + salt + ':' + nonce;
   }
   return { color, playerCode, fragmentSeed, confirmed: false };
 }

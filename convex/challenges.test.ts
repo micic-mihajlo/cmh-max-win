@@ -7,6 +7,7 @@ import { api, internal } from './_generated/api';
 import { DEFAULT_CONFIG, computePreview, leftoverSizes, validateConfig } from './challenges';
 import { dealPieces } from './drops';
 import schema from './schema';
+import { mixerTemplate } from './templates/engine';
 import type { ChallengeConfigPatch } from '../src/lib/contract';
 
 const modules = import.meta.glob('./**/*.ts');
@@ -305,6 +306,7 @@ describe('eligibility', () => {
       expect((await t.query(api.challenges.challengeByCode, { deviceToken: 'p1', code: joinCode }))!.eligibility).toMatchObject({ enforced: true, note: null });
       await linkWhop(t, 'p1', 'whop_outsider');
       await linkWhop(t, 'p2', 'whop_member');
+      expect(await errorCode(t.action(api.challenges.joinChallenge, { deviceToken: 'p3', code: joinCode, name: 'P3' }))).toBe('WHOP_SIGN_IN_REQUIRED');
       expect(await errorCode(t.action(api.challenges.joinChallenge, { deviceToken: 'p1', code: joinCode, name: 'P1' }))).toBe('NOT_ELIGIBLE');
       expect(await t.action(api.challenges.joinChallenge, { deviceToken: 'p2', code: joinCode, name: 'P2' })).toHaveProperty('challengeId');
       expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
@@ -317,15 +319,15 @@ describe('eligibility', () => {
     }
   });
 
-  test('without Whop OAuth, whop_members is stored and forces Whop to join, but membership is not checked', async () => {
-    const { t, challengeId, joinCode } = await published({ eligibility: { kind: 'whop_members', productId: 'prod_123' } });
-    const view = (await t.query(api.challenges.challengeByCode, { deviceToken: 'p1', code: joinCode }))!;
-    expect(view.requireWhopToJoin).toBe(true);
-    expect(view.eligibility).toMatchObject({ kind: 'whop_members', productId: 'prod_123', enforced: false });
-    expect(view.eligibility.note).toMatch(/not checked/);
-    expect(await errorCode(t.action(api.challenges.joinChallenge, { deviceToken: 'p1', code: joinCode, name: 'P1' }))).toBe('WHOP_SIGN_IN_REQUIRED');
-    await linkWhop(t, 'p1', 'whop_anyone');
-    expect(await t.action(api.challenges.joinChallenge, { deviceToken: 'p1', code: joinCode, name: 'P1' })).toEqual({ challengeId });
+  test('without Whop OAuth, a whop_members challenge cannot be published', async () => {
+    const t = newTest();
+    await t.mutation(api.challenges.saveCreatorProfile, { deviceToken: HOST, displayName: 'Nova', handle: 'nova' });
+    const { challengeId } = await t.mutation(api.challenges.createChallenge, {
+      deviceToken: HOST,
+      patch: { title: 'Members only', eligibility: { kind: 'whop_members', productId: 'prod_123' } },
+    });
+    expect((await t.query(api.challenges.challengeDraft, { deviceToken: HOST, challengeId }))!.config.requireWhopToJoin).toBe(true);
+    expect(await errorCode(t.mutation(api.challenges.publishChallenge, { deviceToken: HOST, challengeId }))).toBe('WHOP_NOT_CONFIGURED');
   });
 });
 
@@ -349,6 +351,18 @@ describe('mixer mode', () => {
   }
   const link = (t: T, challengeId: string, deviceToken: string, playerCode: string) =>
     t.mutation(api.challenges.linkPlayer, { deviceToken, challengeId, playerCode });
+
+  test('a fragment secret cannot be recomputed from the challenge id and join index', async () => {
+    const { challengeId, me } = await mixer();
+    const engine = mixerTemplate('split-passphrase');
+    for (const [i, m] of me.entries()) {
+      for (let salt = 0; salt < 20; salt++) {
+        for (const seed of [challengeId + ':' + i + ':' + salt, challengeId + ':' + i, challengeId + ':p' + (i + 1)]) {
+          expect(engine.fragment(seed, m.color, i).secret).not.toBe(keyOf(m.fragment.text));
+        }
+      }
+    }
+  });
 
   test('colors are balanced round-robin, fragments and codes are unique', async () => {
     const { me } = await mixer();
