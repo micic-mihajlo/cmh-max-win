@@ -5,9 +5,9 @@ import type { MemberView, NudgeView, RevealView, SuspectId } from '@/lib/contrac
 export const LAB_ROOM_CODE = 'K7QX';
 
 export const labCrew: MemberView[] = [
-  { memberId: 'm-maya', name: 'Maya', role: 'detective', presence: 'reviewing', isHost: true, isMe: true },
-  { memberId: 'm-ravi', name: 'Ravi', role: 'hacker', presence: 'reviewing', isHost: false, isMe: false },
-  { memberId: 'm-lena', name: 'Lena', role: 'witness', presence: 'reviewing', isHost: false, isMe: false },
+  { memberId: 'm-maya', name: 'Maya', role: 'detective', roles: ['detective'], presence: 'reviewing', isHost: true, isMe: true },
+  { memberId: 'm-ravi', name: 'Ravi', role: 'hacker', roles: ['hacker'], presence: 'reviewing', isHost: false, isMe: false },
+  { memberId: 'm-lena', name: 'Lena', role: 'witness', roles: ['witness'], presence: 'reviewing', isHost: false, isMe: false },
 ];
 
 export const labSuspects: { id: SuspectId; name: string; job: string }[] = [
@@ -25,10 +25,12 @@ export const labNudge = (wrongPick: SuspectId, revision: number): NudgeView => (
   forRole: 'witness',
   text: 'Lab fixture: Lena, read the doorway line again. Who could have walked past at that time?',
   revision,
+  holder: null,
 });
 
 export const labReveal: RevealView = {
   culprit: LAB_MOCK_ANSWER,
+  headline: 'Priya took the seed.',
   timeline: [
     { time: '21:30', text: 'Lab fixture timeline, line one.' },
     { time: '21:40', text: 'Lab fixture timeline, line two.' },
