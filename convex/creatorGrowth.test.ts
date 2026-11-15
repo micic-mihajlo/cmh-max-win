@@ -21,7 +21,11 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date('2026-11-15T22:00:00Z'));
 });
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+});
 
 const tokens = (n: number, prefix: string) => Array.from({ length: n }, (_, i) => prefix + '-device-secret-' + (i + 1));
 
@@ -122,6 +126,9 @@ describe('creator history', () => {
     const { t, challengeId } = await seeded();
     vi.advanceTimersByTime(60_000);
     const members = tokens(2, 'club');
+    vi.stubEnv('WHOP_OAUTH_CLIENT_ID', 'client');
+    vi.stubEnv('WHOP_API_KEY', 'test-key');
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ has_access: true, access_level: 'customer' }))));
     const second = await published(t, { title: 'Members night', eligibility: { kind: 'whop_members', productId: 'prod_1' } });
     await linkWhop(t, members[0], 'whop-user-alpha');
     await linkWhop(t, members[1], 'whop-user-charlie');
