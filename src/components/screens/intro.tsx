@@ -21,7 +21,7 @@ export function IntroScreen({ room, opening, onReady }: { room: RoomView; openin
           <View style={styles.seals}>
             {seals(room).map(({ role, member }) => (
               <View key={role} style={styles.sealCol}>
-                <Seal role={role} filled={member?.presence === 'ready'} size={40} broken={member?.presence === 'offline'} />
+                <Seal role={role} filled={member?.presence === 'ready'} size={40} broken={member?.presence === 'offline'} initial={member?.name.charAt(0).toUpperCase()} />
                 <Txt variant="small" color={Palette.paperMuted}>
                   {member?.isMe ? 'You' : member?.name}
                 </Txt>

@@ -142,7 +142,7 @@ export function TheorySheet({
             <View style={styles.seals}>
               {seals(room).map(({ role, member }) => (
                 <View key={member.memberId} style={styles.sealCol}>
-                  <Seal role={role} filled={locked.has(member.memberId)} size={46} />
+                  <Seal role={role} filled={locked.has(member.memberId)} size={46} initial={member.name.charAt(0).toUpperCase()} />
                   <Txt variant="small" color={Palette.paperMuted} numberOfLines={1}>
                     {member.isMe ? 'You' : member.name}
                   </Txt>
@@ -150,7 +150,7 @@ export function TheorySheet({
               ))}
             </View>
             <Txt variant="small" color={Palette.paperMuted} style={styles.center}>
-              {cooldown > 0 ? 'Wrong pick. Talk it through.' : `${locked.size} of ${room.members.length} locked · ${status.text}`}
+              {cooldown > 0 ? 'Wrong pick. Talk it through.' : `${locked.size} of ${room.members.length} locked${meLocked ? '' : ` · ${status.text}`}`}
             </Txt>
             {cooldown > 0 ? (
               <Button title={`Try again in 0:${String(cooldown).padStart(2, '0')}`} disabled />
@@ -161,11 +161,6 @@ export function TheorySheet({
             ) : (
               <Button title={`Lock in ${culprit.first}`} onPress={onLockIn} />
             )}
-            {meLocked ? (
-              <Txt variant="small" color={Palette.paperMuted} style={styles.center}>
-                Changed your mind? Change the theory.
-              </Txt>
-            ) : null}
           </ScrollView>
         ) : null}
       </Animated.View>

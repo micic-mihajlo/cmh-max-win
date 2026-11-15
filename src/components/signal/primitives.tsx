@@ -246,7 +246,7 @@ const styles = StyleSheet.create({
     gap: Space.s,
   },
   primary: { backgroundColor: Palette.ember },
-  secondary: { borderWidth: 1, borderColor: Palette.hairline, backgroundColor: Palette.card },
+  secondary: { backgroundColor: 'transparent' },
   danger: { backgroundColor: Palette.danger },
   disabled: { backgroundColor: Palette.paperShade, borderWidth: 0 },
   roleTag: { flexDirection: 'row', alignItems: 'center', gap: Space.s },
