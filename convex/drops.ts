@@ -291,6 +291,7 @@ async function formSquads(ctx: MutationCtx, drop: Doc<'drops'>) {
   }
   let next = 0;
   let demoSquads = 0;
+  const usedWords: string[] = [];
   for (const [squadIndex, size] of sizes.entries()) {
     const seats = entries.slice(next, next + size);
     next += size;
@@ -317,7 +318,7 @@ async function formSquads(ctx: MutationCtx, drop: Doc<'drops'>) {
         memberIds.push(await ctx.db.insert('members', { roomId, deviceToken: entry.deviceToken, name: entry.name, role: null, presence: 'online' }));
         await ctx.db.patch(entry._id, { squadRoomId: roomId });
       }
-      await dealPassphrase(ctx, roomId, memberIds.map((id, i) => ({ playerId: id, name: seats[i].name })));
+      usedWords.push(...(await dealPassphrase(ctx, roomId, memberIds.map((id, i) => ({ playerId: id, name: seats[i].name })), usedWords)));
       continue;
     }
     const hands = dealPieces(drop.dropId, squadIndex, size);
