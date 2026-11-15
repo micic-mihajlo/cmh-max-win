@@ -7,11 +7,15 @@ export const presence = v.union(v.literal('online'), v.literal('reviewing'), v.l
 export const squadSize = v.union(v.literal(2), v.literal(3));
 export const bountyMode = v.union(v.literal('concept'), v.literal('sandbox'));
 
+export const mixerColor = v.union(v.literal('red'), v.literal('blue'), v.literal('green'), v.literal('yellow'));
+
 export const challengeConfig = v.object({
   title: v.string(),
   blurb: v.string(),
   templateId: v.literal('mystery-aurora'),
+  teamFormation: v.union(v.literal('dealt'), v.literal('mixer')),
   teamSize: v.union(v.literal(1), v.literal(2), v.literal(3), v.literal(4)),
+  mixerColors: v.array(mixerColor),
   leftover: v.union(v.literal('smaller_teams'), v.literal('wait_next_round')),
   startMode: v.union(v.literal('live'), v.literal('scheduled'), v.literal('window')),
   startsAt: v.union(v.number(), v.null()),
@@ -176,10 +180,6 @@ export default defineSchema({
   creators: defineTable({ deviceToken: v.string(), displayName: v.string(), handle: v.string() })
     .index('by_token', ['deviceToken'])
     .index('by_handle', ['handle']),
-  // Stand-in for Sign in with Whop (CMHM-11): a device token's linked Whop user, read only through resolveIdentity.
-  identityLinks: defineTable({ deviceToken: v.string(), whopUserId: v.string(), linkedAt: v.number() }).index('by_token', [
-    'deviceToken',
-  ]),
   challenges: defineTable({
     creatorToken: v.string(),
     config: challengeConfig,
@@ -202,6 +202,12 @@ export default defineSchema({
     joinedAt: v.number(),
     teamId: v.optional(v.id('challengeTeams')),
     waitingNextRound: v.boolean(),
+    // mixer mode
+    color: v.optional(mixerColor),
+    playerCode: v.optional(v.string()),
+    fragmentSeed: v.optional(v.string()),
+    mixerTeamId: v.optional(v.id('mixerTeams')),
+    confirmed: v.optional(v.boolean()),
   })
     .index('by_challenge', ['challengeId'])
     .index('by_challenge_token', ['challengeId', 'deviceToken']),
@@ -217,6 +223,17 @@ export default defineSchema({
   })
     .index('by_challenge', ['challengeId', 'index'])
     .index('by_room', ['roomId']),
+  mixerTeams: defineTable({
+    challengeId: v.id('challenges'),
+    label: v.string(),
+    status: v.union(v.literal('forming'), v.literal('locked'), v.literal('solved')),
+    memberIds: v.array(v.id('challengeEntries')),
+    attempts: v.number(),
+    cooldownUntil: v.optional(v.number()),
+    lockedAt: v.optional(v.number()),
+    place: v.optional(v.number()),
+    solvedAt: v.optional(v.number()),
+  }).index('by_challenge', ['challengeId']),
   fundingLedger: defineTable({
     challengeId: v.id('challenges'),
     amountCents: v.number(),
@@ -243,4 +260,28 @@ export default defineSchema({
   })
     .index('by_challenge', ['challengeId', 'place', 'playerIndex'])
     .index('by_challenge_token', ['challengeId', 'deviceToken']),
+  identities: defineTable({
+    deviceToken: v.string(),
+    whopUserId: v.string(),
+    name: v.string(),
+    username: v.optional(v.string()),
+    avatarUrl: v.optional(v.string()),
+    environment: v.union(v.literal('sandbox'), v.literal('production')),
+    linkedAt: v.number(),
+  })
+    .index('by_token', ['deviceToken'])
+    .index('by_whop_user', ['whopUserId']),
+  whopOAuthSessions: defineTable({
+    state: v.string(),
+    deviceToken: v.string(),
+    codeVerifier: v.string(),
+    returnUrl: v.string(),
+    createdAt: v.number(),
+  }).index('by_state', ['state']),
+  whopOAuthTokens: defineTable({
+    whopUserId: v.string(),
+    accessToken: v.string(),
+    refreshToken: v.optional(v.string()),
+    expiresAt: v.number(),
+  }).index('by_whop_user', ['whopUserId']),
 });

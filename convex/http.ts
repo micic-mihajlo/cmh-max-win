@@ -4,6 +4,7 @@ import { httpRouter } from 'convex/server';
 import { internal } from './_generated/api';
 import { httpAction } from './_generated/server';
 import { whopRequest, type WhopPayment } from './whop';
+import { oauthCallback } from './whopAuth';
 
 const http = httpRouter();
 
@@ -42,5 +43,7 @@ http.route({
   method: 'GET',
   handler: httpAction(async () => new Response(null, { status: 302, headers: { Location: 'cmhmaxwin://season?purchase=returned' } })),
 });
+
+http.route({ path: '/whop/oauth/callback', method: 'GET', handler: oauthCallback });
 
 export default http;

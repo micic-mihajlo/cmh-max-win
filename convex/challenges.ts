@@ -12,8 +12,9 @@ import {
   type QueryCtx,
 } from './_generated/server';
 import { CONCEPT_LABEL, createSandboxClaimLink } from './bounty';
-import { ELIGIBILITY_STUB_NOTE, checkWhopAccess, resolveIdentity } from './creatorIdentity';
+import { ELIGIBILITY_STUB_NOTE, resolveIdentity } from './creatorIdentity';
 import { dealPieces, splitSizes } from './drops';
+import { mixerTemplate } from './mixerTemplate';
 import { challengeConfig } from './schema';
 import { CODE_ALPHABET, generateCode } from './signal';
 import { whopEnvironment, whopRequest } from './whop';
@@ -30,6 +31,11 @@ import type {
   CreatorProfileView,
   EligibilityView,
   HostConsoleView,
+  MixerColor,
+  MixerMeView,
+  MixerStandingsView,
+  MixerSubmitResult,
+  MixerTeamView,
   MyPayoutView,
   PayoutPreviewView,
   PayoutRowView,
@@ -62,7 +68,9 @@ export const DEFAULT_CONFIG: ChallengeConfig = {
   title: '',
   blurb: '',
   templateId: 'mystery-aurora',
+  teamFormation: 'dealt',
   teamSize: 3,
+  mixerColors: ['red', 'blue', 'green'],
   leftover: 'smaller_teams',
   startMode: 'live',
   startsAt: null,
@@ -138,8 +146,11 @@ export function validateConfig(c: ChallengeConfig, serverCreated: boolean, now: 
   const template = TEMPLATES.find((t) => t.id === c.templateId);
   if (!template) add('templateId', 'Unknown template.');
   if (!Number.isInteger(c.teamSize) || c.teamSize < 1 || c.teamSize > MAX_TEAM_SIZE) add('teamSize', 'Teams are 1 to ' + MAX_TEAM_SIZE + ' players.');
-  else if (template && !template.teamSizes.includes(c.teamSize)) {
+  else if (c.teamFormation === 'dealt' && template && !template.teamSizes.includes(c.teamSize)) {
     add('teamSize', template.name + ' plays in teams of ' + template.teamSizes.join(' or ') + ' for now.');
+  }
+  if (c.teamFormation === 'mixer' && (c.mixerColors.length < 2 || c.mixerColors.length > 4 || new Set(c.mixerColors).size !== c.mixerColors.length)) {
+    add('mixerColors', 'Pick 2 to 4 different colors.');
   }
   if (c.startMode === 'scheduled' && (c.startsAt === null || c.startsAt <= now)) add('startsAt', 'Pick a start time in the future.');
   if (c.startMode === 'window' && c.endsAt === null) add('endsAt', 'A window challenge needs an end time.');
@@ -262,7 +273,13 @@ async function teamViews(ctx: Ctx, c: Challenge, teams: Doc<'challengeTeams'>[],
   }));
 }
 
-function finishersOf(teams: Doc<'challengeTeams'>[], entries: Doc<'challengeEntries'>[]) {
+async function finishersOf(ctx: Ctx, c: Challenge, teams: Doc<'challengeTeams'>[], entries: Doc<'challengeEntries'>[]) {
+  if (c.config.teamFormation === 'mixer') {
+    const byId = new Map(entries.map((e) => [e._id, e]));
+    return (await mixerTeamsOf(ctx, c._id))
+      .filter((t) => t.place !== undefined)
+      .map((t) => ({ place: t.place!, teamLabel: t.label, entries: t.memberIds.map((id) => byId.get(id)!).filter(Boolean) }));
+  }
   return teams
     .filter((t) => t.place !== undefined)
     .map((t) => ({ place: t.place!, teamLabel: t.label, entries: entries.filter((e) => e.teamId === t._id) }));
@@ -270,7 +287,7 @@ function finishersOf(teams: Doc<'challengeTeams'>[], entries: Doc<'challengeEntr
 
 async function previewFor(ctx: Ctx, c: Challenge) {
   const [entries, teams, rows] = await Promise.all([entriesOf(ctx, c._id), teamsOf(ctx, c._id), payoutsOf(ctx, c._id)]);
-  const finishers = finishersOf(teams, entries);
+  const finishers = await finishersOf(ctx, c, teams, entries);
   const preview = computePreview(
     c.config.poolCents,
     c.config.reward,
@@ -487,6 +504,7 @@ export const autoStart = internalMutation({
   handler: async (ctx, { challengeId }) => {
     const c = await ctx.db.get(challengeId);
     if (!c || c.status !== 'published') return;
+    if (c.config.teamFormation === 'mixer') return ctx.db.patch(c._id, { status: 'live', firstDealtAt: Date.now() });
     if (!(await formTeams(ctx, c, true))) await endNow(ctx, c);
   },
 });
@@ -537,8 +555,10 @@ async function playerView(ctx: Ctx, c: Challenge, deviceToken: string): Promise<
       name: mine?.name ?? null,
       team: team && room ? { teamId: team._id, label: team.label, roomCode: room.code, size: team.size as TeamSize } : null,
       waitingNextRound: mine?.waitingNextRound ?? false,
+      mixer: mine && c.config.teamFormation === 'mixer' ? await mixerMe(ctx, c, mine) : null,
     },
     requireWhopToJoin: c.config.requireWhopToJoin,
+    teamFormation: c.config.teamFormation,
   };
 }
 
@@ -566,15 +586,21 @@ export const joinChallenge = mutation({
     if (c.status === 'cancelled') fail('CHALLENGE_CANCELLED', c.cancelReason || 'The host cancelled this challenge.');
     const existing = await findEntry(ctx, c._id, deviceToken);
     if (existing) return { challengeId: c._id as string };
-    const open = c.status === 'published' || (c.status === 'live' && c.config.startMode === 'window');
+    const open = c.status === 'published' || (c.status === 'live' && (c.config.startMode === 'window' || c.config.teamFormation === 'mixer'));
     if (!open || (c.config.endsAt !== null && Date.now() >= c.config.endsAt)) fail('CHALLENGE_CLOSED', 'Entry is closed.');
     const me = await resolveIdentity(ctx, deviceToken);
     if (c.config.requireWhopToJoin && !me.whopUserId) fail('WHOP_SIGN_IN_REQUIRED', 'Sign in with Whop to join this challenge.');
-    if (c.config.eligibility.kind === 'whop_members') await checkWhopAccess(me.whopUserId, c.config.eligibility.productId);
     const clean = name.trim().slice(0, 24);
     if (!clean) fail('INVALID_CONFIG', 'Add your name.');
-    await ctx.db.insert('challengeEntries', { challengeId: c._id, deviceToken, name: clean, joinedAt: Date.now(), waitingNextRound: false });
-    if (c.config.startMode === 'window') await formTeams(ctx, c, false);
+    await ctx.db.insert('challengeEntries', {
+      challengeId: c._id,
+      deviceToken,
+      name: clean,
+      joinedAt: Date.now(),
+      waitingNextRound: false,
+      ...(c.config.teamFormation === 'mixer' ? await mixerSeat(ctx, c) : {}),
+    });
+    if (c.config.teamFormation === 'dealt' && c.config.startMode === 'window') await formTeams(ctx, c, false);
     return { challengeId: c._id as string };
   },
 });
@@ -604,7 +630,7 @@ export const hostConsole = query({
       teamsOf(ctx, c._id),
       ctx.db.query('fundingLedger').withIndex('by_challenge', (q) => q.eq('challengeId', c._id)).first(),
     ]);
-    const tv = await teamViews(ctx, c, teams, entries);
+    const tv = c.config.teamFormation === 'mixer' ? await mixerTeamViews(ctx, c, entries) : await teamViews(ctx, c, teams, entries);
     const results: ChallengeResultRow[] = tv
       .filter((t) => t.place !== null)
       .sort((a, b) => a.place! - b.place!)
@@ -625,7 +651,7 @@ export const hostConsole = query({
       timeLeftMs: timeLeft(c, now),
       cancelReason: c.cancelReason ?? null,
       can: {
-        deal: c.status === 'published' && c.config.startMode === 'live',
+        deal: c.status === 'published' && c.config.startMode === 'live' && c.config.teamFormation === 'dealt',
         end: c.status === 'published' || c.status === 'live',
         cancel: c.status === 'published' || c.status === 'live',
         approvePayouts: ended && (pay?.rows.length ?? 0) === 0,
@@ -655,7 +681,9 @@ export const dealTeams = mutation({
   args: { deviceToken: v.string(), challengeId: v.string() },
   handler: async (ctx, { deviceToken, challengeId }) => {
     const c = await requireOwned(ctx, deviceToken, challengeId);
-    if (c.status !== 'published' || c.config.startMode !== 'live') fail('CHALLENGE_CLOSED', 'Only an open live-mode challenge can be dealt.');
+    if (c.status !== 'published' || c.config.startMode !== 'live' || c.config.teamFormation !== 'dealt') {
+      fail('CHALLENGE_CLOSED', 'Only an open live-mode challenge with dealt teams can be dealt.');
+    }
     const waiting = (await entriesOf(ctx, c._id)).filter((e) => !e.teamId && !e.waitingNextRound).length;
     const minimum = c.config.leftover === 'smaller_teams' ? Math.min(2, c.config.teamSize) : c.config.teamSize;
     if (waiting < minimum) fail('NOT_ENOUGH_PLAYERS', 'Not enough players for a team yet.');
@@ -901,6 +929,229 @@ export const challengeStandings = query({
   },
 });
 
+
+// ---------- Mixer mode ----------
+
+const MIXER_COOLDOWN_MS = 20_000;
+
+const mixerTeamsOf = (ctx: Ctx, challengeId: Id<'challenges'>) =>
+  ctx.db.query('mixerTeams').withIndex('by_challenge', (q) => q.eq('challengeId', challengeId)).collect();
+
+// A new entrant's color (the least-held color, ties in the creator's order), player code and fragment seed.
+async function mixerSeat(ctx: MutationCtx, c: Challenge) {
+  const entries = await entriesOf(ctx, c._id);
+  const held = (color: MixerColor) => entries.filter((e) => e.color === color).length;
+  const color = [...c.config.mixerColors].sort((a, b) => held(a) - held(b) || c.config.mixerColors.indexOf(a) - c.config.mixerColors.indexOf(b))[0];
+  const codes = new Set(entries.map((e) => e.playerCode));
+  let playerCode = '';
+  do {
+    playerCode = '';
+    for (let i = 0; i < 4; i++) playerCode += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];
+  } while (codes.has(playerCode));
+  const template = mixerTemplate(c.config.templateId);
+  const secrets = new Set(entries.map((e) => fragmentOf(c, e)?.secret));
+  let fragmentSeed = '';
+  for (let salt = 0; !fragmentSeed || secrets.has(template.fragment(fragmentSeed, color, entries.length).secret); salt++) {
+    fragmentSeed = c._id + ':' + entries.length + ':' + salt;
+  }
+  return { color, playerCode, fragmentSeed, confirmed: false };
+}
+
+function fragmentOf(c: Challenge, e: Doc<'challengeEntries'>) {
+  if (!e.color || !e.fragmentSeed) return null;
+  const index = Number(e.fragmentSeed.split(':')[1]);
+  return mixerTemplate(c.config.templateId).fragment(e.fragmentSeed, e.color, index);
+}
+
+async function mixerTeamView(ctx: Ctx, team: Doc<'mixerTeams'>, colors: MixerColor[], meId: Id<'challengeEntries'> | null): Promise<MixerTeamView> {
+  const members = (await Promise.all(team.memberIds.map((id) => ctx.db.get(id)))).filter((m) => m !== null);
+  return {
+    teamId: team._id,
+    label: team.label,
+    status: team.status,
+    members: members.map((m) => ({ name: m.name, color: m.color!, playerCode: m.playerCode!, confirmed: !!m.confirmed, isMe: m._id === meId })),
+    missingColors: colors.filter((col) => !members.some((m) => m.color === col)),
+    attempts: team.attempts,
+    cooldownUntil: team.cooldownUntil ?? null,
+    place: team.place ?? null,
+  };
+}
+
+async function mixerMe(ctx: Ctx, c: Challenge, me: Doc<'challengeEntries'>): Promise<MixerMeView | null> {
+  const fragment = fragmentOf(c, me);
+  if (!fragment) return null;
+  const team = me.mixerTeamId ? await ctx.db.get(me.mixerTeamId) : null;
+  return {
+    color: me.color!,
+    playerCode: me.playerCode!,
+    fragment: { title: fragment.title, text: fragment.text },
+    team: team ? await mixerTeamView(ctx, team, c.config.mixerColors, me._id) : null,
+  };
+}
+
+async function mixerTeamViews(ctx: Ctx, c: Challenge, entries: Doc<'challengeEntries'>[]): Promise<ChallengeTeamView[]> {
+  const byId = new Map(entries.map((e) => [e._id, e]));
+  return (await mixerTeamsOf(ctx, c._id))
+    .filter((t) => t.status !== 'forming')
+    .map((t) => ({
+      teamId: t._id,
+      label: t.label,
+      memberNames: t.memberIds.map((id) => byId.get(id)?.name ?? ''),
+      status: t.place !== undefined ? 'finished' : c.status === 'ended' || c.status === 'cancelled' ? 'unfinished' : 'playing',
+      place: t.place ?? null,
+      finishedAt: t.solvedAt ?? null,
+      finishMs: t.solvedAt !== undefined && t.lockedAt !== undefined ? t.solvedAt - t.lockedAt : null,
+    }));
+}
+
+async function requireMixerEntry(ctx: MutationCtx, deviceToken: string, challengeId: string) {
+  const c = await getChallenge(ctx, challengeId);
+  if (!c) fail('CHALLENGE_NOT_FOUND', 'No such challenge.');
+  if (c.config.teamFormation !== 'mixer') fail('WRONG_STATUS', 'This challenge deals its teams.');
+  if (c.status === 'cancelled') fail('CHALLENGE_CANCELLED', c.cancelReason || 'The host cancelled this challenge.');
+  if (c.status !== 'published' && c.status !== 'live') fail('CHALLENGE_CLOSED', 'This challenge is over.');
+  const me = await findEntry(ctx, c._id, deviceToken);
+  if (!me) fail('NOT_ENTERED', 'Join the challenge first.');
+  return { c, me };
+}
+
+async function resetConfirmations(ctx: MutationCtx, memberIds: Id<'challengeEntries'>[]) {
+  await Promise.all(memberIds.map((id) => ctx.db.patch(id, { confirmed: false })));
+}
+
+export const linkPlayer = mutation({
+  args: { deviceToken: v.string(), challengeId: v.string(), playerCode: v.string() },
+  handler: async (ctx, { deviceToken, challengeId, playerCode }): Promise<MixerTeamView> => {
+    const { c, me } = await requireMixerEntry(ctx, deviceToken, challengeId);
+    const code = playerCode.trim().toUpperCase();
+    const other = (await entriesOf(ctx, c._id)).find((e) => e.playerCode === code);
+    if (!other || other._id === me._id) fail('PLAYER_NOT_FOUND', other ? 'That is your own code.' : 'No player with that code here.');
+    const [mine, theirs] = await Promise.all([me.mixerTeamId ? ctx.db.get(me.mixerTeamId) : null, other.mixerTeamId ? ctx.db.get(other.mixerTeamId) : null]);
+    if (mine && theirs) {
+      if (mine._id === theirs._id) return mixerTeamView(ctx, mine, c.config.mixerColors, me._id);
+      fail('ALREADY_IN_TEAM', 'You are both already in teams. One of you has to leave first.');
+    }
+    const team = mine ?? theirs;
+    const newcomer = mine ? other : me;
+    if (team) {
+      if (team.status !== 'forming') fail('TEAM_LOCKED', 'That team is locked.');
+      const colors = await Promise.all(team.memberIds.map(async (id) => (await ctx.db.get(id))?.color));
+      if (colors.includes(newcomer.color)) fail('DUPLICATE_COLOR', 'That team already has ' + newcomer.color + '.');
+      const memberIds = [...team.memberIds, newcomer._id];
+      await ctx.db.patch(team._id, { memberIds });
+      await ctx.db.patch(newcomer._id, { mixerTeamId: team._id });
+      await resetConfirmations(ctx, memberIds);
+      return mixerTeamView(ctx, (await ctx.db.get(team._id))!, c.config.mixerColors, me._id);
+    }
+    if (me.color === other.color) fail('DUPLICATE_COLOR', 'You are both ' + me.color + '. A team needs one of each color.');
+    const label = 'Team ' + ((await mixerTeamsOf(ctx, c._id)).length + 1);
+    const teamId = await ctx.db.insert('mixerTeams', { challengeId: c._id, label, status: 'forming', memberIds: [me._id, other._id], attempts: 0 });
+    await ctx.db.patch(me._id, { mixerTeamId: teamId, confirmed: false });
+    await ctx.db.patch(other._id, { mixerTeamId: teamId, confirmed: false });
+    return mixerTeamView(ctx, (await ctx.db.get(teamId))!, c.config.mixerColors, me._id);
+  },
+});
+
+export const leaveMixerTeam = mutation({
+  args: { deviceToken: v.string(), challengeId: v.string() },
+  handler: async (ctx, { deviceToken, challengeId }) => {
+    const { me } = await requireMixerEntry(ctx, deviceToken, challengeId);
+    const team = me.mixerTeamId ? await ctx.db.get(me.mixerTeamId) : null;
+    if (!team) fail('NOT_A_MEMBER', 'You are not in a team.');
+    if (team.status !== 'forming') fail('TEAM_LOCKED', 'Your team is locked.');
+    const memberIds = team.memberIds.filter((id) => id !== me._id);
+    await ctx.db.patch(me._id, { mixerTeamId: undefined, confirmed: false });
+    if (memberIds.length < 2) {
+      await Promise.all(memberIds.map((id) => ctx.db.patch(id, { mixerTeamId: undefined, confirmed: false })));
+      await ctx.db.delete(team._id);
+      return;
+    }
+    await ctx.db.patch(team._id, { memberIds });
+    await resetConfirmations(ctx, memberIds);
+  },
+});
+
+export const confirmMixerTeam = mutation({
+  args: { deviceToken: v.string(), challengeId: v.string() },
+  handler: async (ctx, { deviceToken, challengeId }): Promise<MixerTeamView> => {
+    const { c, me } = await requireMixerEntry(ctx, deviceToken, challengeId);
+    const team = me.mixerTeamId ? await ctx.db.get(me.mixerTeamId) : null;
+    if (!team) fail('NOT_A_MEMBER', 'You are not in a team.');
+    if (team.status === 'forming') {
+      const members = (await Promise.all(team.memberIds.map((id) => ctx.db.get(id)))).filter((m) => m !== null);
+      if (!c.config.mixerColors.every((col) => members.some((m) => m.color === col))) fail('TEAM_NOT_FULL', 'Find one player of every color first.');
+      await ctx.db.patch(me._id, { confirmed: true });
+      if (members.every((m) => m._id === me._id || m.confirmed)) {
+        const now = Date.now();
+        await ctx.db.patch(team._id, { status: 'locked', lockedAt: now });
+        if (c.status === 'published') await ctx.db.patch(c._id, { status: 'live', firstDealtAt: now });
+      }
+    }
+    return mixerTeamView(ctx, (await ctx.db.get(team._id))!, c.config.mixerColors, me._id);
+  },
+});
+
+// The answer is checked against the fragments of this team's own members, so a fragment from outside fails.
+export const submitMixerAnswer = mutation({
+  args: { deviceToken: v.string(), challengeId: v.string(), answer: v.string() },
+  handler: async (ctx, { deviceToken, challengeId, answer }): Promise<MixerSubmitResult> => {
+    const { c, me } = await requireMixerEntry(ctx, deviceToken, challengeId);
+    const team = me.mixerTeamId ? await ctx.db.get(me.mixerTeamId) : null;
+    if (!team || team.status === 'forming') fail('TEAM_NOT_LOCKED', 'Lock your team first.');
+    if (team.status === 'solved') return { outcome: 'correct', place: team.place! };
+    if (c.status !== 'live') fail('CHALLENGE_CLOSED', 'This challenge is not running.');
+    const now = Date.now();
+    if (team.cooldownUntil && now < team.cooldownUntil) fail('COOLDOWN', 'Wrong answers cost time. Talk it through.');
+    const members = (await Promise.all(team.memberIds.map((id) => ctx.db.get(id)))).filter((m) => m !== null);
+    const result = mixerTemplate(c.config.templateId).verify(
+      answer,
+      members.map((m) => ({ color: m.color!, secret: fragmentOf(c, m)!.secret })),
+    );
+    if (!result.correct) {
+      const attempts = team.attempts + 1;
+      await ctx.db.patch(team._id, { attempts, cooldownUntil: now + MIXER_COOLDOWN_MS });
+      return { outcome: 'wrong', attempts, cooldownUntil: now + MIXER_COOLDOWN_MS, nudge: result.nudge ?? null };
+    }
+    const place = c.finishedCount + 1;
+    await ctx.db.patch(team._id, { status: 'solved', place, solvedAt: now });
+    await ctx.db.patch(c._id, { finishedCount: place });
+    if (place >= paidPlaceCount(c.config.reward)) await endNow(ctx, { ...c, finishedCount: place });
+    return { outcome: 'correct', place };
+  },
+});
+
+export const mixerStandings = query({
+  args: { challengeId: v.string() },
+  handler: async (ctx, { challengeId }): Promise<MixerStandingsView | null> => {
+    const c = await getChallenge(ctx, challengeId);
+    if (!c || c.status === 'draft' || c.config.teamFormation !== 'mixer') return null;
+    const [entries, teams] = await Promise.all([entriesOf(ctx, c._id), mixerTeamsOf(ctx, c._id)]);
+    const byId = new Map(entries.map((e) => [e._id, e]));
+    return {
+      challengeId: c._id,
+      status: c.status,
+      serverNow: Date.now(),
+      endsAt: c.config.endsAt,
+      colors: c.config.mixerColors,
+      paidPlaces: paidPlaceCount(c.config.reward),
+      entrantCount: entries.length,
+      teamsForming: teams.filter((t) => t.status === 'forming').length,
+      teamsLocked: teams.filter((t) => t.status === 'locked').length,
+      solved: teams
+        .filter((t) => t.status === 'solved')
+        .sort((a, b) => a.place! - b.place!)
+        .map((t) => ({
+          place: t.place!,
+          teamLabel: t.label,
+          memberNames: t.memberIds.map((id) => byId.get(id)?.name ?? ''),
+          solvedAt: t.solvedAt!,
+          finishMs: t.solvedAt! - (t.lockedAt ?? t.solvedAt!),
+        })),
+      lookingByColor: c.config.mixerColors.map((color) => ({ color, count: entries.filter((e) => e.color === color && !e.mixerTeamId).length })),
+    };
+  },
+});
+
 // ---------- Recap ----------
 
 export const challengeRecap = query({
@@ -910,7 +1161,7 @@ export const challengeRecap = query({
     if (!c || (c.status !== 'ended' && c.status !== 'cancelled')) return null;
     const [creator, entries, teams] = await Promise.all([creatorOf(ctx, c.creatorToken), entriesOf(ctx, c._id), teamsOf(ctx, c._id)]);
     const { preview } = await previewFor(ctx, c);
-    const tv = await teamViews(ctx, c, teams, entries);
+    const tv = c.config.teamFormation === 'mixer' ? await mixerTeamViews(ctx, c, entries) : await teamViews(ctx, c, teams, entries);
     const finishMs = tv.map((t) => t.finishMs).filter((x): x is number => x !== null);
     return {
       challengeId: c._id,
@@ -920,7 +1171,7 @@ export const challengeRecap = query({
       status: c.status,
       endedAt: c.endedAt ?? c.createdAt,
       entrantCount: entries.length,
-      teamCount: teams.length,
+      teamCount: c.config.teamFormation === 'mixer' ? tv.length : teams.length,
       poolCents: c.config.poolCents,
       paidCents: c.status === 'cancelled' ? 0 : preview.paidCents,
       payoutAdapter: c.config.payoutAdapter,
