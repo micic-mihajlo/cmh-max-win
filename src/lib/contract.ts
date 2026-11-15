@@ -158,7 +158,7 @@ export type LockInResult =
 // server committed their correct final lock-in (serializable, so no ties and nothing random).
 
 export type DropStatus = 'scheduled' | 'live' | 'ended';
-export type BountyMode = 'concept' | 'sandbox';
+export type BountyMode = 'concept' | 'sandbox' | 'transfer'; // transfer: real Whop balance transfers (SIGNAL_REAL_PAYOUTS=on)
 
 // Squad-assignment choreography runs this long after startsAt on every phone; the race clock and solveMs start
 // at startsAt + RACE_REVEAL_MS. Rank is commit order and doesn't depend on it.

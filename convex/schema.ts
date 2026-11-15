@@ -5,7 +5,7 @@ export const role = v.union(v.literal('detective'), v.literal('hacker'), v.liter
 export const suspect = v.union(v.literal('theo'), v.literal('priya'), v.literal('ines'), v.literal('jun'));
 export const presence = v.union(v.literal('online'), v.literal('reviewing'), v.literal('ready'));
 export const squadSize = v.union(v.literal(2), v.literal(3));
-export const bountyMode = v.union(v.literal('concept'), v.literal('sandbox'));
+export const bountyMode = v.union(v.literal('concept'), v.literal('sandbox'), v.literal('transfer'));
 
 export const mixerColor = v.union(v.literal('red'), v.literal('blue'), v.literal('green'), v.literal('yellow'));
 
@@ -167,6 +167,24 @@ export default defineSchema({
     label: v.string(),
     error: v.optional(v.string()),
   }).index('by_room', ['roomId']),
+  // One row per squad member of a 'transfer' award (SIGNAL_REAL_PAYOUTS=on): a Whop balance transfer to
+  // the member's linked whopUserId. idempotencyKey = awardId:memberId, sent to Whop so a retry never pays twice.
+  bountyPayouts: defineTable({
+    awardId: v.id('bountyAwards'),
+    memberId: v.id('members'),
+    deviceToken: v.string(),
+    cents: v.number(),
+    status: v.union(v.literal('sign_in_required'), v.literal('sending'), v.literal('sent'), v.literal('failed')),
+    idempotencyKey: v.string(),
+    whopUserId: v.optional(v.string()),
+    attempts: v.number(),
+    transferId: v.optional(v.string()),
+    failureCode: v.optional(v.string()),
+    error: v.optional(v.string()),
+    updatedAt: v.number(),
+  })
+    .index('by_award', ['awardId'])
+    .index('by_token', ['deviceToken', 'status']),
   // Written only by internal.whop.grantFromPayment after a verified Whop payment.
   entitlements: defineTable({
     deviceToken: v.string(),
