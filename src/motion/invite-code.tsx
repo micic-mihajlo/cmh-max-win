@@ -7,12 +7,12 @@ import { Palette } from './palette';
 
 type Props = { code: string; play?: boolean; size?: number };
 
-// The four letters deal in left to right, 50ms apart, so the eye reads the code in order.
+// The four letters deal in left to right, 45ms apart, so the eye reads the code in order.
 export function InviteCode({ code, play = true, size = 64 }: Props) {
   return (
     <View style={styles.row} accessible accessibilityLabel={`Room code ${code.split('').join(' ')}`}>
       {code.split('').map((ch, i) => (
-        <Enter key={`${i}${ch}`} index={i} play={play} from={10} stagger={50}>
+        <Enter key={`${i}${ch}`} index={i} play={play} from={10} stagger={45}>
           <View style={[styles.tile, { width: size, height: size * 1.15 }]}>
             <Text allowFontScaling={false} style={[styles.letter, { fontSize: size * 0.55 }]}>
               {ch}

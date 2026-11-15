@@ -26,7 +26,7 @@ type Props = {
   size?: number;
   // Away / stepped-away holder: the seal dims, its lock-in stays valid.
   dimmed?: boolean;
-  // Only for this phone's own lock-in. Other players' stamps stay silent.
+  // Only for this phone's own claim / lock-in (medium impact). Other players' stamps stay silent.
   haptic?: boolean;
   onDone?: (locked: boolean) => void;
   accessibilityLabel?: string;
@@ -61,7 +61,7 @@ export function Seal({ locked, color, initial, play = true, size = 56, dimmed = 
       return;
     }
     if (reduced) {
-      if (haptic) Haptic.tap();
+      if (haptic) Haptic.thud();
       fill.set(withTiming(1, { duration: Duration.fade, easing: Ease.out }, finish));
       return;
     }
@@ -78,7 +78,7 @@ export function Seal({ locked, color, initial, play = true, size = 56, dimmed = 
       if (!landed || before !== false || !stamping.get()) return;
       stamping.set(false);
       bleed.set(withSequence(withTiming(0, { duration: 0 }), withTiming(1, { duration: Duration.bleed, easing: Ease.out })));
-      if (haptic) scheduleOnRN(Haptic.tap);
+      if (haptic) scheduleOnRN(Haptic.thud);
     },
   );
 
@@ -88,7 +88,7 @@ export function Seal({ locked, color, initial, play = true, size = 56, dimmed = 
   }));
   const bleedStyle = useAnimatedStyle(() => ({
     opacity: (1 - bleed.get()) * 0.7,
-    transform: [{ scale: 1 + bleed.get() * 0.45 }],
+    transform: [{ scale: 1 + bleed.get() * 0.7 }],
   }));
 
   const ring = { width: size, height: size, borderRadius: size / 2 };
@@ -114,7 +114,7 @@ export function Seal({ locked, color, initial, play = true, size = 56, dimmed = 
 
 const styles = StyleSheet.create({
   empty: { borderWidth: 1.5, borderStyle: 'dashed' },
-  bleed: { borderWidth: 1 },
+  bleed: { borderWidth: 1.5 },
   disc: { alignItems: 'center', justifyContent: 'center' },
   initial: { fontFamily: Fonts.serif, fontWeight: '600', color: Palette.ink },
 });

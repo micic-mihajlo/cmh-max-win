@@ -20,6 +20,7 @@ import {
   RoleInitial,
   RoleLabel,
   Seal,
+  Spring,
   Stagger,
   StatusBanner,
   useCheckingHold,
@@ -187,7 +188,7 @@ export default function MotionCatalog() {
 
           <Section title="7 · Reveal credits" note="One card per player, 90ms apart, each with its role edge. Rare moment, so it gets the slower settle.">
             <View key={revealKey} style={{ gap: 10 }}>
-              <Stagger stagger={90} from={24}>
+              <Stagger stagger={90} from={24} spring={Spring.file}>
                 {labReveal.credits.map((c) => (
                   <View key={c.role} style={[ui.paper, styles.credit, { borderLeftColor: RoleColor[c.role] }]}>
                     <Text style={[ui.label, { color: '#51504F' }]}>{RoleLabel[c.role]} · {c.memberName}</Text>

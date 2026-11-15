@@ -27,7 +27,7 @@ export function StatusBanner({ visible, children, showAfterMs = 0, tone = 'neutr
       return;
     }
     const t = setTimeout(() => {
-      shown.set(reduced ? withTiming(1, { duration: Duration.fade, easing: Ease.out }) : withSpring(1, Spring.banner));
+      shown.set(reduced ? withTiming(1, { duration: Duration.fade, easing: Ease.out }) : withSpring(1, Spring.sheet));
     }, showAfterMs);
     return () => clearTimeout(t);
   }, [visible, showAfterMs, reduced, shown]);

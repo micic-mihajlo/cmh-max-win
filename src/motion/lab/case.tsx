@@ -16,6 +16,7 @@ import {
   PressScale,
   RoleColor,
   RoleInitial,
+  Spring,
   Stagger,
   useCheckingHold,
   type Rect,
@@ -75,11 +76,11 @@ export default function LabCase() {
   return (
     <View style={ui.screen}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 16, paddingBottom: insets.bottom + 32, paddingHorizontal: 20, gap: 22 }}>
-        <Enter from={24}>
+        <Enter from={24} spring={Spring.file}>
           <View style={[ui.paper, styles.dossier]}>
             <Text style={[ui.label, { color: '#766242' }]}>Scene notes · 21:30–21:50</Text>
             <Text style={styles.paperTitle}>Greenhouse, deck C</Text>
-            <Stagger delay={180} from={10}>
+            <Stagger delay={180} from={10} spring={Spring.file}>
               {dossier.map((l) => (
                 <View key={l.time} style={styles.line}>
                   <Text style={styles.time}>{l.time}</Text>

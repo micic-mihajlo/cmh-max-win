@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { SeasonPackState } from '@/lib/contract';
 import { labReveal } from '@/mocks/motion-fixtures';
-import { Enter, Haptic, PackButton, Palette, PressScale, RoleColor, RoleLabel, Stagger } from '@/motion';
+import { Enter, Haptic, PackButton, Palette, PressScale, RoleColor, RoleLabel, Spring, Stagger } from '@/motion';
 
 import { ui } from './ui';
 
@@ -31,7 +31,7 @@ export default function LabReveal() {
           <Text style={[ui.callout, { marginTop: 8 }]}>{labReveal.why}</Text>
         </Enter>
         <View style={{ gap: 10 }}>
-          <Stagger delay={350} stagger={90} from={24}>
+          <Stagger delay={350} stagger={90} from={24} spring={Spring.file}>
             {labReveal.credits.map((c) => (
               <View key={c.role} style={[ui.paper, { borderLeftWidth: 4, borderLeftColor: RoleColor[c.role] }]}>
                 <Text style={[ui.label, { color: '#51504F' }]}>{RoleLabel[c.role]} · {c.memberName}</Text>

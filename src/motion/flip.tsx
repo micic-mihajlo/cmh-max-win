@@ -40,7 +40,9 @@ export function FlipFrom({ from, flipKey, children, style }: Props) {
     lastKey.current = flipKey;
     if (first && !from) return;
     if (!from || reduced) {
-      opacity.set(withSequence(withTiming(0, { duration: 0 }), withTiming(1, { duration: Duration.fade, easing: Ease.out })));
+      const swap = reduced ? Duration.fade : Duration.swap;
+      opacity.set(withSequence(withTiming(0, { duration: 0 }), withTiming(1, { duration: swap, easing: Ease.out })));
+      ty.set(withSequence(withTiming(reduced ? 0 : -8, { duration: 0 }), withTiming(0, { duration: swap, easing: Ease.out })));
       return;
     }
     opacity.set(0);
@@ -49,7 +51,7 @@ export function FlipFrom({ from, flipKey, children, style }: Props) {
         opacity.set(1);
         return;
       }
-      const go = (v: number, to: number) => withSequence(withTiming(v, { duration: 0 }), withSpring(to, Spring.move));
+      const go = (v: number, to: number) => withSequence(withTiming(v, { duration: 0 }), withSpring(to, Spring.flight));
       tx.set(go(from.x + from.width / 2 - (x + w / 2), 0));
       ty.set(go(from.y + from.height / 2 - (y + h / 2), 0));
       sx.set(go(from.width / w, 1));
