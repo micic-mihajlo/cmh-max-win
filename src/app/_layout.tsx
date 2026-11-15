@@ -4,6 +4,7 @@ import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { Platform, StyleSheet, View } from 'react-native';
 
 import { usePushTapRouting } from '@/components/showcase/social/push';
 import { Palette } from '@/constants/signal';
@@ -26,11 +27,23 @@ export default function RootLayout() {
 
   if (!ready) return null;
 
+  const stack = <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Palette.ink } }} />;
   const app = (
     <ThemeProvider value={theme}>
       <StatusBar style="dark" />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Palette.ink } }} />
+      {Platform.OS === 'web' ? (
+        <View style={styles.page}>
+          <View style={styles.column}>{stack}</View>
+        </View>
+      ) : (
+        stack
+      )}
     </ThemeProvider>
   );
   return convex ? <ConvexProvider client={convex}>{app}</ConvexProvider> : app;
 }
+
+const styles = StyleSheet.create({
+  page: { flex: 1, alignItems: 'center', backgroundColor: Palette.inkDeep },
+  column: { flex: 1, width: '100%', maxWidth: 440, backgroundColor: Palette.ink },
+});
