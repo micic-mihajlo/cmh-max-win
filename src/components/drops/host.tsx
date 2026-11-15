@@ -3,6 +3,7 @@ import QRCode from 'react-native-qrcode-svg';
 
 import { Screen } from '@/components/signal/backdrop';
 import { Txt } from '@/components/signal/txt';
+import { Wordmark } from '@/components/wordmark';
 import { FontFamily, Palette, Radius, Space } from '@/constants/signal';
 import { Enter, PressScale, Seal, Stagger } from '@/motion';
 import type { HostView } from '@/lib/contract';
@@ -29,6 +30,7 @@ export function HostScreen({ view, hostName, dealing, onDeal }: { view: HostView
           </PressScale>
         </View>
       }>
+      <Wordmark style={styles.brand} />
       <Txt variant="display" style={styles.center}>
         {`Join ${hostName}’s drop`}
       </Txt>
@@ -143,6 +145,7 @@ const styles = StyleSheet.create({
   squadHead: { flexDirection: 'row', alignItems: 'center', gap: Space.m },
   flex: { flex: 1 },
   center: { textAlign: 'center' },
+  brand: { alignSelf: 'center' },
   codeRow: { alignItems: 'center' },
   tiles: { flexDirection: 'row', gap: 10 },
   tile: {

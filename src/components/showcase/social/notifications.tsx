@@ -33,8 +33,10 @@ export function NotificationsScreen({ streamers, items, sample }: { streamers: S
                 <Pressable key={n.id} accessibilityRole="button" style={[showcase.row, styles.item]} onPress={() => open(n)}>
                   <Avatar initials={s.initials} size={40} />
                   <View style={showcase.flex}>
-                    <Txt variant="bodyStrong">{copy.title}</Txt>
-                    <Txt variant="small" color={Palette.paperMuted}>
+                    <Txt variant="bodyStrong" numberOfLines={1}>
+                      {copy.title}
+                    </Txt>
+                    <Txt variant="small" color={Palette.paperMuted} numberOfLines={1}>
                       {copy.body} · {n.when}
                     </Txt>
                   </View>

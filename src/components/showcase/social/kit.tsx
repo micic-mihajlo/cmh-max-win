@@ -61,12 +61,10 @@ export function Screen({
 const washes = ['#F3EDE0', '#E7EDF4', '#F4E6E1'];
 export const Wash = { neutral: '#F1F0EB', pick: (key: string) => washes[key.charCodeAt(0) % washes.length] };
 
-export function Avatar({ initials, size = 44, live }: { initials: string; size?: number; live?: boolean }) {
+export function Avatar({ initials, size = 44 }: { initials: string; size?: number }) {
   return (
-    <View style={[styles.ring, { width: size + 8, height: size + 8, borderRadius: size, borderColor: live ? Palette.danger : 'transparent' }]}>
-      <View style={[styles.avatar, { width: size, height: size, borderRadius: size, backgroundColor: Wash.pick(initials) }]}>
-        <Txt style={{ fontFamily: FontFamily.displayBold, fontSize: size * 0.4, lineHeight: size * 0.5 }}>{initials}</Txt>
-      </View>
+    <View style={[styles.avatar, { width: size, height: size, borderRadius: size, backgroundColor: Wash.pick(initials) }]}>
+      <Txt style={{ fontFamily: FontFamily.displayBold, fontSize: size * 0.4, lineHeight: size * 0.5 }}>{initials}</Txt>
     </View>
   );
 }
@@ -121,7 +119,6 @@ const styles = StyleSheet.create({
   chevron: { fontSize: 34, lineHeight: 40, marginTop: -4 },
   barTitle: { flex: 1, textAlign: 'center' },
   barRight: { minWidth: 32, alignItems: 'flex-end' },
-  ring: { borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   avatar: { alignItems: 'center', justifyContent: 'center' },
   section: { marginTop: Space.xxl + Space.s, paddingHorizontal: Space.xl, gap: Space.l },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
