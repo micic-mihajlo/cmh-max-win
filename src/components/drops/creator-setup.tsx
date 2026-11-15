@@ -109,7 +109,7 @@ export function CreatorSetupScreen({ draft, publishing }: { draft: CreatorDraft;
         </View>
         <Txt variant="bodyStrong">{`Each of the first ${draft.winnerSlots} squads gets ${money(perSquad)}, ${money(perPlayer)} per player.`}</Txt>
         <Txt variant="small" color={Palette.paperMuted}>
-          Free to enter. Skill only: winners are the first correct squads in the order the server checks them. Paid through Whop claim links.
+          Free to enter. Skill only: winners are the first correct squads in the order the server checks them.
         </Txt>
       </View>
     </Screen>

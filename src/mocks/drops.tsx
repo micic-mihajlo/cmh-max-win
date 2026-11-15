@@ -29,7 +29,7 @@ function drop(over: Partial<DropView> = {}, me: Partial<DropView['me']> = {}): D
       currency: 'usd',
       winnerSlots: 3,
       perSquadCents: 5000,
-      mode: 'sandbox',
+      mode: 'concept',
     },
     winnersSoFar: 0,
     entrants,
@@ -151,7 +151,7 @@ const draft: CreatorDraft = {
   totalCents: 15000,
   winnerSlots: 3,
   startsInMin: 5,
-  mode: 'sandbox',
+  mode: 'concept',
 };
 const squad = ['Ravi', 'Maya', 'Lena'];
 
@@ -167,7 +167,7 @@ export const DropStates: MockState[] = [
     id: '10-creator-duos-concept',
     ref: 'D1',
     section: 'Drops',
-    title: 'Creator · duos, concept payout',
+    title: 'Creator · duos',
     render: () => (
       <CreatorSetupScreen
         draft={{
@@ -263,24 +263,10 @@ export const DropStates: MockState[] = [
     render: () => <LeaderboardScreen drop={live(3)} board={board(fullRows)} now={during + 30_000} />,
   },
   {
-    id: '15-bounty-real',
-    ref: 'D6',
-    section: 'Drops',
-    title: 'Bounty · winner, verified claim link',
-    render: () => <BountyResultScreen drop={live(3)} row={myWin} award={award()} squad={squad} />,
-  },
-  {
-    id: '15-bounty-pending',
-    ref: 'D6',
-    section: 'Drops',
-    title: 'Bounty · winner, link pending',
-    render: () => <BountyResultScreen drop={live(3)} row={myWin} award={award({ status: 'pending', claimUrl: null })} squad={squad} />,
-  },
-  {
     id: '15-bounty-concept',
     ref: 'D6',
     section: 'Drops',
-    title: 'Bounty · winner, CONCEPT',
+    title: 'Bounty · winner, CONCEPT payout (demo path)',
     render: () => <BountyResultScreen drop={live(3)} row={myWin} award={conceptAward} squad={squad} />,
   },
   {
@@ -289,5 +275,19 @@ export const DropStates: MockState[] = [
     section: 'Drops',
     title: 'Bounty · solved 6th, no bounty',
     render: () => <BountyResultScreen drop={live(3)} row={mySixth} award={null} squad={squad} />,
+  },
+  {
+    id: '16-bounty-real-not-demo',
+    ref: 'D6',
+    section: 'Drops',
+    title: 'Not in demo · winner, verified claim link (needs Whop KYC)',
+    render: () => <BountyResultScreen drop={live(3)} row={myWin} award={award()} squad={squad} />,
+  },
+  {
+    id: '16-bounty-pending-not-demo',
+    ref: 'D6',
+    section: 'Drops',
+    title: 'Not in demo · winner, link pending',
+    render: () => <BountyResultScreen drop={live(3)} row={myWin} award={award({ status: 'pending', claimUrl: null })} squad={squad} />,
   },
 ];
