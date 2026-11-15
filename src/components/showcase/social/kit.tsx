@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { router, type Href } from 'expo-router';
 import type { ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
@@ -61,10 +62,14 @@ export function Screen({
 const washes = ['#F3EDE0', '#E7EDF4', '#F4E6E1'];
 export const Wash = { neutral: '#F1F0EB', pick: (key: string) => washes[key.charCodeAt(0) % washes.length] };
 
-export function Avatar({ initials, size = 44 }: { initials: string; size?: number }) {
+export function Avatar({ initials, uri, size = 44 }: { initials: string; uri?: string; size?: number }) {
   return (
     <View style={[styles.avatar, { width: size, height: size, borderRadius: size, backgroundColor: Wash.pick(initials) }]}>
-      <Txt style={{ fontFamily: FontFamily.displayBold, fontSize: size * 0.4, lineHeight: size * 0.5 }}>{initials}</Txt>
+      {uri ? (
+        <Image source={{ uri }} style={{ width: size, height: size, borderRadius: size }} contentFit="cover" transition={150} accessibilityIgnoresInvertColors />
+      ) : (
+        <Txt style={{ fontFamily: FontFamily.displayBold, fontSize: size * 0.4, lineHeight: size * 0.5 }}>{initials}</Txt>
+      )}
     </View>
   );
 }

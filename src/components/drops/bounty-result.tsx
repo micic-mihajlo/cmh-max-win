@@ -60,7 +60,7 @@ export function BountyResultScreen({
                 {`${money(bounty.totalCents)} ÷ ${bounty.winnerSlots} squads ÷ ${award.redeemableCount} players`}
               </Txt>
               <Txt variant="label" color={Brass}>
-                {award.label}
+                Concept · no real money moves
               </Txt>
             </>
           ) : (

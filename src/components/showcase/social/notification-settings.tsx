@@ -42,7 +42,7 @@ export function NotificationSettingsScreen({
           <View style={showcase.list}>
             {(streamers ?? []).map((s) => (
               <View key={s.streamerId} style={showcase.row}>
-                <Avatar initials={s.name.slice(0, 1)} size={36} />
+                <Avatar initials={s.name.slice(0, 1)} uri={s.avatarUrl} size={36} />
                 <Txt variant="body" style={showcase.flex}>
                   {s.name}
                 </Txt>

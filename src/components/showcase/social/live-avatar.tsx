@@ -7,7 +7,7 @@ import { Ease, useReduced } from '@/motion';
 
 import { Avatar } from './kit';
 
-export function LiveAvatar({ initials, size = 56 }: { initials: string; size?: number }) {
+export function LiveAvatar({ initials, uri, size = 56 }: { initials: string; uri?: string; size?: number }) {
   const reduced = useReduced();
   const pulse = useSharedValue(1);
   useEffect(() => {
@@ -17,7 +17,7 @@ export function LiveAvatar({ initials, size = 56 }: { initials: string; size?: n
   const dot = useAnimatedStyle(() => ({ transform: [{ scale: pulse.get() }] }));
   return (
     <View style={styles.wrap}>
-      <Avatar initials={initials} size={size} />
+      <Avatar initials={initials} uri={uri} size={size} />
       <Animated.View style={[styles.dot, dot]} accessibilityLabel="Live" />
     </View>
   );
