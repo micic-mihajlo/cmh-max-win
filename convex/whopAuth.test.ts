@@ -40,9 +40,48 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+const CLAIM = 'WIN123';
+
+async function seedSeat(t: ReturnType<typeof convexTest>, { award = true, deviceToken = DEVICE } = {}) {
+  await t.run(async (ctx) => {
+    const roomId = await ctx.db.insert('rooms', {
+      code: CLAIM,
+      hostToken: '',
+      caseId: 'case01',
+      dropId: 'drop1',
+      status: 'resolved',
+      theory: { culprit: null, revision: 0, lastEditedBy: null },
+      attempts: 1,
+      lastNudge: null,
+      checkedRevision: null,
+      checkSeq: 0,
+      lastCheck: null,
+    });
+    await ctx.db.insert('members', { roomId, deviceToken, name: 'Nova', role: 'detective', presence: 'online' });
+    if (award) {
+      await ctx.db.insert('bountyAwards', {
+        dropId: 'drop1',
+        roomId,
+        place: 1,
+        amountCents: 10_000,
+        perPlayerCents: 5_000,
+        redeemableCount: 2,
+        mode: 'concept',
+        status: 'ready',
+        claimUrl: null,
+        label: '1st',
+      });
+    }
+  });
+}
+
+async function start(t: ReturnType<typeof convexTest>, deviceToken = DEVICE, returnUrl?: string) {
+  return t.action(api.whopAuth.startSignIn, { deviceToken, claimCode: CLAIM, returnUrl });
+}
+
 async function signIn(t: ReturnType<typeof convexTest>, code: string, user: { id: string; name: string; username: string }, deviceToken = DEVICE) {
   users[code] = user;
-  const { url } = await t.action(api.whopAuth.startSignIn, { deviceToken, returnUrl: 'cmhmaxwin://award/ABC' });
+  const { url } = await start(t, deviceToken, 'cmhmaxwin://award/ABC');
   const authorize = new URL(url!);
   expect(authorize.searchParams.get('code_challenge_method')).toBe('S256');
   expect(authorize.searchParams.get('redirect_uri')).toBe('https://example.convex.site/whop/oauth/callback');
@@ -55,12 +94,14 @@ describe('Sign in with Whop', () => {
     vi.stubEnv('WHOP_OAUTH_CLIENT_ID', '');
     const t = convexTest(schema, modules);
     expect(await t.query(api.whopAuth.account, { deviceToken: DEVICE })).toEqual({ available: false, account: null });
-    expect(await t.action(api.whopAuth.startSignIn, { deviceToken: DEVICE })).toEqual({ url: null });
+    await seedSeat(t);
+    expect(await start(t)).toEqual({ url: null, reason: 'unavailable' });
     expect(await t.run((ctx) => resolveIdentity(ctx, DEVICE))).toEqual({ deviceToken: DEVICE });
   });
 
   test('links the device token that started sign-in and never exposes tokens', async () => {
     const t = convexTest(schema, modules);
+    await seedSeat(t);
     const response = await signIn(t, 'c1', { id: 'user_nova', name: 'Nova', username: 'nova' });
     expect(response.status).toBe(302);
     expect(response.headers.get('Location')).toBe('cmhmaxwin://award/ABC?whop=linked');
@@ -73,6 +114,7 @@ describe('Sign in with Whop', () => {
 
   test('re-linking a token to another Whop user replaces the link', async () => {
     const t = convexTest(schema, modules);
+    await seedSeat(t);
     await signIn(t, 'c1', { id: 'user_nova', name: 'Nova', username: 'nova' });
     await signIn(t, 'c2', { id: 'user_rex', name: 'Rex', username: 'rex' });
     const rows = await t.run((ctx) => ctx.db.query('identities').collect());
@@ -84,7 +126,8 @@ describe('Sign in with Whop', () => {
     const t = convexTest(schema, modules);
     expect((await t.fetch('/whop/oauth/callback?code=x&state=nope', { method: 'GET' })).status).toBe(400);
     users.c1 = { id: 'user_nova', name: 'Nova', username: 'nova' };
-    const { url } = await t.action(api.whopAuth.startSignIn, { deviceToken: DEVICE });
+    await seedSeat(t);
+    const { url } = await start(t);
     const state = new URL(url!).searchParams.get('state');
     expect((await t.fetch(`/whop/oauth/callback?code=c1&state=${state}`, { method: 'GET' })).headers.get('Location')).toBe('cmhmaxwin://whop-auth?whop=linked');
     expect((await t.fetch(`/whop/oauth/callback?code=c1&state=${state}`, { method: 'GET' })).status).toBe(400);
@@ -92,7 +135,8 @@ describe('Sign in with Whop', () => {
 
   test('ignores return URLs outside the app scheme', async () => {
     const t = convexTest(schema, modules);
-    const { url } = await t.action(api.whopAuth.startSignIn, { deviceToken: DEVICE, returnUrl: 'https://evil.example' });
+    await seedSeat(t);
+    const { url } = await start(t, DEVICE, 'https://evil.example');
     const state = new URL(url!).searchParams.get('state');
     const response = await t.fetch(`/whop/oauth/callback?error=access_denied&state=${state}`, { method: 'GET' });
     expect(response.headers.get('Location')).toBe('cmhmaxwin://whop-auth?whop=cancelled');
@@ -100,6 +144,7 @@ describe('Sign in with Whop', () => {
 
   test('refreshes an expired token server-side', async () => {
     const t = convexTest(schema, modules);
+    await seedSeat(t);
     await signIn(t, 'c1', { id: 'user_nova', name: 'Nova', username: 'nova' });
     await t.run(async (ctx) => {
       const row = (await ctx.db.query('whopOAuthTokens').first())!;
@@ -115,10 +160,24 @@ describe('Sign in with Whop', () => {
 
   test('sign out unlinks the device', async () => {
     const t = convexTest(schema, modules);
+    await seedSeat(t);
     await signIn(t, 'c1', { id: 'user_nova', name: 'Nova', username: 'nova' });
     await t.mutation(api.whopAuth.signOut, { deviceToken: DEVICE });
     expect((await t.query(api.whopAuth.account, { deviceToken: DEVICE })).account).toBeNull();
     expect(await t.run((ctx) => ctx.db.query('whopOAuthTokens').collect())).toHaveLength(0);
+  });
+
+  test('only a device holding a winning seat can start sign-in', async () => {
+    const t = convexTest(schema, modules);
+    await seedSeat(t, { award: false });
+    expect(await start(t)).toEqual({ url: null, reason: 'not_winner' });
+    await t.run(async (ctx) => {
+      const room = (await ctx.db.query('rooms').first())!;
+      await ctx.db.insert('bountyAwards', { dropId: 'drop1', roomId: room._id, place: 1, amountCents: 1, perPlayerCents: 1, redeemableCount: 1, mode: 'concept', status: 'ready', claimUrl: null, label: '1st' });
+    });
+    expect(await start(t, 'spectator-device')).toEqual({ url: null, reason: 'not_winner' });
+    expect(await t.action(api.whopAuth.startSignIn, { deviceToken: DEVICE, claimCode: 'NOPE' })).toEqual({ url: null, reason: 'not_winner' });
+    expect((await start(t)).url).toMatch(/\/oauth\/authorize\?/);
   });
 
   test('checkWhopAccess reads has_access for a resource', async () => {

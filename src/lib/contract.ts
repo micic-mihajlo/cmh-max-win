@@ -265,9 +265,10 @@ export type SeasonPackView = {
 export type UseSeasonPack = () => { view: SeasonPackView | undefined; buy: () => Promise<void> };
 
 // ---- Sign in with Whop (Lane B, CMHM-11) ----
-// Optional. Anyone plays on the device token; a winner signs in with Whop to claim, and the
-// payout goes to whopUserId. The server links the Whop account to the device token that started
-// sign-in, so a claim stays tied to the token that played. OAuth tokens never reach the client.
+// Only winners sign in. Anyone plays on the device token; a device holding a winning seat signs in
+// with Whop to claim, and whichever Whop account it uses (whopUserId) gets paid. The server only
+// starts sign-in for a winning seat and links the account to the device token that started it.
+// OAuth tokens never reach the client.
 export type WhopAccountView = {
   whopUserId: string;
   name: string;
@@ -277,12 +278,13 @@ export type WhopAccountView = {
 };
 // available is false when the deployment has no Whop OAuth app; hide sign-in then.
 export type WhopAccountState = { available: boolean; account: WhopAccountView | null };
-// unavailable: no Whop OAuth app configured · cancelled: the person closed the sheet.
-export type WhopSignInResult = 'linked' | 'cancelled' | 'error' | 'unavailable';
+// unavailable: no Whop OAuth app configured · not_winner: this device holds no winning seat for that
+// code · cancelled: the person closed the sheet.
+export type WhopSignInResult = 'linked' | 'cancelled' | 'error' | 'unavailable' | 'not_winner';
 export type UseWhopAccount = () => WhopAccountState | undefined; // undefined while loading
-export type UseSignInWithWhop = () => () => Promise<WhopSignInResult>;
-// From the award screen: returnPath is the app route the sheet returns to (e.g. 'award/ABC123').
-export type UseLinkForClaim = (returnPath: string) => () => Promise<WhopSignInResult>;
+// From the win screen: code is the squad's room code (same as UseMyAward); returnPath is the app
+// route the sheet returns to (e.g. 'drop/abc/win'). Show the button only when useMyAward returns an award.
+export type UseLinkForClaim = (code: string | null, returnPath: string) => () => Promise<WhopSignInResult>;
 export type UseSignOutWhop = () => () => Promise<void>;
 
 export type UseDrops = () => DropSummaryView[] | undefined; // scheduled and live drops, soonest first

@@ -114,11 +114,38 @@ export const account = query({
   },
 });
 
+export const isWinningSeat = internalQuery({
+  args: { deviceToken: v.string(), claimCode: v.string() },
+  handler: async (ctx, { deviceToken, claimCode }) => {
+    const room = await ctx.db
+      .query('rooms')
+      .withIndex('by_code', (q) => q.eq('code', claimCode.trim().toUpperCase()))
+      .unique();
+    if (!room?.dropId) return false;
+    const [member, award] = await Promise.all([
+      ctx.db
+        .query('members')
+        .withIndex('by_room_token', (q) => q.eq('roomId', room._id).eq('deviceToken', deviceToken))
+        .unique(),
+      ctx.db
+        .query('bountyAwards')
+        .withIndex('by_room', (q) => q.eq('roomId', room._id))
+        .unique(),
+    ]);
+    return member !== null && award !== null;
+  },
+});
+
+// Only a device holding a winning seat (claimCode is its squad's room code) may start sign-in.
 export const startSignIn = action({
-  args: { deviceToken: v.string(), returnUrl: v.optional(v.string()) },
-  handler: async (ctx, { deviceToken, returnUrl }): Promise<{ url: string | null }> => {
+  args: { deviceToken: v.string(), claimCode: v.string(), returnUrl: v.optional(v.string()) },
+  handler: async (
+    ctx,
+    { deviceToken, claimCode, returnUrl },
+  ): Promise<{ url: string; reason: null } | { url: null; reason: 'unavailable' | 'not_winner' }> => {
     const clientId = process.env.WHOP_OAUTH_CLIENT_ID;
-    if (!clientId) return { url: null };
+    if (!clientId) return { url: null, reason: 'unavailable' };
+    if (!(await ctx.runQuery(internal.whopAuth.isWinningSeat, { deviceToken, claimCode }))) return { url: null, reason: 'not_winner' };
     const state = randomString();
     const codeVerifier = randomString();
     const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(codeVerifier));
@@ -134,7 +161,7 @@ export const startSignIn = action({
       code_challenge: base64Url(new Uint8Array(digest)),
       code_challenge_method: 'S256',
     });
-    return { url: `${oauthBase()}/authorize?${params}` };
+    return { url: `${oauthBase()}/authorize?${params}`, reason: null };
   },
 });
 
