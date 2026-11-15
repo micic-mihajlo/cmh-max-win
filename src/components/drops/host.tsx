@@ -11,7 +11,7 @@ import type { HostView } from '@/lib/contract';
 import { money, short } from './ui';
 
 export const MIN_TO_DEAL = 4;
-const CHIP_LIMIT = 12;
+const NEWEST = 3;
 
 // The shared big screen before the deal: the code is the hero, the QR (code only) is secondary.
 export function HostScreen({ view, hostName, dealing, onDeal }: { view: HostView; hostName: string; dealing?: boolean; onDeal?: () => void }) {
@@ -58,16 +58,16 @@ export function HostScreen({ view, hostName, dealing, onDeal }: { view: HostView
       <View style={styles.here}>
         <Txt variant="title">{`${view.entrantCount} here`}</Txt>
         <View style={styles.chips}>
-          {view.entrants.slice(-CHIP_LIMIT).map((e, i) => (
-            <Enter key={`${e.name}-${e.joinedAt}`} from={4}>
+          {view.entrants.slice(-NEWEST).map((e) => (
+            <Enter key={`${e.name}-${e.joinedAt}`} from={0}>
               <View style={styles.chip}>
-                <Txt variant="body">{e.name}</Txt>
+                <Txt variant="body">{e.name.split(' ')[0]}</Txt>
               </View>
             </Enter>
           ))}
-          {view.entrantCount > CHIP_LIMIT ? (
+          {view.entrantCount > NEWEST ? (
             <View style={[styles.chip, styles.more]}>
-              <Txt variant="body" color={Palette.paperMuted}>{`+${view.entrantCount - CHIP_LIMIT} more`}</Txt>
+              <Txt variant="body" color={Palette.paperMuted}>{`+${view.entrantCount - NEWEST} more`}</Txt>
             </View>
           ) : null}
         </View>

@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { JoinCodeScreen, type JoinPhase } from '@/components/drops/join-code';
 import { NameEntryScreen } from '@/components/screens/name-entry';
-import { useDrop, useEnterDropByCode } from '@/hooks/use-drops';
+import { useDrop, useDropByCode, useEnterDropByCode } from '@/hooks/use-drops';
 import { usePlayerName } from '@/hooks/use-player-name';
 import { parseJoinCode } from '@/lib/join-code';
 
@@ -19,6 +19,8 @@ export default function JoinRoute() {
   const [dropId, setDropId] = useState<string | null>(null);
   const enter = useEnterDropByCode();
   const drop = useDrop(dropId);
+  const [failed, setFailed] = useState<string | null>(null);
+  const known = useDropByCode(phase === 'error' ? failed : null);
 
   const submit = async (full: string) => {
     if (!name) return;
@@ -27,6 +29,7 @@ export default function JoinRoute() {
       const r = await enter({ code: full, name });
       setDropId(r.dropId);
     } catch {
+      setFailed(full);
       setPhase('error');
       setCode('');
     }
@@ -47,6 +50,7 @@ export default function JoinRoute() {
       code={code}
       phase={dropId ? 'joined' : phase}
       name={name}
+      hostName={known?.creatorName}
       onChange={(next) => {
         setCode(next);
         if (phase === 'error') setPhase('typing');
