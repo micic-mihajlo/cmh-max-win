@@ -49,6 +49,7 @@ const past: Record<string, FeedResultRow[]> = {
 export const feed: FollowingFeedView = { following: cards, live, upcoming, results: Object.values(past).flat().slice(0, 5), serverNow };
 
 export const streamers = cards;
+export const squadmates = ['Lou', 'Ana'];
 
 export function streamerPage(id: string): StreamerPageView | null {
   const card = cards.find((c) => c.streamerId === id);
