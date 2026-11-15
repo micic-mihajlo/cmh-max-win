@@ -47,13 +47,14 @@ export const Dossiers: Record<Role, DossierView> = {
 };
 
 export const Nudges: Record<Exclude<SuspectId, 'jun'>, Omit<NudgeView, 'revision'>> = {
-  theo: { wrongPick: 'theo', forRole: 'hacker', text: 'The systems log disagrees. Hacker, walk everyone through the timing.' },
-  priya: { wrongPick: 'priya', forRole: 'witness', text: 'Someone here can vouch for her. Witness, what did you see?' },
-  ines: { wrongPick: 'ines', forRole: 'detective', text: 'The scene notes rule this out. Detective, check that door.' },
+  theo: { wrongPick: 'theo', forRole: 'hacker', text: 'The systems log disagrees. Hacker, walk everyone through the timing.', holder: null },
+  priya: { wrongPick: 'priya', forRole: 'witness', text: 'Someone here can vouch for her. Witness, what did you see?', holder: null },
+  ines: { wrongPick: 'ines', forRole: 'detective', text: 'The scene notes rule this out. Detective, check that door.', holder: null },
 };
 
 export const Reveal: RevealView = {
   culprit: 'jun',
+  headline: 'Jun took the seed.',
   timeline: [
     { time: '21:33', text: 'Jun sets the oven on a 40-minute timer, an alibi that runs itself.' },
     { time: '21:40', text: 'She walks aft past the lounge: the figure lost in the glare.' },
