@@ -5,9 +5,13 @@
   },
   "build": {
     "preview": {
+      "corepack": true,
       "distribution": "internal",
-      "channel": "preview",
-      "corepack": true
+      "channel": "production",
+      "env": {
+        "EXPO_PUBLIC_CONVEX_URL": "https://compassionate-puffin-914.convex.cloud",
+        "EXPO_PUBLIC_CONVEX_SITE_URL": "https://compassionate-puffin-914.convex.site"
+      }
     },
     "production": {
       "corepack": true,

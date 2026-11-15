@@ -21,7 +21,8 @@ export type CheckResult = { solved: boolean; correct: boolean; nudge?: Nudge };
 
 // What the platform knows about a team's run when it scores and ranks it. commitSeq is the platform's commit order
 // for correct solves (drops.winnersSoFar + 1), solveMs is commit time minus the race start.
-export type Outcome = { correct: boolean; attempts: number; solveMs: number; commitSeq: number };
+// points is the template's own score (quick-quiz), 0 for templates without one.
+export type Outcome = { correct: boolean; attempts: number; solveMs: number; commitSeq: number; points?: number };
 
 // One squad's live position in the race, for the standings view. value runs 0 to 1 and is 1 only when solved.
 // stage is a short label ("filling", "locking in", "solved"); stageIndex/stageCount let a client draw steps.
@@ -54,38 +55,61 @@ export type MixerSupport = {
   verify(answer: string, members: readonly MixerMember[]): VerifyResult;
 };
 
+// Creator content problems found at publish time, in the same shape as contract.ts ConfigIssue.
+export type ConfigIssue = { field: string; message: string };
+
+// The server clock. The engine passes Date.now() from the mutation; templates never read the clock themselves.
+export type ActCtx = { now: number };
+
+// ctx.now at deal time is the race start on the server clock.
+export type DealCtx = { now: number };
+
 export type BaseAction = { type: string };
 
 export type ActionSpec<State, A> = {
   // Shape of the action, for the mutation's args (v.union of every action's args, see engine.actionArgs).
   args: GenericValidator;
   // Game-rule check against the current state. Null means the action may be applied.
-  validate(state: State, playerId: string, action: A): TemplateError | null;
+  validate(state: State, playerId: string, action: A, ctx: ActCtx): TemplateError | null;
 };
 
 export interface ChallengeTemplate<Config, State, Action extends BaseAction, PrivateView, SharedView> {
   id: string;
   name: string;
   summary: string;
-  // coop: the whole squad is needed (necessity must hold at every size). solo: any one player could solve it.
+  // coop: the whole team is needed (necessity must hold at every size). solo: any one player could solve it.
   mode: 'coop' | 'solo';
-  // schema validates creator input at the mutation boundary; parse applies defaults and bounds, throwing on bad input.
-  config: { schema: GenericValidator; parse(raw: unknown): Config };
+  // The creator-content schema. schema validates the shape at the mutation boundary; issues lists every problem
+  // for the publish check (empty means publishable); parse applies defaults and throws BAD_CONFIG on bad input.
+  config: { schema: GenericValidator; issues?(raw: unknown): ConfigIssue[]; parse(raw: unknown): Config };
   teamSizes: readonly TeamSize[];
   formations: readonly Formation[];
   // Required when formations includes 'mixer'.
   mixer?: MixerSupport;
   // Seats the team and returns the initial state plus each player's private view, keyed by playerId.
-  deal(team: Team, seed: string, config: Config): { state: State; views: Record<string, PrivateView> };
+  deal(team: Team, seed: string, config: Config, ctx: DealCtx): { state: State; views: Record<string, PrivateView> };
   // What only this player may see. Must never contain another player's private content.
   privateView(state: State, playerId: string): PrivateView;
   // What every player on the team sees. Must never contain any player's private content.
   sharedView(state: State): SharedView;
   actions: { [K in Action['type']]: ActionSpec<State, Extract<Action, { type: K }>> };
   // Server-side transition. Pure: returns a new state and never mutates the input. Runs only after validate passed.
-  apply(state: State, playerId: string, action: Action): State;
+  apply(state: State, playerId: string, action: Action, ctx: ActCtx): State;
   check(state: State): CheckResult;
   progress(state: State): Progress;
+  // Timed templates (quick-quiz). wakeTimes lists the server times at which state must change with no player
+  // action (a question times out); the platform schedules a tick for each and calls tick(state, now). Views read
+  // only state, so anything time-gated (the correct choice) appears only after the tick or the host's advance.
+  wakeTimes?(state: State): number[];
+  tick?(state: State, now: number): State;
+  // Live score for leaderboards between rounds (quick-quiz).
+  points?(state: State): number;
+  // Host actions (quick-quiz on stream): the console's Next button. The platform calls advance on every team's
+  // session in one mutation with the same now, so all teams see the question open together.
+  host?: { advance(state: State, now: number): State };
+  // Public, token-free board for an OBS overlay or a big screen, read by code. round is the same for every team
+  // (any team's state works); team is one team's public row. Neither may carry an open question's answers.
+  board?: { round(state: State): unknown; team(state: State): { points: number; answeredCurrent: boolean } };
   // score is display points; rankKey sorts ascending, compared element by element.
   scoring: { score(outcome: Outcome): number; rankKey(outcome: Outcome): number[] };
   // Could these players solve it from their private views alone? The engine's checkNecessity enumerates subsets.
