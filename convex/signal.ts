@@ -544,6 +544,12 @@ export const leaveRoom = mutation({
   handler: async (ctx, { deviceToken, code }) => {
     const { room, me } = await requireCaller(ctx, code, deviceToken);
     if (room.status === 'intro' || room.status === 'playing') fail('CASE_STARTED', 'You can leave once the case is over.');
+    // A squad that won keeps every seat: the award's split and each member's myAward hang off membership.
+    const award = await ctx.db
+      .query('bountyAwards')
+      .withIndex('by_room', (q) => q.eq('roomId', room._id))
+      .first();
+    if (award) return;
     await ctx.db.delete(me._id);
     await presenceComponent.removeRoomUser(ctx, room.code, me._id);
     const rest = await members(ctx, room._id);
