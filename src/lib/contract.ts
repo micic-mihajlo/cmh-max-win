@@ -320,7 +320,9 @@ export type HostView = {
 
 export type UseHostView = (dropId: string | null) => HostView | null | undefined; // null = not the host, or no such drop
 // creatorName heads the race ("Nova's drop"). Omitted: the newest name this device token used server-side, else "Host".
-export type UseHostDrop = () => (args: { title?: string; winnerSlots?: number; totalCents?: number; creatorName?: string }) => Promise<{ dropId: string; joinCode: string }>;
+// startsAt (ms epoch, 2 minutes to 30 days ahead): a scheduled drop, listed under "Coming up" with Remind me until it opens.
+// Omitted: the drop opens now and the streamer goes live, as before.
+export type UseHostDrop = () => (args: { title?: string; winnerSlots?: number; totalCents?: number; creatorName?: string; startsAt?: number }) => Promise<{ dropId: string; joinCode: string }>;
 export type UseDealSquads = (dropId: string) => () => Promise<void>; // host only; NOT_ENOUGH_PLAYERS below 4
 
 export type UseDropByCode = (code: string | null) => DropView | null | undefined; // null = no open drop with that code
@@ -679,6 +681,7 @@ export type UseSubmitMixerAnswer = (challengeId: string) => (answer: string) => 
 
 export type UseChallengeRecap = (challengeId: string | null) => ChallengeRecapView | null | undefined; // null until ended
 
+export * from './contract-feed';
 export * from './contract-growth';
 export * from './contract-whop';
 export * from './contract-live'; // live layer: host start, lock and actions, public live view (CAP-40)
