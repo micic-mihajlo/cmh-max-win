@@ -5,7 +5,7 @@ import { Button, Label } from '@/components/signal/primitives';
 import { Txt } from '@/components/signal/txt';
 import { Palette, Radius, RoleColors, Space } from '@/constants/signal';
 import { NudgeEntrance, Seal, Stagger } from '@/motion';
-import type { Role, RACE_REVEAL_MS, type DropView, type LeaderboardRow, type LeaderboardView } from '@/lib/contract';
+import { RACE_REVEAL_MS, type DropView, type LeaderboardRow, type LeaderboardView, type Role } from '@/lib/contract';
 
 import { useServerClock } from './clock';
 import { short } from './ui';
