@@ -20,6 +20,7 @@ import type * as live from "../live.js";
 import type * as liveTemplates from "../liveTemplates.js";
 import type * as pings from "../pings.js";
 import type * as presence from "../presence.js";
+import type * as rateLimits from "../rateLimits.js";
 import type * as signal from "../signal.js";
 import type * as teamSessions from "../teamSessions.js";
 import type * as templates_aurora from "../templates/aurora.js";
@@ -31,6 +32,7 @@ import type * as templates_splitCode from "../templates/splitCode.js";
 import type * as templates_types from "../templates/types.js";
 import type * as whop from "../whop.js";
 import type * as whopAuth from "../whopAuth.js";
+import type * as whopCreator from "../whopCreator.js";
 
 import type {
   ApiFromModules,
@@ -51,6 +53,7 @@ declare const fullApi: ApiFromModules<{
   liveTemplates: typeof liveTemplates;
   pings: typeof pings;
   presence: typeof presence;
+  rateLimits: typeof rateLimits;
   signal: typeof signal;
   teamSessions: typeof teamSessions;
   "templates/aurora": typeof templates_aurora;
@@ -62,6 +65,7 @@ declare const fullApi: ApiFromModules<{
   "templates/types": typeof templates_types;
   whop: typeof whop;
   whopAuth: typeof whopAuth;
+  whopCreator: typeof whopCreator;
 }>;
 
 /**
@@ -92,4 +96,5 @@ export declare const internal: FilterApi<
 
 export declare const components: {
   presence: import("@convex-dev/presence/_generated/component.js").ComponentApi<"presence">;
+  rateLimiter: import("@convex-dev/rate-limiter/_generated/component.js").ComponentApi<"rateLimiter">;
 };

@@ -1,0 +1,33 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "preview": {
+      "corepack": true,
+      "distribution": "internal",
+      "channel": "production",
+      "env": {
+        "EXPO_PUBLIC_CONVEX_URL": "https://compassionate-puffin-914.convex.cloud",
+        "EXPO_PUBLIC_CONVEX_SITE_URL": "https://compassionate-puffin-914.convex.site"
+      }
+    },
+    "production": {
+      "corepack": true,
+      "autoIncrement": true,
+      "channel": "production",
+      "env": {
+        "EXPO_PUBLIC_CONVEX_URL": "https://compassionate-puffin-914.convex.cloud",
+        "EXPO_PUBLIC_CONVEX_SITE_URL": "https://compassionate-puffin-914.convex.site"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "ascAppId": "6835223510"
+      }
+    }
+  }
+}

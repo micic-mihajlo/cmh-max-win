@@ -111,6 +111,8 @@ export type SignalErrorCode =
   | 'CONFIRM_REQUIRED'
   | 'DROP_NOT_FOUND'
   | 'DROP_CLOSED' // entries close at the start time; a late joiner gets this
+  | 'DROP_FULL' // a new device entering a drop that already seats DROP_CAPACITY (150) players
+  | 'RATE_LIMITED' // too many tries; data.retryAfterMs says when the next one can succeed
   | 'NOT_ENTERED'
   | 'COOLDOWN' // drops: a lock-in during the 20s after a wrong check
   | 'DEMO_CONTROLS_OFF'
@@ -125,6 +127,7 @@ export type SignalErrorCode =
   | 'NOT_ELIGIBLE' // reserved: whop_members enforcement after Sign in with Whop
   | 'WHOP_SIGN_IN_REQUIRED' // joining a requireWhopToJoin challenge, or claiming, without a linked Whop account
   | 'CLAIM_EXPIRED'
+  | 'WHOP_NOT_CONFIGURED' // publishing a whop_members challenge on a deployment without Whop sign-in
   | 'PLAYER_NOT_FOUND' // mixer: no entrant with that player code in this challenge
   | 'DUPLICATE_COLOR' // mixer: the team already has that color
   | 'ALREADY_IN_TEAM' // mixer: a player sits in one team at a time
@@ -285,10 +288,10 @@ export type WhopAccountView = {
 // available is false when the deployment has no Whop OAuth app; hide sign-in then.
 export type WhopAccountState = { available: boolean; account: WhopAccountView | null };
 // unavailable: no Whop OAuth app configured · not_winner: this device holds no winning seat for that
-// code · cancelled: the person closed the sheet.
-export type WhopSignInResult = 'linked' | 'cancelled' | 'error' | 'unavailable' | 'not_winner';
+// code · no_profile: creator sign-in without a creator profile · cancelled: the person closed the sheet.
+export type WhopSignInResult = 'linked' | 'cancelled' | 'error' | 'unavailable' | 'not_winner' | 'no_profile';
 export type UseWhopAccount = () => WhopAccountState | undefined; // undefined while loading
-// From the win screen: code is the squad's room code (same as UseMyAward); returnPath is the app
+// From the win screen: code is the squad's or challenge team's room code (same as UseMyAward); returnPath is the app
 // route the sheet returns to (e.g. 'drop/abc/win'). Show the button only when useMyAward returns an award.
 export type UseLinkForClaim = (code: string | null, returnPath: string) => () => Promise<WhopSignInResult>;
 export type UseSignOutWhop = () => () => Promise<void>;
@@ -676,4 +679,5 @@ export type UseSubmitMixerAnswer = (challengeId: string) => (answer: string) => 
 
 export type UseChallengeRecap = (challengeId: string | null) => ChallengeRecapView | null | undefined; // null until ended
 
+export * from './contract-whop';
 export * from './contract-live'; // live layer: host start, lock and actions, public live view (CAP-40)
