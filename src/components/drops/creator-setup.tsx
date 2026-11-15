@@ -22,7 +22,7 @@ export function CreatorSetupScreen({ drop, live, onOpen }: { drop: CreatorDrop; 
           </Txt>
         ) : (
           <PressScale onPress={onOpen} style={styles.cta}>
-            <Txt variant="button" color={Palette.ink}>
+            <Txt variant="button" color={Palette.onAccent}>
               Open drop
             </Txt>
           </PressScale>
@@ -47,7 +47,7 @@ export function CreatorSetupScreen({ drop, live, onOpen }: { drop: CreatorDrop; 
           </View>
           {live ? (
             <View style={styles.liveTag}>
-              <Txt variant="label" color={Palette.ink}>
+              <Txt variant="label" color={Palette.onAccent}>
                 Live
               </Txt>
             </View>
