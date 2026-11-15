@@ -31,7 +31,6 @@ export default function JoinRoute() {
     } catch {
       setFailed(full);
       setPhase('error');
-      setCode('');
     }
   };
 
