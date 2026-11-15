@@ -1,4 +1,4 @@
-// Copy of src/lib/contract.ts from cmh-max-win#3 (858eb11). Delete this file and import @/lib/contract once #3 is on main.
+// Copy of src/lib/contract.ts from cmh-max-win#5 (ada863d). Delete this file and import @/lib/contract once the Lane B stack is on main.
 // SIGNAL client contract (Lane B owns this file).
 // Lane A builds mocks against these types; Lane B's hooks in src/hooks/use-*.ts implement the signatures.
 // Every call resolves the caller from the device token in src/lib/device.ts; no member id is ever sent by the client.
@@ -131,3 +131,22 @@ export type UseRestart = (code: string) => (args: { confirm: true }) => Promise<
 export type UseLeaveRoom = (code: string) => () => Promise<void>;
 // This device's own socket, for the reconnecting banner (others' presence is in members[].presence).
 export type UseConnection = () => { connected: boolean; everConnected: boolean };
+
+// ---- Whop season pack (Lane B, CMHM-11) ----
+// A real, server-verified purchase through Whop's hosted checkout (sandbox for the demo).
+// 'owned' comes only from a Convex entitlement written after Whop's payment.succeeded webhook
+// is verified and the payment is re-read from Whop's API; the browser result never unlocks it.
+// The concept card stays a separate Lane A component and must never render from this view.
+export type PackId = 'season01';
+// locked: not bought · checkout: Whop checkout is open · verifying: checkout returned, waiting
+// for the server-verified entitlement · owned: entitlement exists.
+export type SeasonPackState = 'locked' | 'checkout' | 'verifying' | 'owned';
+export type SeasonPackView = {
+  pack: PackId;
+  state: SeasonPackState;
+  real: true;
+  environment: 'sandbox' | 'production' | null; // set once owned; the demo shows "test purchase" for sandbox
+  error: string | null; // e.g. Whop not configured, checkout creation failed
+};
+// view is undefined while loading.
+export type UseSeasonPack = () => { view: SeasonPackView | undefined; buy: () => Promise<void> };

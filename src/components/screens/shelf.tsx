@@ -1,4 +1,4 @@
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/signal/backdrop';
 import { Icon } from '@/components/signal/icon';
@@ -6,11 +6,21 @@ import { Button, Label } from '@/components/signal/primitives';
 import { joinNames } from '@/components/signal/room';
 import { Txt } from '@/components/signal/txt';
 import { FontFamily, Palette, Radius, RoleMeta, Space } from '@/constants/signal';
-import type { SeasonPackView } from '@/mocks/season-pack';
+import type { SeasonPackView } from '@/mocks/contract';
 
 export type ShelfPack = SeasonPackView | { real: false };
 
-export function ShelfScreen({ pack, attempts, crew }: { pack: ShelfPack; attempts: number; crew: string[] }) {
+export function ShelfScreen({
+  pack,
+  attempts,
+  crew,
+  onBuy,
+}: {
+  pack: ShelfPack;
+  attempts: number;
+  crew: string[];
+  onBuy?: () => void;
+}) {
   return (
     <Screen footer={<Button title="Start a new case" variant="secondary" />}>
       <View style={styles.head}>
@@ -42,18 +52,18 @@ export function ShelfScreen({ pack, attempts, crew }: { pack: ShelfPack; attempt
         </Txt>
       </View>
 
-      {pack.real ? <RealPackCard pack={pack} /> : <ConceptPackCard />}
+      {pack.real ? <RealPackCard pack={pack} onBuy={onBuy} /> : <ConceptPackCard />}
     </Screen>
   );
 }
 
-export function RealPackCard({ pack }: { pack: SeasonPackView }) {
+export function RealPackCard({ pack, onBuy }: { pack: SeasonPackView; onBuy?: () => void }) {
   return (
     <View style={styles.real}>
       <View style={styles.realTop}>
         <View style={styles.whopBadge}>
           <Txt variant="label" color={Palette.paper}>
-            Whop · test purchase
+            {pack.environment === 'production' ? 'Whop' : 'Whop · test purchase'}
           </Txt>
         </View>
         {pack.state === 'owned' ? (
@@ -74,13 +84,25 @@ export function RealPackCard({ pack }: { pack: SeasonPackView }) {
           <Txt variant="bodyStrong" color={Palette.inkOnPaper}>
             $4.99 · one-time · sandbox
           </Txt>
-          <View style={styles.buy} accessibilityRole="button">
+          <Pressable style={styles.buy} accessibilityRole="button" onPress={onBuy}>
             <Txt variant="button" color={Palette.ink}>
               Get the season
             </Txt>
+          </Pressable>
+          <Txt variant="small" color={pack.error ? Palette.danger : Palette.inkOnPaperMuted}>
+            {pack.error ? 'Checkout didn’t open. Try again.' : 'Checkout opens on Whop. The pack unlocks only after our server verifies the payment.'}
+          </Txt>
+        </>
+      ) : pack.state === 'checkout' ? (
+        <>
+          <View style={[styles.buy, styles.verifying]}>
+            <ActivityIndicator color={Palette.inkOnPaper} />
+            <Txt variant="button" color={Palette.inkOnPaper}>
+              Finish checkout on Whop…
+            </Txt>
           </View>
           <Txt variant="small" color={Palette.inkOnPaperMuted}>
-            Checkout opens on Whop. The pack unlocks only after our server verifies the payment.
+            Whop’s checkout is open. Pay there, then come back here.
           </Txt>
         </>
       ) : pack.state === 'verifying' ? (
@@ -100,7 +122,7 @@ export function RealPackCard({ pack }: { pack: SeasonPackView }) {
           <View style={styles.ownedRow}>
             <Icon name="checkmark.seal.fill" size={22} color="#3E6B3A" />
             <Txt variant="bodyStrong" color={Palette.inkOnPaper}>
-              Verified by the server · Nov 15
+              Verified by the server{pack.environment === 'sandbox' ? ' · test purchase' : ''}
             </Txt>
           </View>
           <Txt variant="small" color={Palette.inkOnPaperMuted}>

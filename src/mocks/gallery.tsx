@@ -12,7 +12,7 @@ import { RevealScreen } from '@/components/screens/reveal';
 import { ShelfScreen } from '@/components/screens/shelf';
 
 import { Dossiers, Reveal } from './case01';
-import type { Role, RoomView } from './contract';
+import type { Role, RoomView, SeasonPackView } from './contract';
 import { room, whoByRole, type RoomFixture } from './fixtures';
 
 export type MockState = {
@@ -34,6 +34,7 @@ const wrong = (role: Role, pick: 'theo' | 'priya' | 'ines', attempts: number) =>
 const allLocked: RoomFixture = { culprit: 'jun', editedBy: 'ravi', locked: ['maya', 'ravi', 'lena'] };
 const solved = room({ status: 'resolved', me: 'ravi', culprit: 'jun', revision: 7, attempts: 2, locked: ['maya', 'ravi', 'lena'], lastCheck: { seq: 2, result: 'correct', at: 0 } });
 const crew = ['Maya', 'Ravi', 'Lena'];
+const pack = (state: SeasonPackView['state'], environment: SeasonPackView['environment'] = null): SeasonPackView => ({ pack: 'season01', state, real: true, environment, error: null });
 
 function LiveOutcome() {
   const before = asRole('witness', { culprit: 'theo', revision: 5, editedBy: 'ravi', locked: ['maya', 'ravi'] });
@@ -183,9 +184,10 @@ export const MockStates: MockState[] = [
   { id: '07-reveal-late', ref: '7.6', section: 'Reveal', title: 'Late arrival', render: () => <RevealScreen room={solved} reveal={Reveal} page="reconstruction" late /> },
 
   { id: '08-shelf-concept', ref: '8.1 / 8.2 / 8.3b', section: 'Season shelf', title: 'Concept pack card', render: () => <ShelfScreen attempts={2} crew={crew} pack={{ real: false }} /> },
-  { id: '08-shelf-whop-locked', ref: '8.3a', section: 'Season shelf', title: 'Whop pack · locked', render: () => <ShelfScreen attempts={2} crew={crew} pack={{ pack: 'season01', state: 'locked', real: true }} /> },
-  { id: '08-shelf-whop-verifying', ref: '8.3a', section: 'Season shelf', title: 'Whop pack · verifying', render: () => <ShelfScreen attempts={2} crew={crew} pack={{ pack: 'season01', state: 'verifying', real: true }} /> },
-  { id: '08-shelf-whop-owned', ref: '8.3a', section: 'Season shelf', title: 'Whop pack · owned', render: () => <ShelfScreen attempts={2} crew={crew} pack={{ pack: 'season01', state: 'owned', real: true }} /> },
+  { id: '08-shelf-whop-locked', ref: '8.3a', section: 'Season shelf', title: 'Whop pack · locked', render: () => <ShelfScreen attempts={2} crew={crew} pack={pack('locked')} /> },
+  { id: '08-shelf-whop-checkout', ref: '8.3a', section: 'Season shelf', title: 'Whop pack · checkout open', render: () => <ShelfScreen attempts={2} crew={crew} pack={pack('checkout')} /> },
+  { id: '08-shelf-whop-verifying', ref: '8.3a', section: 'Season shelf', title: 'Whop pack · verifying', render: () => <ShelfScreen attempts={2} crew={crew} pack={pack('verifying')} /> },
+  { id: '08-shelf-whop-owned', ref: '8.3a', section: 'Season shelf', title: 'Whop pack · owned', render: () => <ShelfScreen attempts={2} crew={crew} pack={pack('owned', 'sandbox')} /> },
 
   {
     id: '09-reconnecting',
