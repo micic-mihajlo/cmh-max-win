@@ -4,6 +4,8 @@ import { v } from 'convex/values';
 export const role = v.union(v.literal('detective'), v.literal('hacker'), v.literal('witness'));
 export const suspect = v.union(v.literal('theo'), v.literal('priya'), v.literal('ines'), v.literal('jun'));
 export const presence = v.union(v.literal('online'), v.literal('reviewing'), v.literal('ready'));
+export const squadSize = v.union(v.literal(2), v.literal(3));
+export const bountyMode = v.union(v.literal('concept'), v.literal('sandbox'));
 
 export default defineSchema({
   pings: defineTable({
@@ -12,7 +14,13 @@ export default defineSchema({
   rooms: defineTable({
     code: v.string(),
     hostToken: v.string(),
-    caseId: v.literal('case01'),
+    caseId: v.union(v.literal('case01'), v.literal('aurora01')),
+    // Drop squads only: a squad is a room with no host, dealt pieces, and a cooldown after a wrong check.
+    dropId: v.optional(v.string()),
+    squadSize: v.optional(squadSize),
+    squadIndex: v.optional(v.number()),
+    squadLabel: v.optional(v.string()),
+    cooldownUntil: v.optional(v.number()),
     status: v.union(v.literal('lobby'), v.literal('intro'), v.literal('playing'), v.literal('resolved')),
     theory: v.object({
       culprit: v.union(suspect, v.null()),
@@ -21,7 +29,13 @@ export default defineSchema({
     }),
     attempts: v.number(),
     lastNudge: v.union(
-      v.object({ wrongPick: suspect, forRole: role, text: v.string(), revision: v.number() }),
+      v.object({
+        wrongPick: suspect,
+        forRole: role,
+        text: v.string(),
+        revision: v.number(),
+        holderMemberId: v.optional(v.id('members')),
+      }),
       v.null(),
     ),
     checkedRevision: v.union(v.number(), v.null()),
@@ -30,7 +44,9 @@ export default defineSchema({
       v.object({ seq: v.number(), result: v.union(v.literal('wrong'), v.literal('correct')), at: v.number() }),
       v.null(),
     ),
-  }).index('by_code', ['code']),
+  })
+    .index('by_code', ['code'])
+    .index('by_drop', ['dropId', 'squadIndex']),
   members: defineTable({
     roomId: v.id('rooms'),
     deviceToken: v.string(),
@@ -49,6 +65,54 @@ export default defineSchema({
   })
     .index('by_room', ['roomId'])
     .index('by_member', ['memberId']),
+  drops: defineTable({
+    dropId: v.string(),
+    title: v.string(),
+    creatorName: v.string(),
+    caseId: v.literal('aurora01'),
+    squadSize,
+    startsAt: v.number(),
+    status: v.union(v.literal('scheduled'), v.literal('live'), v.literal('ended')),
+    bounty: v.object({ totalCents: v.number(), currency: v.literal('usd'), winnerSlots: v.number() }),
+    solvedCount: v.number(),
+    startJobId: v.optional(v.id('_scheduled_functions')),
+  })
+    .index('by_dropId', ['dropId'])
+    .index('by_status', ['status', 'startsAt']),
+  dropEntries: defineTable({
+    dropId: v.string(),
+    deviceToken: v.string(),
+    name: v.string(),
+    squadRoomId: v.optional(v.id('rooms')),
+    unmatched: v.boolean(),
+  })
+    .index('by_drop', ['dropId'])
+    .index('by_drop_token', ['dropId', 'deviceToken']),
+  solves: defineTable({
+    dropId: v.string(),
+    roomId: v.id('rooms'),
+    place: v.number(),
+    solvedAt: v.number(),
+    solveMs: v.number(),
+    attempts: v.number(),
+  })
+    .index('by_drop', ['dropId', 'place'])
+    .index('by_room', ['roomId']),
+  bountyAwards: defineTable({
+    dropId: v.string(),
+    roomId: v.id('rooms'),
+    place: v.number(),
+    amountCents: v.number(),
+    perPlayerCents: v.number(),
+    redeemableCount: v.number(),
+    mode: bountyMode,
+    status: v.union(v.literal('pending'), v.literal('ready'), v.literal('failed')),
+    claimUrl: v.union(v.string(), v.null()),
+    claimLinkId: v.optional(v.string()),
+    expiresAt: v.optional(v.string()),
+    label: v.string(),
+    error: v.optional(v.string()),
+  }).index('by_room', ['roomId']),
   // Written only by internal.whop.grantFromPayment after a verified Whop payment.
   entitlements: defineTable({
     deviceToken: v.string(),

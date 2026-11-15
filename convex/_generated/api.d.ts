@@ -8,8 +8,10 @@
  * @module
  */
 
+import type * as aurora from "../aurora.js";
 import type * as bounty from "../bounty.js";
 import type * as case01 from "../case01.js";
+import type * as drops from "../drops.js";
 import type * as http from "../http.js";
 import type * as pings from "../pings.js";
 import type * as presence from "../presence.js";
@@ -23,8 +25,10 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  aurora: typeof aurora;
   bounty: typeof bounty;
   case01: typeof case01;
+  drops: typeof drops;
   http: typeof http;
   pings: typeof pings;
   presence: typeof presence;
