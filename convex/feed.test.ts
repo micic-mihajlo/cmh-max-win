@@ -352,6 +352,17 @@ describe('showcase hygiene', () => {
     expect(hidden.filter((s) => s.hidden).map((s) => s.name).sort()).toEqual(['CMHM-10 host', 'Ivy (ignore)', 'Load runner', 'QA bot', 'Rio', 'load · 12']);
   });
 
+  test('the default host name "Host" is hidden at read time, "Hosta" is not', async () => {
+    const t = newTest();
+    const unnamed = await t.mutation(api.drops.hostDrop, { deviceToken: 'unnamed' });
+    const hosta = await hostAs(t, 'hosta', 'Hosta');
+    await hostAs(t, 'shouty', 'HOST');
+    expect((await t.query(api.feed.streamers, { deviceToken: 'fan' })).map((s) => s.name)).toEqual(['Hosta']);
+    expect(await t.query(api.feed.streamerForDrop, { deviceToken: 'fan', dropId: unnamed.dropId })).toBeNull();
+    expect(await t.query(api.feed.streamerForDrop, { deviceToken: 'fan', dropId: hosta.dropId })).toMatchObject({ name: 'Hosta' });
+    expect(await t.mutation(internal.feed.hideTestHosts, {})).toEqual({ hidden: 0 });
+  });
+
   test('hideStreamers hides exact names, ignoring case, once', async () => {
     const t = newTest();
     for (const [d, name] of [['h1', 'Host'], ['h2', 'kit'], ['h3', 'Kitty'], ['h4', 'Nova']]) await hostAs(t, d, name);
@@ -465,6 +476,19 @@ describe('expireStaleDrops', () => {
     expect(await t.mutation(internal.feed.expireStaleDrops, {})).toEqual({ expired: 0 });
     expect(await status(t, waiting.dropId)).toBe('scheduled');
     expect(await status(t, upcoming.dropId)).toBe('scheduled');
+  });
+
+  test("an unnamed or flagged host's racing drop is not a test drop: it survives the cron at 3 hours", async () => {
+    const t = newTest();
+    const unnamed = await dealt(t, 'unnamed-host', '');
+    const flagged = await dealt(t, 'flagged-host', 'Rio');
+    await t.mutation(internal.feed.hideStreamers, { names: ['Rio'] });
+    const names = (await t.run((ctx) => ctx.db.query('streamers').collect())).map((s) => s.name).sort();
+    expect(names).toEqual(['Host', 'Rio']);
+    vi.advanceTimersByTime(3 * HOUR);
+    expect(await t.mutation(internal.feed.expireStaleDrops, {})).toEqual({ expired: 0 });
+    expect(await status(t, unnamed.dropId)).toBe('live');
+    expect(await status(t, flagged.dropId)).toBe('live');
   });
 
   test('a real racing drop with a quiet squad survives; once no squad is racing, it ends after 12 hours', async () => {
