@@ -187,19 +187,28 @@ export function Toast({ text, tone = 'info' }: { text: string; tone?: 'info' | '
   );
 }
 
-export function Segmented<T extends string>({ value, options }: { value: T; options: { value: T; label: string }[] }) {
+export function Segmented<T extends string>({
+  value,
+  options,
+  onChange,
+}: {
+  value: T;
+  options: { value: T; label: string }[];
+  onChange?: (value: T) => void;
+}) {
   return (
     <View style={styles.segmented} accessibilityRole="tablist">
       {options.map((o) => (
-        <View
+        <Pressable
           key={o.value}
           accessibilityRole="tab"
           accessibilityState={{ selected: o.value === value }}
+          onPress={() => onChange?.(o.value)}
           style={[styles.segment, o.value === value && styles.segmentOn]}>
           <Txt variant="smallStrong" color={o.value === value ? Palette.paper : Palette.paperMuted}>
             {o.label}
           </Txt>
-        </View>
+        </Pressable>
       ))}
     </View>
   );
