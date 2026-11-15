@@ -67,7 +67,9 @@
     "owner": "r4z33n",
     "runtimeVersion": "1.0.0-native2",
     "updates": {
-      "url": "https://u.expo.dev/e7418053-b72f-4c96-9d50-d13174da4c76"
+      "url": "https://u.expo.dev/e7418053-b72f-4c96-9d50-d13174da4c76",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 5000
     }
   }
 }
