@@ -1,11 +1,12 @@
 /// <reference types="vite/client" />
 import presenceTest from '@convex-dev/presence/test';
+import rateLimiterTest from '@convex-dev/rate-limiter/test';
 import { convexTest } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { api, internal } from './_generated/api';
 import { CONCEPT_LABEL } from './bounty';
-import { DEMO_DROP_ID, dealPieces, splitSizes } from './drops';
+import { DEMO_DROP_ID, DROP_CAPACITY, dealPieces, splitSizes } from './drops';
 import { parseJoinCode } from '../src/lib/join-code';
 import schema from './schema';
 import { WRONG_GUESS_COOLDOWN_MS } from './signal';
@@ -22,6 +23,7 @@ const LEAKS = ['Jun took', 'galley oven', 'Nobody could place Jun', 'Second Seed
 function newTest() {
   const t = convexTest(schema, modules);
   presenceTest.register(t);
+  rateLimiterTest.register(t);
   return t;
 }
 type T = ReturnType<typeof newTest>;
@@ -604,5 +606,95 @@ describe('host screen', () => {
     expect(view?.squads[0]).toMatchObject({ status: 'winner', rank: 1 });
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
+  });
+});
+
+describe('event guards', () => {
+  async function fill(t: T, count: number) {
+    await t.run(async (ctx) => {
+      for (let i = 0; i < count; i++) {
+        await ctx.db.insert('dropEntries', { dropId: 'd1', deviceToken: `seat-${i}`, name: `S${i}`, unmatched: false });
+        await ctx.db.insert('dropSeats', { dropId: 'd1', seat: i, deviceToken: `seat-${i}` });
+      }
+    });
+  }
+
+  test(`a drop seats at most ${DROP_CAPACITY}; the next new device gets DROP_FULL`, async () => {
+    const t = await dropWith(0);
+    await fill(t, DROP_CAPACITY - 1);
+    await t.mutation(api.drops.enterDrop, { deviceToken: 'last', dropId: 'd1', name: 'Last' });
+    expect(await errorCode(t.mutation(api.drops.enterDrop, { deviceToken: 'extra', dropId: 'd1', name: 'Extra' }))).toBe(
+      'DROP_FULL',
+    );
+    const code = (await t.query(api.drops.drop, { deviceToken: 'x', dropId: 'd1' }))!.joinCode!;
+    expect(await errorCode(t.mutation(api.drops.enterDropByCode, { deviceToken: 'extra', code, name: 'Extra' }))).toBe(
+      'DROP_FULL',
+    );
+    expect((await t.query(api.drops.drop, { deviceToken: 'extra', dropId: 'd1' }))?.entrantCount).toBe(DROP_CAPACITY);
+    await t.mutation(api.drops.leaveDrop, { deviceToken: 'last', dropId: 'd1' });
+    await t.mutation(api.drops.enterDrop, { deviceToken: 'extra', dropId: 'd1', name: 'Extra' });
+    const seats = await t.run((ctx) => ctx.db.query('dropSeats').collect());
+    expect(new Set(seats.map((s) => s.seat)).size).toBe(DROP_CAPACITY);
+  });
+
+  test('a seated device re-entering a full drop keeps its seat and adds no entrant', async () => {
+    const t = await dropWith(0);
+    await fill(t, DROP_CAPACITY);
+    const code = (await t.query(api.drops.drop, { deviceToken: 'x', dropId: 'd1' }))!.joinCode!;
+    expect(await t.mutation(api.drops.enterDropByCode, { deviceToken: 'seat-7', code, name: 'Seven' })).toEqual({ dropId: 'd1' });
+    const view = await t.query(api.drops.drop, { deviceToken: 'seat-7', dropId: 'd1' });
+    expect(view).toMatchObject({ entrantCount: DROP_CAPACITY, me: { entered: true, name: 'Seven' } });
+  });
+
+  test('entering is idempotent per device token, before and after the start', async () => {
+    const t = await dropWith(3);
+    for (let i = 0; i < 3; i++) await t.mutation(api.drops.enterDrop, { deviceToken: 'p1', dropId: 'd1', name: 'P1' });
+    const code = (await t.query(api.drops.drop, { deviceToken: 'x', dropId: 'd1' }))!.joinCode!;
+    await t.mutation(api.drops.enterDropByCode, { deviceToken: 'p1', code, name: 'P1' });
+    const entries = async () => t.run((ctx) => ctx.db.query('dropEntries').withIndex('by_drop', (q) => q.eq('dropId', 'd1')).collect());
+    expect((await entries()).filter((e) => e.deviceToken === 'p1')).toHaveLength(1);
+    await t.mutation(internal.drops.startNow, { dropId: 'd1' });
+    const seat = (await t.query(api.drops.drop, { deviceToken: 'p1', dropId: 'd1' }))!.me;
+    expect(seat.squad).not.toBeNull();
+    expect(await t.mutation(api.drops.enterDropByCode, { deviceToken: 'p1', code, name: 'Other name' })).toEqual({ dropId: 'd1' });
+    await t.mutation(api.drops.enterDrop, { deviceToken: 'p1', dropId: 'd1', name: 'Other name' });
+    expect((await t.query(api.drops.drop, { deviceToken: 'p1', dropId: 'd1' }))!.me).toEqual(seat);
+    expect(await entries()).toHaveLength(3);
+  });
+
+  test('reseeding the demo drop frees all of its seats', async () => {
+    const t = newTest();
+    await t.mutation(internal.drops.seedDemo, { startsInSeconds: 60 });
+    for (let i = 0; i < DROP_CAPACITY; i++) {
+      await t.mutation(api.drops.enterDrop, { deviceToken: `seat-${i}`, dropId: DEMO_DROP_ID, name: `S${i}` });
+    }
+    expect(await errorCode(t.mutation(api.drops.enterDrop, { deviceToken: 'extra', dropId: DEMO_DROP_ID, name: 'Extra' }))).toBe(
+      'DROP_FULL',
+    );
+    await t.mutation(internal.drops.seedDemo, { startsInSeconds: 60 });
+    expect(await t.run((ctx) => ctx.db.query('dropSeats').collect())).toEqual([]);
+    for (let i = 0; i < DROP_CAPACITY; i++) {
+      await t.mutation(api.drops.enterDrop, { deviceToken: `again-${i}`, dropId: DEMO_DROP_ID, name: `A${i}` });
+    }
+    expect((await t.query(api.drops.drop, { deviceToken: 'x', dropId: DEMO_DROP_ID }))?.entrantCount).toBe(DROP_CAPACITY);
+  });
+
+  test('hostDrop allows 5 drops per device token per 10 minutes', async () => {
+    const t = newTest();
+    for (let i = 0; i < 5; i++) await t.mutation(api.drops.hostDrop, { deviceToken: 'h1' });
+    let err: unknown;
+    try {
+      await t.mutation(api.drops.hostDrop, { deviceToken: 'h1' });
+    } catch (e) {
+      err = e;
+    }
+    const data = (err as { data: { code: string; retryAfterMs: number } }).data;
+    expect(data.code).toBe('RATE_LIMITED');
+    expect(data.retryAfterMs).toBeGreaterThan(0);
+    expect(data.retryAfterMs).toBeLessThanOrEqual(10 * 60_000);
+    await t.mutation(api.drops.hostDrop, { deviceToken: 'h2' });
+    vi.setSystemTime(Date.now() + 10 * 60_000);
+    await t.mutation(api.drops.hostDrop, { deviceToken: 'h1' });
+    expect(await t.run((ctx) => ctx.db.query('drops').collect())).toHaveLength(7);
   });
 });

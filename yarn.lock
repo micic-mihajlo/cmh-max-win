@@ -825,6 +825,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@convex-dev/batch-worker@npm:0.3.5":
+  version: 0.3.5
+  resolution: "@convex-dev/batch-worker@npm:0.3.5"
+  dependencies:
+    convex-helpers: "npm:^0.1.127"
+  peerDependencies:
+    convex: ^1.43.0
+  checksum: 10c0/565242a7d6d3a87591213ebab9540616f46328eca0d882ddcd2372e599b1b2c5586912c32ddb9e1f4d265bf3c2bafbf72120cdb7ad6216816d64f34e85ef6aaf
+  languageName: node
+  linkType: hard
+
 "@convex-dev/batch-worker@npm:^0.2.0":
   version: 0.2.2
   resolution: "@convex-dev/batch-worker@npm:0.2.2"
@@ -852,6 +863,21 @@ __metadata:
     react-native:
       optional: true
   checksum: 10c0/9a2d432947e5247176db2ec330be0379078b318b375549216b10e4201dd9bebc577a404738f574f992b4da0bff89e133aa4bd0912a3ea1191e7f7405bfdab377
+  languageName: node
+  linkType: hard
+
+"@convex-dev/rate-limiter@npm:^0.4.3":
+  version: 0.4.3
+  resolution: "@convex-dev/rate-limiter@npm:0.4.3"
+  dependencies:
+    "@convex-dev/batch-worker": "npm:0.3.5"
+  peerDependencies:
+    convex: ^1.43.0
+    react: ^18.2.0 || ^19.0.0
+  peerDependenciesMeta:
+    react:
+      optional: true
+  checksum: 10c0/d50ad07903fd0c00e3af24d286a91a1b2b4d0f3e3b722d6583c1cc613029bc0f269f631d40357bcc153e49b98e93d6273f3845a62308a4f7997d4abd4dcf2fea
   languageName: node
   linkType: hard
 
@@ -3748,6 +3774,7 @@ __metadata:
   resolution: "cmh-max-win@workspace:."
   dependencies:
     "@convex-dev/presence": "npm:0.4.0"
+    "@convex-dev/rate-limiter": "npm:^0.4.3"
     "@edge-runtime/vm": "npm:^5.0.0"
     "@expo-google-fonts/fraunces": "npm:^0.4.1"
     "@expo-google-fonts/inter": "npm:^0.4.2"
@@ -3904,6 +3931,36 @@ __metadata:
   version: 2.0.0
   resolution: "convert-source-map@npm:2.0.0"
   checksum: 10c0/8f2f7a27a1a011cc6cc88cc4da2d7d0cfa5ee0369508baae3d98c260bb3ac520691464e5bbe4ae7cdf09860c1d69ecc6f70c63c6e7c7f7e3f18ec08484dc7d9b
+  languageName: node
+  linkType: hard
+
+"convex-helpers@npm:^0.1.127":
+  version: 0.1.135
+  resolution: "convex-helpers@npm:0.1.135"
+  peerDependencies:
+    "@standard-schema/spec": ^1.0.0
+    convex: ^1.46.0
+    hono: ^4.0.5
+    prettier: ^3.0.0
+    react: ^17.0.2 || ^18.0.0 || ^19.0.0
+    typescript: ^5.5 || ^6.0.0 || ^7.0.0
+    zod: ^3.25.0 || ^4.0.0
+  peerDependenciesMeta:
+    "@standard-schema/spec":
+      optional: true
+    hono:
+      optional: true
+    prettier:
+      optional: true
+    react:
+      optional: true
+    typescript:
+      optional: true
+    zod:
+      optional: true
+  bin:
+    convex-helpers: dist/bin.cjs
+  checksum: 10c0/c4b6c6893d3a88d7783495f4504e245569c388454acba9223a682a298cec44daf9590435a9ecb2702c990d4f72d326bda95b061bf3f279425d0d4d91ece0b0c8
   languageName: node
   linkType: hard
 

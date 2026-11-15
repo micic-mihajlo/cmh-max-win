@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
   chip: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: G.fill },
   chipOn: { backgroundColor: G.ink },
   stat: { flexBasis: '45%', flexGrow: 1, gap: 2 },
-  statValue: { fontFamily: FontFamily.display, fontSize: 32, lineHeight: 38, color: G.ink, fontVariant: ['tabular-nums'] },
+  statValue: { fontFamily: FontFamily.uiSemi, fontSize: 28, lineHeight: 34, color: G.ink, fontVariant: ['tabular-nums'] },
   flex: { flex: 1 },
   button: { height: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Space.l, backgroundColor: G.ink },
   buttonText: { fontFamily: FontFamily.uiMedium },
