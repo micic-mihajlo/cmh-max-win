@@ -83,6 +83,10 @@ const moneyBoard = board(
   110_000,
 );
 
+const scaleSolved = [row(1, 8, 'winner', 38_000), row(2, 15, 'winner', 47_000), row(3, 22, 'winner', 56_000), row(4, 29, 'solved', 65_000), row(5, 2, 'solved', 74_000)];
+const scaleRacing = board([...scaleSolved, row(null, 14, 'solving', null, 1, true), ...solving(1, 34).filter((r) => ![2, 8, 14, 15, 22, 29].includes(Number(r.squadLabel.slice(6))))], 80_000);
+const scaleMissed = board([...scaleSolved, ...Array.from({ length: 8 }, (_, i) => row(6 + i, [5, 11, 17, 23, 31, 3, 9, 14][i], 'solved', 82_000 + i * 6_000, 0, i === 7)), ...solving(1, 34).filter((r) => ![2, 3, 5, 8, 9, 11, 14, 15, 17, 22, 23, 29, 31].includes(Number(r.squadLabel.slice(6))))], 140_000);
+
 const award = (over: Partial<SquadAwardView> = {}): SquadAwardView => ({
   place: 3,
   amountCents: 10000,
@@ -192,6 +196,20 @@ export const DropStates: MockState[] = [
         racing={{ pick: 'Ines Vale', locked: 2, size: 3, nudge: 'Not Ines. Ask Ana to read the Scene Notes.', cooldownUntil: loadedAt + 20_000 }}
       />
     ),
+  },
+  {
+    id: '23-race-34-racing',
+    ref: 'scale',
+    section: 'Scale',
+    title: 'Player race · 34 squads, 3 winners, still racing',
+    render: () => <LeaderboardScreen offset={0} drop={live(3)} board={scaleRacing} racing={{ pick: 'Jun Park', locked: 1, size: 3, nudge: null, cooldownUntil: null }} />,
+  },
+  {
+    id: '23-race-34-missed',
+    ref: 'scale',
+    section: 'Scale',
+    title: 'Player race · 34 squads, you solved #13',
+    render: () => <LeaderboardScreen offset={0} drop={live(3)} board={scaleMissed} />,
   },
   {
     id: '14-race-money',

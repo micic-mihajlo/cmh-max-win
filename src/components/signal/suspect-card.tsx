@@ -47,37 +47,25 @@ export function SuspectOption({
   selected,
   ruledOutBy,
   pending,
-  pickedBy,
-  first,
   onPress,
 }: {
   suspect: Suspect;
   selected: boolean;
   ruledOutBy?: string;
   pending?: boolean;
-  pickedBy?: string;
-  first?: boolean;
   onPress?: () => void;
 }) {
   return (
-    <Pressable
-      accessibilityRole="radio"
-      accessibilityState={{ selected }}
-      onPress={onPress}
-      style={[styles.option, !first && styles.listRule]}>
-      <View style={[styles.radio, selected && styles.radioOn]}>{selected ? <View style={styles.radioDot} /> : null}</View>
+    <Pressable accessibilityRole="radio" accessibilityState={{ selected }} onPress={onPress} style={styles.option}>
       <View style={styles.optionBody}>
-        <Txt variant="name">{suspect.name}</Txt>
+        <Txt variant="bodyStrong" color={selected ? Palette.paper : Palette.paperMuted}>
+          {suspect.name}
+        </Txt>
         <Txt variant="small" color={Palette.paperMuted}>
           {suspect.job}
         </Txt>
       </View>
-      {pending ? <ActivityIndicator color={Palette.paper} /> : null}
-      {pickedBy ? (
-        <View style={styles.pick}>
-          <Txt variant="smallStrong">{pickedBy}</Txt>
-        </View>
-      ) : null}
+      {pending ? <ActivityIndicator color={Palette.paper} /> : selected ? <Txt variant="bodyStrong">✓</Txt> : null}
       {ruledOutBy ? (
         <View style={styles.struck}>
           <Txt variant="label" color={Palette.danger}>
@@ -102,18 +90,7 @@ const styles = StyleSheet.create({
     gap: Space.s,
   },
   head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: Space.s, flexWrap: 'wrap' },
-  option: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Space.m,
-    minHeight: 56,
-    paddingHorizontal: Space.l,
-    backgroundColor: Palette.card,
-  },
-  pick: { backgroundColor: Palette.accentSoft, borderRadius: 14, height: 28, paddingHorizontal: Space.m, justifyContent: 'center' },
+  option: { flexDirection: 'row', alignItems: 'center', gap: Space.m, minHeight: 56 },
   optionBody: { flex: 1 },
   struck: { borderWidth: 1, borderColor: Palette.danger, borderRadius: Radius.s, paddingHorizontal: 6, paddingVertical: 3, transform: [{ rotate: '-3deg' }], maxWidth: 120 },
-  radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: Palette.paperFaint, alignItems: 'center', justifyContent: 'center' },
-  radioOn: { borderColor: Palette.paper, backgroundColor: Palette.paper },
-  radioDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Palette.card },
 });
