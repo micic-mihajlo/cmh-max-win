@@ -65,8 +65,14 @@ export function WaitingRoomScreen({ drop, offset, onBack }: { drop: DropView; of
         </View>
       ) : (
         <View style={styles.countBox}>
-          <Label>{left <= 3000 ? 'Get your squad ready' : 'Room opens in'}</Label>
-          <Txt style={styles.count}>{clock(left)}</Txt>
+          {drop.hosted ? (
+            <Txt variant="title" style={styles.center}>{`Waiting for ${display} to deal`}</Txt>
+          ) : (
+            <>
+              <Label>{left <= 3000 ? 'Get your squad ready' : 'Room opens in'}</Label>
+              <Txt style={styles.count}>{clock(left)}</Txt>
+            </>
+          )}
           <View style={styles.joined}>
             <View style={styles.stack}>
               {drop.entrants.slice(0, 4).map((p, i) => (

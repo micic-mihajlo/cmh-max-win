@@ -182,6 +182,13 @@ export const DropStates: MockState[] = [
   },
   { id: '12-waiting', ref: 'beat 3', section: 'Drops', title: 'Waiting room · countdown', render: () => <WaitingRoomScreen offset={0} drop={drop()} /> },
   {
+    id: '12-waiting-hosted',
+    ref: 'host.md',
+    section: 'Drops',
+    title: 'Waiting room · hosted, waiting for the deal',
+    render: () => <WaitingRoomScreen offset={0} drop={drop({ hosted: true, startsAt: loadedAt + 24 * 3600_000 })} />,
+  },
+  {
     id: '12-waiting-unmatched',
     ref: 'D3',
     section: 'Drops',
