@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
+import { useEffect, useMemo, useState } from 'react';
+import { PanResponder, ScrollView, StyleSheet, View } from 'react-native';
+import Animated, { FadeIn, LinearTransition, SlideInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Palette, Radius, RoleMeta, Space } from '@/constants/signal';
 import { Suspects, suspectById } from '@/constants/case01';
 import type { RoomView, SuspectId } from '@/lib/contract';
+import { PressScale } from '@/motion';
 
 import { Banner, Button } from './primitives';
 import { joinNames, lockedIds, seals } from './room';
@@ -81,6 +82,18 @@ export function TheorySheet({
         : null;
   const ruledOut = room.lastNudge;
   const cooldown = useSecondsUntil(room.cooldownUntil, serverOffset);
+  const drag = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 8 && Math.abs(g.dy) > Math.abs(g.dx),
+        onPanResponderRelease: (_, g) => {
+          const down = g.dy > 60 || g.vy > 0.5;
+          const up = g.dy < -60 || g.vy < -0.5;
+          if ((expanded && down) || (!expanded && up)) onToggle?.();
+        },
+      }),
+    [expanded, onToggle],
+  );
 
   return (
     <>
@@ -89,38 +102,41 @@ export function TheorySheet({
       ) : null}
       <Animated.View
         entering={reduced ? undefined : SlideInDown.springify().damping(20)}
+        layout={reduced ? undefined : LinearTransition.springify().damping(20).stiffness(240)}
         style={[
           styles.sheet,
           { paddingBottom: insets.bottom + Space.m },
           fullHeight && expanded && { top: insets.top + Space.s },
         ]}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Shared theory" onPress={onToggle} style={styles.summary}>
-          <View style={styles.handle} />
-          {expanded ? (
-            <View style={styles.sheetHead}>
-              <Txt variant="title">Who took the seed?</Txt>
-              <Txt variant="body" color={Palette.paperMuted}>
-                Whoever’s left is the thief.
-              </Txt>
-            </View>
-          ) : (
-            <View style={styles.summaryRow}>
-              <View style={styles.flex}>
-                {caption ? (
-                  <Txt variant="small" color={Palette.paperMuted}>
-                    {caption}
-                  </Txt>
-                ) : null}
-                <Txt variant="name">{culprit ? culprit.name : 'No pick yet'}</Txt>
+        <View {...drag.panHandlers}>
+          <PressScale accessibilityRole="button" accessibilityLabel="Shared theory" scaleTo={0.98} onPress={onToggle} style={styles.summary}>
+            <View style={styles.handle} />
+            {expanded ? (
+              <View style={styles.sheetHead}>
+                <Txt variant="title">Who took the seed?</Txt>
+                <Txt variant="body" color={Palette.paperMuted}>
+                  Whoever’s left is the thief.
+                </Txt>
               </View>
-              <View style={styles.dots}>
-                {room.members.map((m) => (
-                  <View key={m.memberId} style={[styles.dot, locked.has(m.memberId) && styles.dotOn]} />
-                ))}
+            ) : (
+              <View style={styles.summaryRow}>
+                <View style={styles.flex}>
+                  {caption ? (
+                    <Txt variant="small" color={Palette.paperMuted}>
+                      {caption}
+                    </Txt>
+                  ) : null}
+                  <Txt variant="name">{culprit ? culprit.name : 'No pick yet'}</Txt>
+                </View>
+                <View style={styles.dots}>
+                  {room.members.map((m) => (
+                    <View key={m.memberId} style={[styles.dot, locked.has(m.memberId) && styles.dotOn]} />
+                  ))}
+                </View>
               </View>
-            </View>
-          )}
-        </Pressable>
+            )}
+          </PressScale>
+        </View>
         {expanded ? (
           <ScrollView style={fullHeight ? styles.flex : undefined} contentContainerStyle={styles.expanded} showsVerticalScrollIndicator={false}>
             {notice ? <Banner tone={notice.tone} title={notice.title} text={notice.text} /> : null}
