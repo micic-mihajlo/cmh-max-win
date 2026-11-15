@@ -26,12 +26,11 @@ export default function Builder() {
     draftStore.set(next);
     setDraftState(next);
   };
-  const first = (id: string) => draft.suspects.find((s) => s.id === id)?.name.split(' ')[0] ?? id;
   const last = step === steps.length - 1;
 
   return (
     <StudioScreen
-      kicker={`${draft.title} · step ${step + 1} of ${steps.length}`}
+      kicker={draft.title}
       title={steps[step]}
       onBack={step > 0 ? () => setStep(step - 1) : undefined}
       footer={
@@ -86,11 +85,12 @@ export default function Builder() {
                   <Txt variant="body" color={G.ink}>
                     {p.text}
                   </Txt>
+                  <Caption>Clears</Caption>
                   <View style={studio.wrap}>
                     {draft.suspects.map((s) => (
                       <Chip
                         key={s.id}
-                        label={p.places.includes(s.id) ? `Clears ${s.name.split(' ')[0]}` : s.name.split(' ')[0]}
+                        label={s.name.split(' ')[0]}
                         selected={p.places.includes(s.id)}
                         onPress={() =>
                           setDraft({
@@ -128,7 +128,7 @@ export default function Builder() {
                   <Chip key={n} label={n === 2 ? 'Duos' : 'Trios'} selected={draft.squadSize === n} onPress={() => setDraft({ ...draft, squadSize: n })} />
                 ))}
               </View>
-              {([3, 2] as const).map((size) => {
+              {[draft.squadSize].map((size) => {
                 const counts = splitPieces(draft.pieces.length, size);
                 const hands = counts.map((count, m) => draft.pieces.slice(counts.slice(0, m).reduce((a, b) => a + b, 0)).slice(0, count));
                 return (
@@ -152,7 +152,7 @@ export default function Builder() {
 
           {step === 5 ? (
             <>
-              <Section title="Bounty">
+              <View style={studio.gap}>
                 <View style={studio.wrap}>
                   {[100, 300, 500].map((v) => (
                     <Chip key={v} label={`$${v}`} selected={draft.bounty === v} onPress={() => setDraft({ ...draft, bounty: v })} />
@@ -182,7 +182,7 @@ export default function Builder() {
                   </View>
                 </Card>
                 <Caption>Concept payout. No money moves in this preview.</Caption>
-              </Section>
+              </View>
               <Section title="Goes live">
                 <View style={studio.wrap}>
                   {['Tonight · 9:00 PM', 'Fri · 8:00 PM', 'Sat · 2:00 PM'].map((v) => (
@@ -197,12 +197,12 @@ export default function Builder() {
             <>
               <NecessityCheck puzzle={draft} />
               <View style={studio.row}>
-                <PrimaryButton variant="text" title="Try a broken version" onPress={() => setDraft({ ...draft, ...auroraBroken })} />
-                <PrimaryButton variant="text" title="Reset" onPress={() => setDraft(auroraDraft)} />
+                <PrimaryButton
+                  variant="text"
+                  title={validatePuzzle(draft).pass ? 'Try a broken version' : 'Restore the original'}
+                  onPress={() => setDraft(validatePuzzle(draft).pass ? { ...draft, ...auroraBroken } : auroraDraft)}
+                />
               </View>
-              <Caption>
-                Pieces clear {draft.pieces.map((p) => p.places.map(first).join(' + ') || 'nobody').join(', ')}. Answer: {first(draft.answer)}.
-              </Caption>
             </>
           ) : null}
         </View>
@@ -243,4 +243,6 @@ const styles = StyleSheet.create({
   list: { alignItems: 'flex-start', gap: Space.s },
   hand: { gap: 2 },
 });
+
+
 

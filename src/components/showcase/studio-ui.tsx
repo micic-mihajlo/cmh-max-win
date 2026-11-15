@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
   card: { backgroundColor: G.surface, borderRadius: 16, padding: Space.l, gap: Space.m },
   section: { gap: Space.m, marginTop: Space.m },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitle: { fontFamily: FontFamily.display, fontSize: 20, lineHeight: 26, color: G.ink },
+  sectionTitle: { fontFamily: FontFamily.uiSemi, fontSize: 17, lineHeight: 24, color: G.ink },
   chip: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: G.fill },
   chipOn: { backgroundColor: G.ink },
   stat: { flexBasis: '45%', flexGrow: 1, gap: 2 },
@@ -170,3 +170,4 @@ const styles = StyleSheet.create({
   textButton: { paddingHorizontal: Space.s, paddingVertical: Space.m },
   hairline: { height: StyleSheet.hairlineWidth, backgroundColor: G.line },
 });
+
