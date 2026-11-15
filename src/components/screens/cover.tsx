@@ -48,6 +48,8 @@ export type CoverActions = {
   onJoin?: () => void;
   onCloseJoin?: () => void;
   onTakeSeat?: (role: Role) => void;
+  onJoinDrop?: () => void;
+  onHostDrop?: () => void;
 };
 
 export function CoverScreen({
@@ -97,9 +99,13 @@ export function CoverScreen({
               </Txt>
             </View>
           ) : (
-            <Button title="Start case" onPress={on.onStart} />
+            <>
+              {on.onJoinDrop ? <Button title="Join a drop" onPress={on.onJoinDrop} /> : null}
+              <Button title="Start case" variant={on.onJoinDrop ? 'secondary' : 'primary'} onPress={on.onStart} />
+            </>
           )}
           <Button title="Join with code" variant="secondary" disabled={creating} onPress={on.onOpenJoin} />
+          {on.onHostDrop ? <Button title="Host a drop" variant="ghost" disabled={creating} onPress={on.onHostDrop} /> : null}
         </>
       }>
       <View style={styles.mast}>
@@ -161,7 +167,14 @@ function JoinSheet({ join, on }: { join: JoinState; on: CoverActions }) {
           {on.onCodeChange ? (
             <TextInput
               value={join.code}
-              onChangeText={(t) => on.onCodeChange?.(t.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4))}
+              onChangeText={(t) =>
+                on.onCodeChange?.(
+                  t
+                    .toUpperCase()
+                    .replace(/[^A-Z0-9]/g, '')
+                    .slice(0, 4),
+                )
+              }
               onSubmitEditing={ready ? on.onJoin : undefined}
               autoFocus
               autoCapitalize="characters"
