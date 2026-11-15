@@ -145,6 +145,7 @@ export const room = query({
       caseId: room.caseId,
       squadSize: 3,
       drop: null,
+      cooldownUntil: null,
       isHost: room.hostToken === deviceToken,
       me: me ? { memberId: me._id, role: me.role, name: me.name } : null,
       members: all.map((m) => ({
@@ -167,7 +168,7 @@ export const room = query({
       },
       lockIns: locks.map((l) => ({ memberId: l.memberId, revision: l.revision })),
       attempts: room.attempts,
-      lastNudge: room.lastNudge,
+      lastNudge: room.lastNudge ? { ...room.lastNudge, holder: null } : null,
       checkedRevision: room.checkedRevision,
       checkSeq: room.checkSeq,
       lastCheck: room.lastCheck,
@@ -196,6 +197,7 @@ export const reveal = query({
     const all = await members(ctx, room._id);
     return {
       culprit: REVEAL.culprit,
+      headline: 'Jun took the seed.',
       timeline: REVEAL.timeline,
       why: REVEAL.why,
       credits: REVEAL.credits.map((c) => ({
@@ -365,7 +367,7 @@ export const lockIn = mutation({
       checkSeq: seq,
       lastCheck: { seq, result: 'wrong', at: Date.now() },
     });
-    return { outcome: 'wrong', nudge, attempts };
+    return { outcome: 'wrong', nudge: { ...nudge, holder: null }, attempts };
   },
 });
 
