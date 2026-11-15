@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, StyleSheet, View, type ViewStyle } from '
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Palette, Radius, RoleMeta, Space } from '@/constants/signal';
+import { FontFamily, Palette, Radius, RoleMeta, Space } from '@/constants/signal';
 import type { Presence, Role } from '@/lib/contract';
 
 import { Icon } from './icon';
@@ -214,11 +214,27 @@ export function Segmented<T extends string>({
   );
 }
 
+export function Avatar({ name, size = 40, filled }: { name: string; size?: number; filled?: boolean }) {
+  return (
+    <View
+      style={[
+        styles.avatar,
+        { width: size, height: size, borderRadius: size / 2 },
+        filled ? { backgroundColor: Palette.paper, borderColor: Palette.paper } : null,
+      ]}>
+      <Txt style={{ fontFamily: FontFamily.uiSemi, fontSize: size * 0.4, lineHeight: size * 0.5 }} color={filled ? Palette.card : Palette.paper}>
+        {name.charAt(0).toUpperCase()}
+      </Txt>
+    </View>
+  );
+}
+
 export function Divider() {
   return <View style={styles.divider} />;
 }
 
 const styles = StyleSheet.create({
+  avatar: { alignItems: 'center', justifyContent: 'center', backgroundColor: Palette.card, borderWidth: 1, borderColor: Palette.hairline },
   flex: { flex: 1 },
   button: {
     minHeight: 56,
