@@ -6,11 +6,12 @@ import { internalMutation, mutation, query, type MutationCtx, type QueryCtx } fr
 import { ROLES, type Role } from './case01';
 import { presence as presenceComponent } from './presence';
 import { squadSize } from './schema';
-import { generateCode } from './signal';
+import { CODE_ALPHABET, generateCode } from './signal';
 import type {
   BountyView,
   DropSummaryView,
   DropView,
+  HostView,
   LeaderboardRow,
   LeaderboardView,
   SignalErrorCode,
@@ -53,6 +54,22 @@ export function dealPieces(dropId: string, squadIndex: number, size: SquadSize):
   return size === 3 ? order.map((r) => [r]) : [[order[0], order[1]], [order[2]]];
 }
 
+async function findDropByCode(ctx: QueryCtx, code: string) {
+  const matches = await ctx.db
+    .query('drops')
+    .withIndex('by_joinCode', (q) => q.eq('joinCode', code.trim().toUpperCase()))
+    .collect();
+  return matches.find((d) => d.status !== 'ended') ?? null;
+}
+
+async function generateJoinCode(ctx: MutationCtx) {
+  for (;;) {
+    let code = '';
+    for (let i = 0; i < 4; i++) code += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];
+    if (!(await findDropByCode(ctx, code))) return code;
+  }
+}
+
 async function findDrop(ctx: QueryCtx, dropId: string) {
   return ctx.db
     .query('drops')
@@ -81,12 +98,13 @@ async function findEntry(ctx: QueryCtx, dropId: string, deviceToken: string) {
 }
 
 function bountyView(drop: Doc<'drops'>): BountyView {
+  const sandbox = !drop.conceptOnly && process.env.BOUNTY_MODE === 'sandbox';
   return {
     totalCents: drop.bounty.totalCents,
     currency: 'usd',
     winnerSlots: drop.bounty.winnerSlots,
     perSquadCents: Math.floor(drop.bounty.totalCents / drop.bounty.winnerSlots),
-    mode: process.env.BOUNTY_MODE === 'sandbox' ? 'sandbox' : 'concept',
+    mode: sandbox ? 'sandbox' : 'concept',
   };
 }
 
@@ -97,6 +115,8 @@ function summary(drop: Doc<'drops'>, entrantCount: number): DropSummaryView {
     creatorName: drop.creatorName,
     caseId: drop.caseId,
     squadSize: drop.squadSize,
+    joinCode: drop.joinCode ?? null,
+    hosted: !!drop.hostToken,
     startsAt: drop.startsAt,
     status: drop.status,
     entrantCount,
@@ -122,12 +142,8 @@ export const listDrops = query({
   },
 });
 
-export const drop = query({
-  args: { deviceToken: v.string(), dropId: v.string() },
-  handler: async (ctx, { deviceToken, dropId }): Promise<DropView | null> => {
-    const drop = await findDrop(ctx, dropId);
-    if (!drop) return null;
-    const entries = await entriesOf(ctx, dropId);
+async function dropView(ctx: QueryCtx, drop: Doc<'drops'>, deviceToken: string): Promise<DropView> {
+  const entries = await entriesOf(ctx, drop.dropId);
     const mine = entries.find((e) => e.deviceToken === deviceToken);
     const room = mine?.squadRoomId ? await ctx.db.get(mine.squadRoomId) : null;
     return {
@@ -140,23 +156,66 @@ export const drop = query({
         unmatched: mine?.unmatched ?? false,
       },
     };
+}
+
+export const drop = query({
+  args: { deviceToken: v.string(), dropId: v.string() },
+  handler: async (ctx, { deviceToken, dropId }): Promise<DropView | null> => {
+    const drop = await findDrop(ctx, dropId);
+    return drop ? dropView(ctx, drop, deviceToken) : null;
+  },
+});
+
+// QR / typed join: the code a host screen shows. Only drops that haven't ended answer to their code.
+export const dropByCode = query({
+  args: { deviceToken: v.string(), code: v.string() },
+  handler: async (ctx, { deviceToken, code }): Promise<DropView | null> => {
+    const drop = await findDropByCode(ctx, code);
+    return drop ? dropView(ctx, drop, deviceToken) : null;
   },
 });
 
 // Free entry: no entitlement is read or required, ever.
+async function enter(ctx: MutationCtx, drop: Doc<'drops'>, deviceToken: string, name: string) {
+  const dropId = drop.dropId;
+  if (drop.status !== 'scheduled') fail('DROP_CLOSED', 'Entries closed when the drop started.');
+  const clean = name.trim().slice(0, 24);
+  if (!clean) fail('WRONG_STATUS', 'Enter a name first.');
+  const existing = await findEntry(ctx, dropId, deviceToken);
+  if (existing) {
+    await ctx.db.patch(existing._id, { name: clean });
+    return;
+  }
+  await ctx.db.insert('dropEntries', { dropId, deviceToken, name: clean, unmatched: false });
+}
+
 export const enterDrop = mutation({
   args: { deviceToken: v.string(), dropId: v.string(), name: v.string() },
-  handler: async (ctx, { deviceToken, dropId, name }) => {
-    const drop = await requireDrop(ctx, dropId);
-    if (drop.status !== 'scheduled') fail('DROP_CLOSED', 'Entries closed when the drop started.');
-    const clean = name.trim().slice(0, 24);
-    if (!clean) fail('WRONG_STATUS', 'Enter a name first.');
-    const existing = await findEntry(ctx, dropId, deviceToken);
-    if (existing) {
-      await ctx.db.patch(existing._id, { name: clean });
-      return;
+  handler: async (ctx, { deviceToken, dropId, name }) => enter(ctx, await requireDrop(ctx, dropId), deviceToken, name),
+});
+
+export const enterDropByCode = mutation({
+  args: { deviceToken: v.string(), code: v.string(), name: v.string() },
+  handler: async (ctx, { deviceToken, code, name }) => {
+    const drop = await findDropByCode(ctx, code);
+    if (!drop) fail('DROP_NOT_FOUND', 'No open drop with that code.');
+    await enter(ctx, drop, deviceToken, name);
+    return { dropId: drop.dropId };
+  },
+});
+
+// One-off: give open drops created before join codes existed (e.g. aurora-demo) a code.
+export const backfillJoinCodes = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const done: { dropId: string; joinCode: string }[] = [];
+    for (const d of await ctx.db.query('drops').collect()) {
+      if (d.joinCode || d.status === 'ended') continue;
+      const joinCode = await generateJoinCode(ctx);
+      await ctx.db.patch(d._id, { joinCode });
+      done.push({ dropId: d.dropId, joinCode });
     }
-    await ctx.db.insert('dropEntries', { dropId, deviceToken, name: clean, unmatched: false });
+    return done;
   },
 });
 
@@ -247,6 +306,7 @@ export async function insertDrop(
     startsAt: number;
     bounty: { totalCents: number; winnerSlots: number };
     strictSquadSize?: boolean;
+    hostToken?: string;
   },
 ) {
   const { totalCents, winnerSlots } = args.bounty;
@@ -260,14 +320,19 @@ export async function insertDrop(
     creatorName: args.creatorName,
     caseId: 'aurora01',
     squadSize: args.squadSize,
+    joinCode: await generateJoinCode(ctx),
     ...(args.strictSquadSize ? { strictSquadSize: true } : {}),
+    ...(args.hostToken ? { hostToken: args.hostToken, conceptOnly: true } : {}),
     startsAt: args.startsAt,
     status: 'scheduled',
     bounty: { totalCents, currency: 'usd', winnerSlots },
     solvedCount: 0,
   });
-  const startJobId = await ctx.scheduler.runAt(args.startsAt, internal.drops.startDrop, { dropId: args.dropId });
-  await ctx.db.patch(id, { startJobId });
+  if (!args.hostToken) {
+    const startJobId = await ctx.scheduler.runAt(args.startsAt, internal.drops.startDrop, { dropId: args.dropId });
+    await ctx.db.patch(id, { startJobId });
+  }
+  return { dropId: args.dropId, joinCode: (await ctx.db.get(id))!.joinCode! };
 }
 
 // Creator side: internal only, so it runs from the dashboard or `npx convex run drops:createDrop`.
@@ -325,7 +390,7 @@ export const seedDemo = internalMutation({
   handler: async (ctx, args) => {
     const existing = await findDrop(ctx, DEMO_DROP_ID);
     if (existing) await deleteDrop(ctx, existing);
-    await insertDrop(ctx, {
+    return insertDrop(ctx, {
       dropId: DEMO_DROP_ID,
       title: 'The Aurora Seed',
       creatorName: 'SIGNAL',
@@ -333,7 +398,6 @@ export const seedDemo = internalMutation({
       squadSize: args.squadSize ?? 3,
       bounty: { totalCents: args.totalCents ?? 30_000, winnerSlots: args.winnerSlots ?? 3 },
     });
-    return { dropId: DEMO_DROP_ID };
   },
 });
 
@@ -437,3 +501,93 @@ export const myAward = query({
   },
 });
 
+const HOSTED_DROP_HOLD_MS = 24 * 60 * 60 * 1000;
+
+// Host screen: creates a drop this device runs and deals by hand. Public, so it always pays in concept mode;
+// no client can create a drop that spends real money. The bounty is display only.
+export const hostDrop = mutation({
+  args: {
+    deviceToken: v.string(),
+    title: v.optional(v.string()),
+    winnerSlots: v.optional(v.number()),
+    totalCents: v.optional(v.number()),
+  },
+  handler: async (ctx, { deviceToken, title, winnerSlots, totalCents }) => {
+    if (!deviceToken) fail('WRONG_STATUS', 'Missing device token.');
+    return insertDrop(ctx, {
+      dropId: `host-${Date.now().toString(36)}-${Math.floor(Math.random() * 46656).toString(36)}`,
+      title: (title ?? 'The Aurora Seed').trim().slice(0, 60) || 'The Aurora Seed',
+      creatorName: 'Host',
+      squadSize: 3,
+      startsAt: Date.now() + HOSTED_DROP_HOLD_MS,
+      bounty: { totalCents: totalCents ?? 30_000, winnerSlots: winnerSlots ?? 3 },
+      hostToken: deviceToken,
+    });
+  },
+});
+
+export const MIN_DEAL_ENTRANTS = 4;
+
+// Host-only "Deal squads": starts the drop now and splits squads with the usual rules.
+export const dealSquads = mutation({
+  args: { deviceToken: v.string(), dropId: v.string() },
+  handler: async (ctx, { deviceToken, dropId }) => {
+    const drop = await requireDrop(ctx, dropId);
+    if (!drop.hostToken || drop.hostToken !== deviceToken) fail('NOT_HOST', 'Only the host can deal squads.');
+    if ((await entriesOf(ctx, dropId)).length < MIN_DEAL_ENTRANTS) {
+      fail('NOT_ENOUGH_PLAYERS', `Deal squads needs at least ${MIN_DEAL_ENTRANTS} players.`);
+    }
+    await startDropNow(ctx, dropId);
+  },
+});
+
+export const hostView = query({
+  args: { deviceToken: v.string(), dropId: v.string() },
+  handler: async (ctx, { deviceToken, dropId }): Promise<HostView | null> => {
+    const drop = await findDrop(ctx, dropId);
+    if (!drop?.hostToken || drop.hostToken !== deviceToken) return null;
+    const entries = await entriesOf(ctx, dropId);
+    const rooms = await ctx.db
+      .query('rooms')
+      .withIndex('by_drop', (q) => q.eq('dropId', dropId))
+      .collect();
+    const solves = await ctx.db
+      .query('solves')
+      .withIndex('by_drop', (q) => q.eq('dropId', dropId))
+      .collect();
+    const labelOf = new Map(rooms.map((r) => [r._id, r.squadLabel ?? '']));
+    const squads = [];
+    for (const room of rooms) {
+      const solve = solves.find((s) => s.roomId === room._id);
+      const names = (
+        await ctx.db
+          .query('members')
+          .withIndex('by_room', (q) => q.eq('roomId', room._id))
+          .collect()
+      ).map((m) => m.name);
+      squads.push({
+        squadLabel: room.squadLabel ?? '',
+        memberNames: names,
+        status: !solve ? ('solving' as const) : solve.place <= drop.bounty.winnerSlots ? ('winner' as const) : ('solved' as const),
+        rank: solve?.place ?? null,
+      });
+    }
+    return {
+      dropId,
+      title: drop.title,
+      joinCode: drop.joinCode ?? '',
+      status: drop.status,
+      bounty: bountyView(drop),
+      entrantCount: entries.length,
+      entrants: entries.map((e) => ({ name: e.name, joinedAt: e._creationTime })),
+      squads,
+      solves: solves.map((s) => ({
+        place: s.place,
+        squadLabel: labelOf.get(s.roomId) ?? '',
+        solvedAt: s.solvedAt,
+        solveMs: s.solveMs,
+        isWinner: s.place <= drop.bounty.winnerSlots,
+      })),
+    };
+  },
+});
