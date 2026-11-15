@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 import presenceTest from '@convex-dev/presence/test';
+import rateLimiterTest from '@convex-dev/rate-limiter/test';
 import { convexTest } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -15,6 +16,7 @@ const HOST = 'host-device';
 function newTest() {
   const t = convexTest(schema, modules);
   presenceTest.register(t);
+  rateLimiterTest.register(t);
   return t;
 }
 type T = ReturnType<typeof newTest>;

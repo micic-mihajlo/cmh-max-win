@@ -7,6 +7,45 @@ export const presence = v.union(v.literal('online'), v.literal('reviewing'), v.l
 export const squadSize = v.union(v.literal(2), v.literal(3));
 export const bountyMode = v.union(v.literal('concept'), v.literal('sandbox'));
 
+export const mixerColor = v.union(v.literal('red'), v.literal('blue'), v.literal('green'), v.literal('yellow'));
+
+export const challengeConfig = v.object({
+  title: v.string(),
+  blurb: v.string(),
+  templateId: v.union(v.literal('mystery-aurora'), v.literal('split-passphrase')),
+  teamFormation: v.union(v.literal('dealt'), v.literal('mixer')),
+  teamSize: v.union(v.literal(1), v.literal(2), v.literal(3), v.literal(4)),
+  mixerColors: v.array(mixerColor),
+  leftover: v.union(v.literal('smaller_teams'), v.literal('wait_next_round')),
+  startMode: v.union(v.literal('live'), v.literal('scheduled'), v.literal('window')),
+  startsAt: v.union(v.number(), v.null()),
+  endsAt: v.union(v.number(), v.null()),
+  eligibility: v.union(
+    v.object({ kind: v.literal('open') }),
+    v.object({ kind: v.literal('whop_members'), productId: v.string() }),
+  ),
+  reward: v.union(
+    v.object({ kind: v.literal('winner_takes_all') }),
+    v.object({ kind: v.literal('top_x_equal'), places: v.number() }),
+    v.object({ kind: v.literal('placement'), percents: v.array(v.number()) }),
+  ),
+  poolCents: v.number(),
+  currency: v.literal('usd'),
+  payoutAdapter: v.union(v.literal('concept'), v.literal('whop')),
+  requireWhopToJoin: v.boolean(),
+  claimWindowMs: v.number(),
+});
+
+export const payoutStatus = v.union(
+  v.literal('pending'),
+  v.literal('claim_pending_whop'),
+  v.literal('approved'),
+  v.literal('sent'),
+  v.literal('sent_concept'),
+  v.literal('failed'),
+  v.literal('expired'),
+);
+
 export default defineSchema({
   pings: defineTable({
     source: v.string(),
@@ -17,7 +56,8 @@ export default defineSchema({
     caseId: v.union(v.literal('case01'), v.literal('aurora01')),
     // Drop squads only: a squad is a room with no host, dealt pieces, and a cooldown after a wrong check.
     dropId: v.optional(v.string()),
-    squadSize: v.optional(squadSize),
+    challengeId: v.optional(v.id('challenges')), // a challenge team's room
+    squadSize: v.optional(v.number()), // 2 or 3 for drop squads, 1 to 4 for challenge teams
     squadIndex: v.optional(v.number()),
     squadLabel: v.optional(v.string()),
     cooldownUntil: v.optional(v.number()),
@@ -94,6 +134,14 @@ export default defineSchema({
     .index('by_drop', ['dropId'])
     .index('by_drop_token', ['dropId', 'deviceToken'])
     .index('by_token', ['deviceToken']),
+  // One numbered seat (0..DROP_CAPACITY-1) per entrant, so the cap holds without every join reading every entry.
+  dropSeats: defineTable({
+    dropId: v.string(),
+    seat: v.number(),
+    deviceToken: v.string(),
+  })
+    .index('by_drop_seat', ['dropId', 'seat'])
+    .index('by_drop_token', ['dropId', 'deviceToken']),
   solves: defineTable({
     dropId: v.string(),
     roomId: v.id('rooms'),
@@ -136,6 +184,90 @@ export default defineSchema({
     checkoutConfigId: v.optional(v.string()),
     createdAt: v.number(),
   }),
+  // ---------- Creator console (CAP-31) ----------
+  creators: defineTable({ deviceToken: v.string(), displayName: v.string(), handle: v.string() })
+    .index('by_token', ['deviceToken'])
+    .index('by_handle', ['handle']),
+  challenges: defineTable({
+    creatorToken: v.string(),
+    config: challengeConfig,
+    status: v.union(v.literal('draft'), v.literal('published'), v.literal('live'), v.literal('ended'), v.literal('cancelled')),
+    serverCreated: v.boolean(),
+    joinCode: v.optional(v.string()),
+    createdAt: v.number(),
+    publishedAt: v.optional(v.number()),
+    firstDealtAt: v.optional(v.number()),
+    endedAt: v.optional(v.number()),
+    cancelReason: v.optional(v.string()),
+    finishedCount: v.number(),
+  })
+    .index('by_creator', ['creatorToken'])
+    .index('by_joinCode', ['joinCode']),
+  challengeEntries: defineTable({
+    challengeId: v.id('challenges'),
+    deviceToken: v.string(),
+    name: v.string(),
+    joinedAt: v.number(),
+    teamId: v.optional(v.id('challengeTeams')),
+    waitingNextRound: v.boolean(),
+    // mixer mode
+    color: v.optional(mixerColor),
+    playerCode: v.optional(v.string()),
+    fragmentSeed: v.optional(v.string()),
+    mixerTeamId: v.optional(v.id('mixerTeams')),
+    confirmed: v.optional(v.boolean()),
+  })
+    .index('by_challenge', ['challengeId'])
+    .index('by_challenge_token', ['challengeId', 'deviceToken']),
+  challengeTeams: defineTable({
+    challengeId: v.id('challenges'),
+    index: v.number(),
+    label: v.string(),
+    roomId: v.id('rooms'),
+    size: v.number(),
+    dealtAt: v.number(),
+    place: v.optional(v.number()),
+    finishedAt: v.optional(v.number()),
+  })
+    .index('by_challenge', ['challengeId', 'index'])
+    .index('by_room', ['roomId']),
+  mixerTeams: defineTable({
+    challengeId: v.id('challenges'),
+    label: v.string(),
+    status: v.union(v.literal('forming'), v.literal('locked'), v.literal('solved')),
+    memberIds: v.array(v.id('challengeEntries')),
+    attempts: v.number(),
+    cooldownUntil: v.optional(v.number()),
+    lockedAt: v.optional(v.number()),
+    place: v.optional(v.number()),
+    solvedAt: v.optional(v.number()),
+  }).index('by_challenge', ['challengeId']),
+  fundingLedger: defineTable({
+    challengeId: v.id('challenges'),
+    amountCents: v.number(),
+    status: v.literal('committed_concept'),
+    committedAt: v.number(),
+  }).index('by_challenge', ['challengeId']),
+  payouts: defineTable({
+    challengeId: v.id('challenges'),
+    place: v.number(),
+    teamLabel: v.string(),
+    playerIndex: v.number(),
+    deviceToken: v.string(),
+    name: v.string(),
+    cents: v.number(),
+    status: payoutStatus,
+    adapter: v.union(v.literal('concept'), v.literal('whop')),
+    method: v.optional(v.union(v.literal('concept'), v.literal('transfer'), v.literal('claim_link'))),
+    idempotencyKey: v.string(),
+    whopUserId: v.optional(v.string()),
+    claimExpiresAt: v.optional(v.number()),
+    claimUrl: v.optional(v.string()),
+    error: v.optional(v.string()),
+    updatedAt: v.number(),
+  })
+    .index('by_challenge', ['challengeId', 'place', 'playerIndex'])
+    .index('by_challenge_token', ['challengeId', 'deviceToken']),
   identities: defineTable({
     deviceToken: v.string(),
     whopUserId: v.string(),

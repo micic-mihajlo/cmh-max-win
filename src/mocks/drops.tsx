@@ -114,7 +114,7 @@ export const DropStates: MockState[] = [
     ref: 'beat 2',
     section: 'Drops',
     title: 'Creator · live drop card (live count in the app)',
-    render: () => <CreatorSetupScreen drop={nova} live={{ entrantCount: 212, shareUrl: 'cmhmaxwin://drop/aurora-demo' }} />,
+    render: () => <CreatorSetupScreen drop={nova} live={{ entrantCount: 212, shareUrl: 'signal.gg/aurora' }} />,
   },
   {
     id: '11-join-empty',

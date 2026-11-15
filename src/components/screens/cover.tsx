@@ -8,6 +8,7 @@ import { CodeCells } from '@/components/signal/code-cells';
 import { Button, Label } from '@/components/signal/primitives';
 import { useMotionReduced } from '@/components/signal/settings';
 import { Txt } from '@/components/signal/txt';
+import { Wordmark } from '@/components/wordmark';
 import { Palette, Radius, RoleMeta, Space } from '@/constants/signal';
 import { Case01 } from '@/constants/case01';
 import type { ActiveRoomView, Role, SignalErrorCode } from '@/lib/contract';
@@ -90,54 +91,20 @@ export function CoverScreen({
     <Screen
       overlay={join ? <JoinSheet join={join} on={on} /> : null}
       footer={
-        <>
-          {creating ? (
-            <View style={styles.joining}>
-              <ActivityIndicator color={Palette.onAccent} />
-              <Txt variant="button" color={Palette.onAccent}>
-                Opening a new case file…
-              </Txt>
-            </View>
-          ) : (
-            <>
-              {on.onJoinDrop ? <Button title="Join a drop" onPress={on.onJoinDrop} /> : null}
-              <Button title="Start case" variant={on.onJoinDrop ? 'secondary' : 'primary'} onPress={on.onStart} />
-            </>
-          )}
-          <Button title="Join with code" variant="secondary" disabled={creating} onPress={on.onOpenJoin} />
-          {on.onHostDrop ? <Button title="Host a drop" variant="ghost" disabled={creating} onPress={on.onHostDrop} /> : null}
-        </>
+        <View style={styles.cta}>
+          <Button title="Join a drop" disabled={creating} onPress={on.onJoinDrop} />
+          <Button title="Host a drop" variant="ghost" disabled={creating} onPress={on.onHostDrop} />
+        </View>
       }>
-      <View style={styles.mast}>
-        <Txt variant="label" color={Palette.paper} style={styles.wordmark}>
-          S I G N A L
-        </Txt>
-        <Txt variant="small" color={Palette.paperMuted}>
-          3 players · 10 min
-        </Txt>
-      </View>
+      <Wordmark />
       {banner}
       <View style={styles.hero}>
-        <View style={styles.caseRow}>
-          <View style={styles.rule} />
-          <Label color={Palette.paper}>{`Case ${Case01.number}`}</Label>
-        </View>
-        <Txt variant="hero">{'The\nAurora\nSeed'}</Txt>
-        <Txt variant="serif" color={Palette.paperMuted} style={styles.logline}>
-          {Case01.logline}
+        <Txt variant="caption" color={Palette.paperMuted}>{`Case ${Case01.number}`}</Txt>
+        <Txt variant="display" numberOfLines={2} adjustsFontSizeToFit>
+          The Aurora Seed
         </Txt>
-        <View style={styles.roles}>
-          {(['detective', 'hacker', 'witness'] as const).map((r) => (
-            <View key={r} style={styles.rolePill}>
-              <View style={[styles.dot, { backgroundColor: RoleMeta[r].color }]} />
-              <Txt variant="smallStrong" color={Palette.paper}>
-                {RoleMeta[r].label}
-              </Txt>
-            </View>
-          ))}
-        </View>
         <Txt variant="body" color={Palette.paperMuted}>
-          A 10-minute mystery for three friends. Each of you holds evidence the others can’t see.
+          {Case01.logline}
         </Txt>
       </View>
     </Screen>
@@ -282,25 +249,9 @@ const styles = StyleSheet.create({
   },
   seatBody: { flex: 1, gap: 2 },
   center: { textAlign: 'center' },
-  mast: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  wordmark: { letterSpacing: 2 },
-  hero: { gap: Space.l, marginTop: Space.xl },
-  caseRow: { flexDirection: 'row', alignItems: 'center', gap: Space.m },
-  rule: { width: 28, height: 1, backgroundColor: Palette.paper },
+  hero: { gap: Space.m, marginTop: Space.xxl },
+  cta: { gap: Space.xs, paddingBottom: Space.l },
   bannerLoading: { height: 128, borderColor: Palette.hairline, opacity: 0.6 },
-  logline: { maxWidth: 300 },
-  roles: { flexDirection: 'row', gap: Space.s, flexWrap: 'wrap' },
-  rolePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Palette.hairline,
-    backgroundColor: Palette.panel,
-  },
   dot: { width: 7, height: 7, borderRadius: 4 },
   banner: {
     borderWidth: 1,

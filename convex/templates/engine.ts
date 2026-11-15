@@ -11,6 +11,8 @@ import {
   MIXER_COLORS,
   type AnyTemplate,
   type CheckResult,
+  type ConfigIssue,
+  type DealCtx,
   type Formation,
   type MixerColor,
   type MixerMember,
@@ -109,34 +111,89 @@ export function parseConfig(templateId: string, raw: unknown) {
   return requireTemplate(templateId).config.parse(raw);
 }
 
+// The publish check for creator content. Empty means publishable. Templates without an issues() list fall back
+// to parse, reporting its first error.
+export function publishIssues(templateId: string, raw: unknown): ConfigIssue[] {
+  const { config } = requireTemplate(templateId);
+  if (config.issues) return config.issues(raw);
+  try {
+    config.parse(raw);
+    return [];
+  } catch (e) {
+    return [{ field: 'config', message: (e as { data?: { message?: string } }).data?.message ?? String(e) }];
+  }
+}
+
 // Validator for the action arg of a generic "act" mutation: the union of the template's action shapes.
 export function actionArgs(templateId: string) {
   const specs = Object.values(requireTemplate(templateId).actions) as { args: Parameters<typeof v.union>[number] }[];
   return specs.length === 1 ? specs[0].args : v.union(...specs.map((s) => s.args));
 }
 
-export function startSession(templateId: string, team: Team, seed: string, rawConfig?: unknown) {
+// ctx.now is the race start on the server clock (Date.now() in the dealing mutation).
+export function startSession(templateId: string, team: Team, seed: string, rawConfig?: unknown, ctx: Partial<DealCtx> = {}) {
   const template = requireTemplate(templateId);
   if (!squadSizes(template).includes(team.length)) {
     fail('BAD_TEAM_SIZE', `${template.name} supports teams of ${template.teamSizes.join(', ')}.`);
   }
   if (new Set(team.map((p) => p.playerId)).size !== team.length) fail('BAD_TEAM', 'Duplicate player in team.');
-  const { state, views } = template.deal(team, seed, template.config.parse(rawConfig));
+  const { state, views } = template.deal(team, seed, template.config.parse(rawConfig), { now: ctx.now ?? 0 });
   const session: Session = { templateId, seed, players: team.map((p) => ({ playerId: p.playerId, name: p.name })), state };
   return { session, views };
 }
 
-// Validates and applies one player's action. Returns the new session and the check on the new state; throws a
-// ConvexError { code, message } when the action is refused.
-export function act(session: Session, playerId: string, action: { type: string; [key: string]: unknown }): { session: Session; result: CheckResult } {
+// Validates and applies one player's action at server time now. Returns the new session and the check on the new
+// state; throws a ConvexError { code, message } when the action is refused.
+export function act(
+  session: Session,
+  playerId: string,
+  action: { type: string; [key: string]: unknown },
+  now = 0,
+): { session: Session; result: CheckResult } {
   const template = requireTemplate(session.templateId);
   if (!session.players.some((p) => p.playerId === playerId)) fail('NOT_A_PLAYER', 'You are not on this team.');
   const spec = (template.actions as Record<string, AnyTemplate['actions'][string]>)[action.type];
   if (!spec) fail('UNKNOWN_ACTION', `Unknown action "${action.type}".`);
-  const refused = spec.validate(session.state, playerId, action);
+  const refused = spec.validate(session.state, playerId, action, { now });
   if (refused) fail(refused.code, refused.message);
-  const state = template.apply(session.state, playerId, action);
+  const state = template.apply(session.state, playerId, action, { now });
   return { session: { ...session, state }, result: template.check(state) };
+}
+
+// Timed templates: the server times at which this session must be ticked, and the tick itself. Schedule
+// ctx.scheduler.runAt(t, ...) for each future time, then call tickSession(session, Date.now()) in that job.
+export function wakeTimes(session: Session): number[] {
+  return requireTemplate(session.templateId).wakeTimes?.(session.state) ?? [];
+}
+
+export function tickSession(session: Session, now: number): Session {
+  const template = requireTemplate(session.templateId);
+  return template.tick ? { ...session, state: template.tick(session.state, now) } : session;
+}
+
+// The host's Next button for host-paced templates. Call it on every team's session in one mutation with one now.
+export function hostAdvance(session: Session, now: number): Session {
+  const template = requireTemplate(session.templateId);
+  if (!template.host) fail('NOT_HOST_PACED', `${template.name} has no host controls.`);
+  return { ...session, state: template.host.advance(session.state, now) };
+}
+
+// The public board for an overlay, by challenge code: the round (from any team) and every team's row ranked by
+// points. It takes team labels, never device tokens, and carries no open question's answers.
+export function publicBoard(templateId: string, teams: readonly { label: string; session: Session }[]) {
+  const template = requireTemplate(templateId);
+  if (!template.board) fail('NO_BOARD', `${template.name} has no public board.`);
+  const { board } = template;
+  const rows = teams
+    .map((t) => ({ label: t.label, ...board.team(t.session.state) }))
+    .sort((a, b) => b.points - a.points || a.label.localeCompare(b.label))
+    .map((row, i, all) => ({ ...row, rank: i > 0 && all[i - 1].points === row.points ? 0 : i + 1 }));
+  for (let i = 1; i < rows.length; i++) if (rows[i].rank === 0) rows[i].rank = rows[i - 1].rank;
+  return { round: teams.length ? board.round(teams[0].session.state) : null, rows };
+}
+
+export function pointsOf(session: Session): number {
+  return requireTemplate(session.templateId).points?.(session.state) ?? 0;
 }
 
 export function checkSession(session: Session): CheckResult {
@@ -178,7 +235,7 @@ export function compareOutcomes(templateId: string, a: Outcome, b: Outcome) {
   return 0;
 }
 
-// Necessity self-check over every supported squad size and the given seeds. Every template must be solvable by
+// Necessity self-check over every supported team size and the given seeds. Every template must be solvable by
 // its whole team. A coop template must also not be solvable by any proper subset of the team.
 export function checkNecessity(template: AnyTemplate, seeds: readonly string[], rawConfig?: unknown) {
   const config = template.config.parse(rawConfig);
@@ -186,7 +243,7 @@ export function checkNecessity(template: AnyTemplate, seeds: readonly string[], 
   for (const size of squadSizes(template)) {
     const team: Team = Array.from({ length: size }, (_, i) => ({ playerId: `p${i + 1}`, name: `P${i + 1}` }));
     for (const seed of seeds) {
-      const { state } = template.deal(team, seed, config);
+      const { state } = template.deal(team, seed, config, { now: 0 });
       const ids = team.map((p) => p.playerId);
       if (!template.necessity.solvableBy(state, ids)) violations.push(`size ${size} seed ${seed}: the full team cannot solve it`);
       if (template.mode !== 'coop') continue;

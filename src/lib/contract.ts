@@ -111,6 +111,8 @@ export type SignalErrorCode =
   | 'CONFIRM_REQUIRED'
   | 'DROP_NOT_FOUND'
   | 'DROP_CLOSED' // entries close at the start time; a late joiner gets this
+  | 'DROP_FULL' // a new device entering a drop that already seats DROP_CAPACITY (150) players
+  | 'RATE_LIMITED' // too many tries; data.retryAfterMs says when the next one can succeed
   | 'NOT_ENTERED'
   | 'COOLDOWN' // drops: a lock-in during the 20s after a wrong check
   | 'DEMO_CONTROLS_OFF'
@@ -125,6 +127,7 @@ export type SignalErrorCode =
   | 'NOT_ELIGIBLE' // reserved: whop_members enforcement after Sign in with Whop
   | 'WHOP_SIGN_IN_REQUIRED' // joining a requireWhopToJoin challenge, or claiming, without a linked Whop account
   | 'CLAIM_EXPIRED'
+  | 'WHOP_NOT_CONFIGURED' // publishing a whop_members challenge on a deployment without Whop sign-in
   | 'PLAYER_NOT_FOUND' // mixer: no entrant with that player code in this challenge
   | 'DUPLICATE_COLOR' // mixer: the team already has that color
   | 'ALREADY_IN_TEAM' // mixer: a player sits in one team at a time
@@ -335,12 +338,13 @@ export type UseServerOffset = () => number | null;
 // (teams dealt) -> ended (results final) or cancelled. Drops above keep working unchanged.
 // Identity is the device token for now, behind one server helper (resolveIdentity) that Sign in with Whop replaces.
 
-export type ChallengeTemplateId = 'mystery-aurora';
+export type ChallengeTemplateId = 'mystery-aurora' | 'split-passphrase'; // ids from the CAP-32 template registry
 export type ChallengeTemplateView = {
   id: ChallengeTemplateId;
   name: string; // 'The Aurora Seed'
   blurb: string;
   teamSizes: TeamSize[]; // team sizes this template can be played at (same field as the template interface, CAP-32); mystery-aurora: [1, 2, 3, 4]
+  formations: TeamFormation[]; // dealt teams play mystery-aurora for now; mixer needs a template with mixer support (split-passphrase)
 };
 
 // Team sizes the platform supports in v1. A template declares the subset it handles.

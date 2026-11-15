@@ -6,6 +6,7 @@ import { internalMutation, mutation, query, type MutationCtx, type QueryCtx } fr
 import { ROLES, type Role } from './case01';
 import { checkScheduledStart, noteHostedDrop } from './feed';
 import { presence as presenceComponent } from './presence';
+import { enforceRateLimit } from './rateLimits';
 import { squadSize } from './schema';
 import { CODE_ALPHABET, generateCode } from './signal';
 import type {
@@ -49,10 +50,14 @@ function hash(text: string) {
 
 // Pieces per seat, varied per squad but reproducible from (dropId, squadIndex). A duo gets one 2-piece seat
 // and one 1-piece seat; every seat's first role is its primary (seal and color).
-export function dealPieces(dropId: string, squadIndex: number, size: SquadSize): Role[][] {
+// 3 pieces per team. Trio: one each. Duo: a 2-piece phone and a 1-piece phone. Solo (challenges): all three. Four
+// (challenges): one each, and the fourth member holds a copy of the first piece, so every member holds one.
+export function dealPieces(dropId: string, squadIndex: number, size: number): Role[][] {
   const k = hash(`${dropId}:${squadIndex}`) % 3;
   const order = [...ROLES.slice(k), ...ROLES.slice(0, k)];
-  return size === 3 ? order.map((r) => [r]) : [[order[0], order[1]], [order[2]]];
+  if (size === 1) return [order];
+  if (size === 2) return [[order[0], order[1]], [order[2]]];
+  return [...order.map((r) => [r]), ...(size === 4 ? [[order[0]]] : [])];
 }
 
 async function findDropByCode(ctx: QueryCtx, code: string) {
@@ -154,7 +159,7 @@ async function dropView(ctx: QueryCtx, drop: Doc<'drops'>, deviceToken: string):
       me: {
         entered: !!mine,
         name: mine?.name ?? null,
-        squad: room ? { code: room.code, size: room.squadSize ?? 3, label: room.squadLabel ?? '' } : null,
+        squad: room ? { code: room.code, size: (room.squadSize ?? 3) as SquadSize, label: room.squadLabel ?? '' } : null,
         unmatched: mine?.unmatched ?? false,
       },
     };
@@ -177,18 +182,44 @@ export const dropByCode = query({
   },
 });
 
-// Free entry: no entitlement is read or required, ever.
+export const DROP_CAPACITY = 150;
+
+// Free entry: no entitlement is read or required, ever. One seat per device token: a device that already
+// entered keeps its seat (renamed while the drop is still scheduled), even once the drop is full or live.
 async function enter(ctx: MutationCtx, drop: Doc<'drops'>, deviceToken: string, name: string) {
   const dropId = drop.dropId;
-  if (drop.status !== 'scheduled') fail('DROP_CLOSED', 'Entries closed when the drop started.');
   const clean = name.trim().slice(0, 24);
-  if (!clean) fail('WRONG_STATUS', 'Enter a name first.');
   const existing = await findEntry(ctx, dropId, deviceToken);
   if (existing) {
-    await ctx.db.patch(existing._id, { name: clean });
+    if (drop.status === 'scheduled' && clean && clean !== existing.name) await ctx.db.patch(existing._id, { name: clean });
     return;
   }
+  if (drop.status !== 'scheduled') fail('DROP_CLOSED', 'Entries closed when the drop started.');
+  if (!clean) fail('WRONG_STATUS', 'Enter a name first.');
+  const seat = await freeSeat(ctx, dropId, deviceToken);
+  if (seat === null) fail('DROP_FULL', `This drop is full (${DROP_CAPACITY} players).`);
+  await ctx.db.insert('dropSeats', { dropId, seat, deviceToken });
   await ctx.db.insert('dropEntries', { dropId, deviceToken, name: clean, unmatched: false });
+}
+
+// Counting entries would make every concurrent join conflict on the same index range. Instead each join
+// point-reads a few seats starting from its token's hash, so joins only collide on the same seat, and it
+// scans the whole seat range only when those probes are all taken.
+async function freeSeat(ctx: MutationCtx, dropId: string, deviceToken: string): Promise<number | null> {
+  const start = hash(deviceToken) % DROP_CAPACITY;
+  for (let i = 0; i < 8; i++) {
+    const seat = (start + i * 61) % DROP_CAPACITY;
+    const taken = await ctx.db
+      .query('dropSeats')
+      .withIndex('by_drop_seat', (q) => q.eq('dropId', dropId).eq('seat', seat))
+      .first();
+    if (!taken) return seat;
+  }
+  const taken = new Set(
+    (await ctx.db.query('dropSeats').withIndex('by_drop_seat', (q) => q.eq('dropId', dropId)).collect()).map((s) => s.seat),
+  );
+  for (let seat = 0; seat < DROP_CAPACITY; seat++) if (!taken.has(seat)) return seat;
+  return null;
 }
 
 export const enterDrop = mutation({
@@ -229,6 +260,11 @@ export const leaveDrop = mutation({
     const entry = await findEntry(ctx, dropId, deviceToken);
     if (!entry) fail('NOT_ENTERED', 'You are not in this drop.');
     await ctx.db.delete(entry._id);
+    const seat = await ctx.db
+      .query('dropSeats')
+      .withIndex('by_drop_token', (q) => q.eq('dropId', dropId).eq('deviceToken', deviceToken))
+      .unique();
+    if (seat) await ctx.db.delete(seat._id);
   },
 });
 
@@ -384,6 +420,8 @@ async function deleteDrop(ctx: MutationCtx, drop: Doc<'drops'>) {
     await ctx.db.delete(s._id);
   }
   for (const e of await entriesOf(ctx, drop.dropId)) await ctx.db.delete(e._id);
+  const seats = await ctx.db.query('dropSeats').withIndex('by_drop_seat', (q) => q.eq('dropId', drop.dropId)).collect();
+  for (const s of seats) await ctx.db.delete(s._id);
   await ctx.db.delete(drop._id);
 }
 
@@ -534,6 +572,7 @@ export const hostDrop = mutation({
   },
   handler: async (ctx, { deviceToken, title, winnerSlots, totalCents, creatorName, startsAt }) => {
     if (!deviceToken) fail('WRONG_STATUS', 'Missing device token.');
+    await enforceRateLimit(ctx, 'hostDrop', deviceToken);
     if (startsAt !== undefined) checkScheduledStart(startsAt, Date.now());
     const name = (creatorName ?? '').trim().slice(0, 24) || (await lastNameOf(ctx, deviceToken)) || 'Host';
     const hosted = await insertDrop(ctx, {
