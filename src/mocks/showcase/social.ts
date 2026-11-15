@@ -59,9 +59,9 @@ export const nova = {
 export const feed = {
   live: [{ id: 'live-nova', creator: 'Nova', initials: 'N', title: 'Orchard Lights: Encore', here: 38, stakes: '$200 · first 2 squads', code: 'KQTZ' }],
   upcoming: [
-    { id: 'u1', creator: 'Nova', initials: 'N', title: 'The Second Seed', when: 'Sun · 7:00 PM', stakes: '$500', reminded: true },
-    { id: 'u2', creator: 'Rook', initials: 'R', title: 'Glass Harbor II', when: 'Tue · 8:30 PM', stakes: '$150', reminded: false },
-    { id: 'u3', creator: 'Juno', initials: 'J', title: 'The Cold Room', when: 'Thu · 6:00 PM', stakes: '$120', reminded: false },
+    { id: 'u1', creator: 'Nova', initials: 'N', title: 'The Second Seed', when: 'Sun 7 PM', stakes: '$500', reminded: true },
+    { id: 'u2', creator: 'Rook', initials: 'R', title: 'Glass Harbor II', when: 'Tue 8:30 PM', stakes: '$150', reminded: false },
+    { id: 'u3', creator: 'Juno', initials: 'J', title: 'The Cold Room', when: 'Thu 6 PM', stakes: '$120', reminded: false },
   ],
   results: [
     { id: 'r1', creator: 'Nova', initials: 'N', title: 'The Aurora Seed', line: 'Squad 3 won in 2:41', you: 'You placed #2 · $33.33' },
