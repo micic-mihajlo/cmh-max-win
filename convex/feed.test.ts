@@ -317,6 +317,35 @@ describe('squadmates on the 2-minute ping', () => {
   });
 });
 
+describe('squadmates on Coming up rows', () => {
+  test('a device that entered or tapped Remind me sees who is waiting; other followers do not', async () => {
+    const t = newTest();
+    const startsAt = Date.now() + 30 * MIN;
+    const { dropId, streamerId } = await host(t, startsAt);
+    for (const d of ['lou', 'ana', 'fan', 'reminded']) await t.mutation(api.feed.followStreamer, { deviceToken: d, streamerId });
+    await t.mutation(api.feed.remindMe, { deviceToken: 'reminded', dropId });
+    await t.mutation(api.drops.enterDrop, { deviceToken: 'lou', dropId, name: 'Lou Reed' });
+    const row = async (d: string) => (await t.query(api.feed.followingFeed, { deviceToken: d })).upcoming[0];
+    expect((await row('lou')).squadmates).toBeUndefined();
+    await t.mutation(api.drops.enterDrop, { deviceToken: 'ana', dropId, name: 'Demo · Ana' });
+    expect((await row('lou')).squadmates).toEqual(['Ana']);
+    expect((await row('ana')).squadmates).toEqual(['Lou']);
+    expect((await row('reminded')).squadmates).toEqual(['Lou', 'Ana']);
+    expect((await row('fan')).squadmates).toBeUndefined();
+    expect((await t.query(api.feed.streamerPage, { deviceToken: 'reminded', streamerId }))!.nextDrop!.squadmates).toEqual(['Lou', 'Ana']);
+  });
+});
+
+describe('retitleDrop', () => {
+  test('renames a hosted drop and is idempotent', async () => {
+    const t = newTest();
+    const { dropId, streamerId } = await host(t, Date.now() + 30 * MIN);
+    for (let i = 0; i < 2; i++) expect(await t.mutation(internal.feed.retitleDrop, { dropId, title: ' Case 02 · The Glass Orchard ' })).toEqual({ dropId, title: 'Case 02 · The Glass Orchard' });
+    expect((await t.query(api.feed.streamerPage, { deviceToken: 'x', streamerId }))!.nextDrop!.title).toBe('Case 02 · The Glass Orchard');
+    expect(await errorCode(t.mutation(internal.feed.retitleDrop, { dropId: 'nope', title: 'X' }))).toBe('DROP_NOT_FOUND');
+  });
+});
+
 describe('showcase hygiene', () => {
   async function hostAs(t: T, deviceToken: string, creatorName: string, title = 'The Aurora Seed', startsAt?: number) {
     const hosted = await t.mutation(api.drops.hostDrop, { deviceToken, creatorName, title, ...(startsAt ? { startsAt } : {}) });
