@@ -75,6 +75,7 @@ const pushData = v.object({
   dropId: v.string(),
   joinCode: v.string(),
   streamerId: v.string(),
+  squadmates: v.optional(v.array(v.string())),
 });
 
 export const send = internalAction({

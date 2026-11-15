@@ -12,6 +12,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
+import { usePushTapRouting } from '@/components/showcase/social/push';
 import { Palette } from '@/constants/signal';
 import { convex } from '@/lib/convex';
 
@@ -30,6 +31,7 @@ export default function RootLayout() {
   useEffect(() => {
     if (ready) SplashScreen.hideAsync();
   }, [ready]);
+  usePushTapRouting(ready);
 
   if (!ready) return null;
 

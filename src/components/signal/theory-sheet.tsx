@@ -155,7 +155,7 @@ export function TheorySheet({
             ) : meLocked ? (
               <Button title="Locked in ✓" variant="secondary" />
             ) : (
-              <Button title={`Lock in ${culprit.first}`} onPress={onLockIn} />
+              <Button title={`Lock in ${culprit.first}`} haptic={false} onPress={onLockIn} />
             )}
           </ScrollView>
         ) : null}

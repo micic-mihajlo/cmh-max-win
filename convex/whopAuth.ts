@@ -13,6 +13,7 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from './_generated/server';
+import { releaseTransfersFor } from './bounty';
 import { whopApiBase, whopEnvironment, whopRequest } from './whop';
 
 const SESSION_TTL_MS = 10 * 60 * 1000;
@@ -311,6 +312,7 @@ export const linkIdentity = internalMutation({
     if (existing) await ctx.db.replace(existing._id, row);
     else await ctx.db.insert('identities', row);
     await writeTokens(ctx, { whopUserId: fields.whopUserId, accessToken, refreshToken, expiresAt });
+    await releaseTransfersFor(ctx, deviceToken, fields.whopUserId);
   },
 });
 
