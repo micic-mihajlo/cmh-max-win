@@ -229,6 +229,7 @@ function Playing({
   const lock = async () => {
     const third = lockedIds(room).size === 2;
     if (third) setChecking(true);
+    const tappedAt = Date.now();
     try {
       await lockIn(room.theory.revision);
       setNotice(undefined);
@@ -239,6 +240,7 @@ function Playing({
       else if (err === 'ALREADY_CHECKED') setNotice({ tone: 'warn', title: 'Already checked.', text: 'Change the theory to try again.' });
       else fail(e);
     } finally {
+      if (third) await new Promise((done) => setTimeout(done, Math.max(0, STAMP_HOLD_MS - (Date.now() - tappedAt))));
       setChecking(false);
     }
   };
@@ -309,6 +311,7 @@ function Resolved({ room }: { room: RoomView }) {
   );
 }
 
+const STAMP_HOLD_MS = 400;
 const HANDOFF_HOLD_MS = 900;
 const HANDOFF_FADE_MS = 240;
 
