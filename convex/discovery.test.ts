@@ -141,11 +141,17 @@ describe('share links', () => {
       ['challengeId', 'creator', 'endsAt', 'joinCode', 'membersOnly', 'phase', 'prizePool', 'serverNow', 'slug', 'startMode', 'startsAt', 'title'].sort(),
     );
     expect(preview).toMatchObject({ membersOnly: true, phase: 'upcoming', creator: { displayName: 'Nova', handle: '@nova' }, prizePool: { display: '$1,250.50' } });
-    const mixerPreview = await t.query(api.discovery.shareLink, { ref: mixer.joinCode });
+    const mixerPreview = (await t.query(api.discovery.shareLink, { ref: mixer.joinCode }))!;
+    expect(Object.keys(mixerPreview).sort()).toEqual(Object.keys(preview).sort());
+    for (const p of [preview, mixerPreview]) expect(Object.keys(p.creator).sort()).toEqual(['displayName', 'handle']);
+    // Exact matches on every string in the previews: the short random codes can't collide with substrings of ids.
+    const leaves = (v: unknown): string[] => (typeof v === 'string' ? [v] : v && typeof v === 'object' ? Object.values(v).flatMap(leaves) : []);
+    const shown = new Set(leaves([preview, mixerPreview]));
     const entries = await t.run((ctx) => ctx.db.query('challengeEntries').collect());
     const privates = [HOST, 'prod_secret_123', 'p1', 'p2', 'Name-p1', ...entries.flatMap((e) => [e.fragmentSeed ?? '', e.playerCode ?? '']).filter(Boolean)];
+    for (const secret of privates) expect(shown.has(secret)).toBe(false);
     const raw = JSON.stringify([preview, mixerPreview]);
-    for (const secret of privates) expect(raw).not.toContain(secret);
+    for (const secret of [HOST, 'prod_secret_123']) expect(raw).not.toContain(secret);
   });
 
   test("an ended challenge's preview shows no join code", async () => {
