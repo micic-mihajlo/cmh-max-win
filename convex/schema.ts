@@ -136,4 +136,28 @@ export default defineSchema({
     checkoutConfigId: v.optional(v.string()),
     createdAt: v.number(),
   }),
+  identities: defineTable({
+    deviceToken: v.string(),
+    whopUserId: v.string(),
+    name: v.string(),
+    username: v.optional(v.string()),
+    avatarUrl: v.optional(v.string()),
+    environment: v.union(v.literal('sandbox'), v.literal('production')),
+    linkedAt: v.number(),
+  })
+    .index('by_token', ['deviceToken'])
+    .index('by_whop_user', ['whopUserId']),
+  whopOAuthSessions: defineTable({
+    state: v.string(),
+    deviceToken: v.string(),
+    codeVerifier: v.string(),
+    returnUrl: v.string(),
+    createdAt: v.number(),
+  }).index('by_state', ['state']),
+  whopOAuthTokens: defineTable({
+    whopUserId: v.string(),
+    accessToken: v.string(),
+    refreshToken: v.optional(v.string()),
+    expiresAt: v.number(),
+  }).index('by_whop_user', ['whopUserId']),
 });

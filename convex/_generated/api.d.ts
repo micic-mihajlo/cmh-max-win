@@ -18,6 +18,7 @@ import type * as pings from "../pings.js";
 import type * as presence from "../presence.js";
 import type * as signal from "../signal.js";
 import type * as whop from "../whop.js";
+import type * as whopAuth from "../whopAuth.js";
 
 import type {
   ApiFromModules,
@@ -36,6 +37,7 @@ declare const fullApi: ApiFromModules<{
   presence: typeof presence;
   signal: typeof signal;
   whop: typeof whop;
+  whopAuth: typeof whopAuth;
 }>;
 
 /**
