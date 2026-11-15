@@ -20,7 +20,7 @@ const squadNames = (names: string[]) => (names.length > 1 ? `${names.slice(0, -1
 function Row({ row }: { row: LeaderboardRow }) {
   return (
     <View style={styles.row}>
-      <Txt variant="bodyStrong" color={row.isMine ? Palette.paper : Palette.paperMuted} style={styles.rank}>
+      <Txt variant="bodyStrong" color={row.isMine ? Palette.ember : Palette.paperMuted} style={styles.rank}>
         {row.rank ?? ''}
       </Txt>
       {row.isMine && row.memberNames.length ? (
@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'flex-end', gap: Space.m },
   spots: { flexDirection: 'row', gap: 6 },
   spot: { flex: 1, height: 8, borderRadius: Radius.pill, backgroundColor: Palette.panelRaised },
-  spotTaken: { backgroundColor: Palette.ember },
+  spotTaken: { backgroundColor: Palette.paper },
   list: { backgroundColor: Palette.panel, borderRadius: 16, paddingHorizontal: Space.l },
   row: { flexDirection: 'row', alignItems: 'center', gap: Space.m, height: 56 },
   rank: { minWidth: 28, fontVariant: ['tabular-nums'] },

@@ -33,5 +33,5 @@ export function InviteCode({ code, play = true, size = 64, tileColor, borderColo
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: 8, justifyContent: 'center' },
   tile: { borderRadius: 10, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
-  letter: { fontFamily: FontFamily.uiSemi, fontVariant: ['tabular-nums'] },
+  letter: { fontFamily: FontFamily.displayBold, fontVariant: ['tabular-nums'] },
 });

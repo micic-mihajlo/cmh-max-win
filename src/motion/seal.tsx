@@ -117,5 +117,5 @@ const styles = StyleSheet.create({
   empty: { borderWidth: 1.5, borderStyle: 'dashed' },
   bleed: { borderWidth: 1.5 },
   disc: { alignItems: 'center', justifyContent: 'center' },
-  initial: { fontFamily: FontFamily.uiBold },
+  initial: { fontFamily: FontFamily.uiSemi },
 });

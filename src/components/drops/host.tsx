@@ -113,7 +113,7 @@ function HostBoard({ view }: { view: HostView }) {
                   {solved ? (
                     <>
                       <Txt variant="time">{short(solved.solveMs)}</Txt>
-                      <Seal locked color={solved.isWinner ? Palette.ember : Palette.paperMuted} initial={String(solved.place)} size={32} />
+                      <Seal locked color={solved.isWinner ? Palette.paper : Palette.paperMuted} initial={String(solved.place)} size={32} />
                     </>
                   ) : null}
                 </View>
@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
   boardHead: { flexDirection: 'row', alignItems: 'baseline', gap: Space.m },
   bars: { flexDirection: 'row', gap: Space.s },
   bar: { flex: 1, height: 10, borderRadius: Radius.pill, backgroundColor: Palette.hairline, overflow: 'hidden' },
-  barFill: { flex: 1, backgroundColor: Palette.ember },
+  barFill: { flex: 1, backgroundColor: Palette.paper },
   squads: { flexDirection: 'row', flexWrap: 'wrap', gap: Space.s },
   squadCell: { flexGrow: 1, flexBasis: 280 },
   squad: {
@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Palette.hairline,
   },
-  squadWinner: { borderColor: Palette.ember, borderWidth: 1 },
+  squadWinner: { borderColor: Palette.paper, borderWidth: 1 },
   squadHead: { flexDirection: 'row', alignItems: 'center', gap: Space.m },
   flex: { flex: 1 },
   center: { textAlign: 'center' },
@@ -186,6 +186,6 @@ const styles = StyleSheet.create({
   more: { backgroundColor: 'transparent' },
   chip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: Radius.pill, backgroundColor: Palette.accentSoft },
   footer: { flexDirection: 'row', alignItems: 'center', gap: Space.l },
-  deal: { height: 54, paddingHorizontal: Space.xl, borderRadius: 16, backgroundColor: Palette.ember, alignItems: 'center', justifyContent: 'center' },
+  deal: { height: 54, paddingHorizontal: Space.xl, borderRadius: 16, backgroundColor: Palette.paper, alignItems: 'center', justifyContent: 'center' },
   dealOff: { backgroundColor: Palette.inkDeep },
 });

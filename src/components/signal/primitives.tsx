@@ -22,13 +22,13 @@ export function Button({
 }: {
   title: string;
   onPress?: () => void;
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
+  variant?: 'primary' | 'accent' | 'secondary' | 'ghost' | 'danger';
   disabled?: boolean;
   icon?: ReactNode;
   style?: ViewStyle;
   haptic?: boolean;
 }) {
-  const fg = variant === 'primary' ? Palette.ink : variant === 'danger' ? Palette.onAccent : Palette.paper;
+  const fg = variant === 'primary' ? Palette.ink : variant === 'danger' || variant === 'accent' ? Palette.onAccent : Palette.paper;
   return (
     <PressScale
       accessibilityRole="button"
@@ -41,6 +41,7 @@ export function Button({
         variant === 'primary' && styles.primary,
         variant === 'secondary' && styles.secondary,
         variant === 'danger' && styles.danger,
+        variant === 'accent' && styles.accent,
         disabled && styles.disabled,
         style,
       ]}>
@@ -247,6 +248,7 @@ const styles = StyleSheet.create({
   primary: { backgroundColor: Palette.paper },
   secondary: { backgroundColor: 'transparent' },
   danger: { backgroundColor: Palette.danger },
+  accent: { backgroundColor: Palette.ember },
   disabled: { backgroundColor: Palette.paperShade, borderWidth: 0 },
   roleTag: { flexDirection: 'row', alignItems: 'center', gap: Space.s },
   presence: { height: 17 },

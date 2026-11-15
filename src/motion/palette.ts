@@ -24,12 +24,12 @@ export const PaperColors: MotionColors = {
   card: Palette.card,
   ink: Palette.paper,
   muted: Palette.paperMuted,
-  faint: Palette.disabledText,
+  faint: Palette.paperMuted,
   hairline: Palette.hairline,
   accent: Palette.ember,
   onAccent: Palette.onAccent,
   accentSoft: Palette.accentSoft,
-  onRole: Palette.ink,
+  onRole: Palette.card,
   owned: Palette.paper,
 };
 

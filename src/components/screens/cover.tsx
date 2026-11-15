@@ -76,7 +76,7 @@ export function CoverScreen({
         <Button title="See the reveal" variant="secondary" style={styles.bannerButton} onPress={on.onRejoin} />
       </View>
     ) : active ? (
-      <View style={[styles.banner, { borderColor: active.role ? RoleMeta[active.role].color : Palette.ember }]}>
+      <View style={[styles.banner, { borderColor: active.role ? RoleMeta[active.role].color : Palette.paper }]}>
         <View style={styles.bannerText}>
           <Label color={active.role ? RoleMeta[active.role].color : Palette.paperMuted}>{`Case in progress · ${active.code}`}</Label>
           <Txt variant="bodyStrong">
@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
   joining: {
     minHeight: 54,
     borderRadius: Radius.pill,
-    backgroundColor: Palette.ember,
+    backgroundColor: Palette.paper,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

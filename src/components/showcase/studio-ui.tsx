@@ -18,9 +18,9 @@ export const G = {
   fill: Palette.paperShade,
   onInk: Palette.ink,
   ok: Palette.ok,
-  okWash: '#E9F9E4',
+  okWash: Palette.paperShade,
   bad: Palette.danger,
-  badWash: '#FFF0EE',
+  badWash: Palette.paperShade,
   role: { detective: Palette.paperShade, hacker: Palette.paperShade, witness: Palette.paperShade } as Record<BuilderRole, string>,
 };
 
