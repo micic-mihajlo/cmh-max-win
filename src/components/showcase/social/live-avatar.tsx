@@ -27,8 +27,8 @@ const styles = StyleSheet.create({
   wrap: { alignSelf: 'flex-start' },
   dot: {
     position: 'absolute',
-    right: 6,
-    bottom: 6,
+    right: 0,
+    bottom: 0,
     width: 12,
     height: 12,
     borderRadius: 6,
