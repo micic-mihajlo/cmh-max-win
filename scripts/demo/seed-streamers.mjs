@@ -1,6 +1,7 @@
 // Seeds real-looking streamers for the showcase feed, through public functions only, the way phones do.
-//   Nova: a scheduled drop titled "Friday 9 pm" (next Friday, 9 pm Los Angeles) and two finished drops with winners.
-//   Juno Park, Theo Marsh and Sable Quinn: one scheduled drop each, later in the week.
+//   Nova: "Case 02 · The Glass Orchard", scheduled for next Friday 9 pm Los Angeles, and two finished drops with winners.
+//   Juno Park, Theo Marsh and Sable Quinn: one scheduled case each, later in the week.
+// Titles are case names, never times: the feed already prints the start time beside the title.
 // No followers are made: follower counts come only from real devices following.
 //
 // Idempotent: each streamer's host token is derived from --key, and the script only adds what a streamer's page
@@ -22,15 +23,15 @@ const STREAMERS = [
   {
     name: 'Nova',
     avatarUrl: avatar('Nova'),
-    upcoming: { title: 'Friday 9 pm', day: 5, hour: 21, totalCents: 30_000 },
+    upcoming: { title: 'Case 02 · The Glass Orchard', day: 5, hour: 21, totalCents: 30_000 },
     past: [
       { title: 'The Aurora Seed', totalCents: 20_000, thinkMs: 48_000, players: ['Lou', 'Ana', 'Kit', 'Mara', 'Dev', 'Jo'] },
-      { title: 'Static at Midnight', totalCents: 25_000, thinkMs: 71_000, players: ['Rae', 'Omar', 'Lena', 'Sam', 'Priya', 'Cole'] },
+      { title: 'The Silent Switchboard', totalCents: 25_000, thinkMs: 71_000, players: ['Rae', 'Omar', 'Lena', 'Sam', 'Priya', 'Cole'] },
     ],
   },
-  { name: 'Juno Park', avatarUrl: avatar('Juno Park'), upcoming: { title: 'Saturday night signal', day: 6, hour: 20, totalCents: 15_000 }, past: [] },
-  { name: 'Theo Marsh', avatarUrl: avatar('Theo Marsh'), upcoming: { title: 'Sunday cold case', day: 0, hour: 18, totalCents: 10_000 }, past: [] },
-  { name: 'Sable Quinn', avatarUrl: avatar('Sable Quinn'), upcoming: { title: 'Midweek mystery', day: 3, hour: 19, totalCents: 12_000 }, past: [] },
+  { name: 'Juno Park', avatarUrl: avatar('Juno Park'), upcoming: { title: 'Case 03 · The Lantern Ledger', day: 6, hour: 20, totalCents: 15_000 }, past: [] },
+  { name: 'Theo Marsh', avatarUrl: avatar('Theo Marsh'), upcoming: { title: 'Case 04 · Cold Harbor', day: 0, hour: 18, totalCents: 10_000 }, past: [] },
+  { name: 'Sable Quinn', avatarUrl: avatar('Sable Quinn'), upcoming: { title: 'Case 05 · Velvet Static', day: 3, hour: 19, totalCents: 12_000 }, past: [] },
 ];
 
 const argv = process.argv.slice(2);

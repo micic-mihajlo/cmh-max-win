@@ -3,7 +3,7 @@ import { ConvexError, v } from 'convex/values';
 import type { Doc, Id } from './_generated/dataModel';
 import { mutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
 import { paidPlaceCount } from './challenges';
-import { isHiddenStreamer } from './feed';
+import { isHiddenStreamer, squadmatesFor } from './feed';
 import { resolveIdentity, type ResolvedIdentity } from './whopAuth';
 import { findCreatorByHandle, normalizeHandle } from './handles';
 import type {
@@ -344,10 +344,18 @@ export const upcomingReminders = query({
     const challenges = (await Promise.all(rows.map((r) => ctx.db.get(r.challengeId)))).filter((c): c is Challenge => !!c && remindable(c));
     return Promise.all(
       challenges.sort(byStart).map(async (c) => {
-        const creator = await ctx.db
-          .query('creators')
-          .withIndex('by_token', (q) => q.eq('deviceToken', c.creatorToken))
-          .first();
+        const [creator, entries] = await Promise.all([
+          ctx.db
+            .query('creators')
+            .withIndex('by_token', (q) => q.eq('deviceToken', c.creatorToken))
+            .first(),
+          ctx.db
+            .query('challengeEntries')
+            .withIndex('by_challenge', (q) => q.eq('challengeId', c._id))
+            .collect(),
+        ]);
+        const people = entries.map((e) => ({ deviceToken: e.deviceToken, name: e.name, group: e.teamId ?? e.mixerTeamId ?? null }));
+        const squadmates = squadmatesFor(people, deviceToken, c.creatorToken);
         return {
           challengeId: c._id,
           title: c.config.title,
@@ -355,6 +363,7 @@ export const upcomingReminders = query({
           startMode: c.config.startMode,
           startsAt: c.config.startMode === 'scheduled' ? c.config.startsAt : null,
           joinCode: c.joinCode ?? null,
+          ...(squadmates.length ? { squadmates } : {}),
         };
       }),
     );

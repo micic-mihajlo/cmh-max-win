@@ -38,6 +38,9 @@ export type FeedUpcomingRow = {
   startsAt: number; // ms epoch, server clock
   bounty: BountyView;
   reminded: boolean;
+  // "Lou and Ana are waiting": first names of up to 3 others already entered (or dealt into this device's squad).
+  // Only for a device that tapped Remind me or entered; never this device or the host; absent when nobody's there.
+  squadmates?: string[];
 };
 
 // A finished drop: the winning squad, and this device's own placement when it played.

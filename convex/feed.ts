@@ -41,6 +41,22 @@ export function firstName(name: string) {
   return (name.split(' · ').at(-1) ?? '').trim().split(/\s+/)[0] ?? '';
 }
 
+// "Lou and Ana are waiting": first names of up to MAX_SQUADMATES others already waiting with this device, or dealt into
+// its squad (same group). Never this device or the host.
+export function squadmatesFor(
+  people: { deviceToken: string; name: string; group?: string | null; out?: boolean }[],
+  deviceToken: string,
+  hostToken?: string,
+): string[] {
+  const mine = people.find((p) => p.deviceToken === deviceToken);
+  const pool = mine?.group ? people.filter((p) => p.group === mine.group) : people.filter((p) => !p.group && !p.out);
+  const names = pool.filter((p) => p.deviceToken !== deviceToken && p.deviceToken !== hostToken).map((p) => firstName(p.name));
+  return [...new Set(names.filter(Boolean))].slice(0, MAX_SQUADMATES);
+}
+
+const entrantsAsPeople = (entries: Doc<'dropEntries'>[]) =>
+  entries.map((e) => ({ deviceToken: e.deviceToken, name: e.name, group: e.squadRoomId ?? null, out: e.unmatched }));
+
 export const safeAvatarUrl = (url: string | undefined) => (url && /^https:\/\/\S+$/.test(url) && url.length <= 300 ? url : undefined);
 
 function fail(code: SignalErrorCode, message: string): never {
@@ -127,10 +143,7 @@ export const roomStarting = internalMutation({
     const devices = [...reminders, ...entries].map((r) => r.deviceToken).filter((t) => t !== drop.hostToken);
     // squadmates: the first names of the others already waiting, or dealt into this device's squad. Never this device.
     const squadmatesOf = (deviceToken: string) => {
-      const mine = entries.find((e) => e.deviceToken === deviceToken);
-      const pool = mine?.squadRoomId ? entries.filter((e) => e.squadRoomId === mine.squadRoomId) : entries.filter((e) => !e.squadRoomId && !e.unmatched);
-      const names = pool.filter((e) => e.deviceToken !== deviceToken && e.deviceToken !== drop.hostToken).map((e) => firstName(e.name));
-      const squadmates = [...new Set(names.filter(Boolean))].slice(0, MAX_SQUADMATES);
+      const squadmates = squadmatesFor(entrantsAsPeople(entries), deviceToken, drop.hostToken);
       return squadmates.length ? { squadmates } : {};
     };
     await queuePush(
@@ -299,10 +312,16 @@ async function liveRow(ctx: QueryCtx, streamer: Doc<'streamers'>, h: HostedDrop,
 }
 
 async function upcomingRow(ctx: QueryCtx, streamer: Doc<'streamers'>, h: HostedDrop, deviceToken: string): Promise<FeedUpcomingRow> {
-  const reminder = await ctx.db
-    .query('dropReminders')
-    .withIndex('by_device', (q) => q.eq('deviceToken', deviceToken).eq('dropId', h.drop.dropId))
-    .first();
+  const [reminder, entries] = await Promise.all([
+    ctx.db
+      .query('dropReminders')
+      .withIndex('by_device', (q) => q.eq('deviceToken', deviceToken).eq('dropId', h.drop.dropId))
+      .first(),
+    entriesOf(ctx, h.drop.dropId),
+  ]);
+  // Same audience as the 2-minute ping: only a device that tapped Remind me or entered sees who's waiting.
+  const inIt = !!reminder || entries.some((e) => e.deviceToken === deviceToken);
+  const squadmates = inIt ? squadmatesFor(entrantsAsPeople(entries), deviceToken, h.drop.hostToken) : [];
   return {
     streamerId: streamer._id,
     streamerName: streamer.name,
@@ -312,6 +331,7 @@ async function upcomingRow(ctx: QueryCtx, streamer: Doc<'streamers'>, h: HostedD
     startsAt: h.sd.scheduledFor!,
     bounty: await bountyView(ctx, h.drop),
     reminded: !!reminder,
+    ...(squadmates.length ? { squadmates } : {}),
   };
 }
 
@@ -571,6 +591,18 @@ export const hideTestHosts = internalMutation({
       hidden++;
     }
     return { hidden };
+  },
+});
+
+// Renames a hosted drop (e.g. a seeded drop whose title read like its start time). Idempotent.
+export const retitleDrop = internalMutation({
+  args: { dropId: v.string(), title: v.string() },
+  handler: async (ctx, { dropId, title }) => {
+    const drop = await dropById(ctx, dropId);
+    const next = title.trim().slice(0, 60);
+    if (!drop || !next) fail('DROP_NOT_FOUND', 'No such drop, or an empty title.');
+    if (drop.title !== next) await ctx.db.patch(drop._id, { title: next });
+    return { dropId, title: next };
   },
 });
 
