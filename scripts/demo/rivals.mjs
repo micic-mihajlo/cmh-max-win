@@ -67,8 +67,9 @@ function layout(view) {
 async function enterAll(dropId) {
   for (const p of players) await m(p, 'drops:enterDrop', { dropId, name: p.name });
 }
-async function leaveAll(dropId) {
-  for (const p of players) await m(p, 'drops:leaveDrop', { dropId }).catch(() => {});
+async function leaveAll(dropId, view) {
+  const present = new Set(view.entrants.map((e) => e.name));
+  for (const p of players) if (present.has(p.name)) await m(p, 'drops:leaveDrop', { dropId }).catch(() => {});
 }
 
 async function main() {
@@ -102,14 +103,14 @@ async function main() {
     if (l.real % 3 !== 0) {
       if (entered) {
         log(l.real + " real entrants isn't a multiple of 3; demo players step out until it is.");
-        await leaveAll(dropId);
+        await leaveAll(dropId, view);
         entered = false;
       }
       return;
     }
     if (entered && l.ok) return;
     if (entered) log('A real player joined after the demo block; re-entering at the end.');
-    await leaveAll(dropId);
+    await leaveAll(dropId, view);
     await enterAll(dropId);
     entered = true;
     log('Entered 9 demo players after ' + l.real + ' real entrant(s). Waiting for the host to deal.');
