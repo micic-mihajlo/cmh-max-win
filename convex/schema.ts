@@ -48,11 +48,21 @@ export default defineSchema({
   })
     .index('by_room', ['roomId'])
     .index('by_member', ['memberId']),
-  // Filled only by the server after a verified purchase (Whop thread owns this later).
+  // Written only by internal.whop.grantFromPayment after a verified Whop payment.
   entitlements: defineTable({
     deviceToken: v.string(),
-    pack: v.string(),
-    source: v.string(),
+    pack: v.literal('season01'),
+    source: v.literal('whop'),
+    environment: v.union(v.literal('sandbox'), v.literal('production')),
+    whopPaymentId: v.string(),
     verifiedAt: v.number(),
-  }).index('by_token', ['deviceToken']),
+  })
+    .index('by_token', ['deviceToken'])
+    .index('by_payment', ['whopPaymentId']),
+  whopCheckouts: defineTable({
+    deviceToken: v.string(),
+    pack: v.literal('season01'),
+    checkoutConfigId: v.optional(v.string()),
+    createdAt: v.number(),
+  }),
 });

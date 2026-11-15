@@ -130,3 +130,22 @@ export type UseRestart = (code: string) => (args: { confirm: true }) => Promise<
 export type UseLeaveRoom = (code: string) => () => Promise<void>;
 // This device's own socket, for the reconnecting banner (others' presence is in members[].presence).
 export type UseConnection = () => { connected: boolean; everConnected: boolean };
+
+// ---- Whop season pack (Lane B, CMHM-11) ----
+// A real, server-verified purchase through Whop's hosted checkout (sandbox for the demo).
+// 'owned' comes only from a Convex entitlement written after Whop's payment.succeeded webhook
+// is verified and the payment is re-read from Whop's API; the browser result never unlocks it.
+// The concept card stays a separate Lane A component and must never render from this view.
+export type PackId = 'season01';
+// locked: not bought · checkout: Whop checkout is open · verifying: checkout returned, waiting
+// for the server-verified entitlement · owned: entitlement exists.
+export type SeasonPackState = 'locked' | 'checkout' | 'verifying' | 'owned';
+export type SeasonPackView = {
+  pack: PackId;
+  state: SeasonPackState;
+  real: true;
+  environment: 'sandbox' | 'production' | null; // set once owned; the demo shows "test purchase" for sandbox
+  error: string | null; // e.g. Whop not configured, checkout creation failed
+};
+// view is undefined while loading.
+export type UseSeasonPack = () => { view: SeasonPackView | undefined; buy: () => Promise<void> };
