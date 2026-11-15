@@ -5,9 +5,7 @@ import { Icon } from '@/components/signal/icon';
 import { Label } from '@/components/signal/primitives';
 import { Txt } from '@/components/signal/txt';
 import { Palette, Radius, RoleColors, Space } from '@/constants/signal';
-import type { Role } from '@/lib/contract';
-
-import type { BountyMode, BountyView, DropSummaryView } from './contract';
+import type { Role, BountyMode, BountyView, DropSummaryView } from '@/lib/contract';
 
 export const Tagline = 'Everyone holds a piece. Nobody solves it alone.';
 
@@ -18,24 +16,6 @@ export const PieceLabel: Record<Role, string> = {
 };
 
 export const Brass = RoleColors.detective;
-
-export const PieceCopy: Record<Role, { doc: string; source: string; text: string }> = {
-  hacker: {
-    doc: 'CAMERA LOG · HACKER',
-    source: 'Station systems',
-    text: '“The dock camera shows Theo at the docking ring from 21:30 to 21:50. He never left.”',
-  },
-  witness: {
-    doc: 'STATEMENT · WITNESS',
-    source: 'Dr. Sam Reyes, medic',
-    text: '“Priya played Go with me in the lounge from 21:30 to 21:50. Neither of us got up.”',
-  },
-  detective: {
-    doc: 'SCENE NOTES · DETECTIVE',
-    source: 'Station security',
-    text: '“Ines was locked inside the clean room from 21:30 to 21:50. Its only door never opened.”',
-  },
-};
 
 export function money(cents: number) {
   return cents % 100 === 0 ? `$${cents / 100}` : `$${(cents / 100).toFixed(2)}`;

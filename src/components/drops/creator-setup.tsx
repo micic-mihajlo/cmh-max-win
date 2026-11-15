@@ -7,7 +7,7 @@ import { Txt } from '@/components/signal/txt';
 import { Palette, Radius, Space } from '@/constants/signal';
 import { PressScale } from '@/motion';
 
-import type { SquadSize } from './contract';
+import type { SquadSize } from '@/lib/contract';
 import { ModeTag, money, money2, Tagline } from './ui';
 
 export type CreatorDraft = { title: string; squadSize: SquadSize; totalCents: number; winnerSlots: number; startsIn: 'now' | '5' | '15' };

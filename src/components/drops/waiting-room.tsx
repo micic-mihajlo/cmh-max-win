@@ -7,12 +7,12 @@ import { FontFamily, Palette, Radius, RoleColors, Space } from '@/constants/sign
 import { Enter } from '@/motion';
 
 import { useServerClock } from './clock';
-import type { DropView } from './contract';
+import type { DropView } from '@/lib/contract';
 import { clock, money, Tagline } from './ui';
 
 const avatarColors = [Palette.ember, RoleColors.witness, RoleColors.hacker, RoleColors.detective];
 
-export function WaitingRoomScreen({ drop, offset }: { drop: DropView; offset: number | null }) {
+export function WaitingRoomScreen({ drop, offset, onBack }: { drop: DropView; offset: number | null; onBack?: () => void }) {
   const now = useServerClock(offset);
   const left = drop.startsAt - now;
   const unmatched = drop.me.unmatched;
@@ -25,7 +25,7 @@ export function WaitingRoomScreen({ drop, offset }: { drop: DropView; offset: nu
         unmatched ? (
           <>
             <Banner tone="info" title="Nobody left to pair with." text="You were the only one in the room, so no squad formed. No bounty this time." />
-            <Button title="Back to drops" variant="secondary" />
+            <Button title="Back to drops" variant="secondary" onPress={onBack} />
           </>
         ) : (
           <Txt variant="small" color={Palette.paperMuted} style={styles.center}>

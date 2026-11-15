@@ -5,10 +5,9 @@ import { Button, Label } from '@/components/signal/primitives';
 import { Txt } from '@/components/signal/txt';
 import { Palette, Radius, RoleColors, Space } from '@/constants/signal';
 import { Enter } from '@/motion';
-import type { Role } from '@/lib/contract';
+import type { Role, BountyView, SquadAwardView } from '@/lib/contract';
 
 import { useServerClock } from './clock';
-import type { BountyView, SquadAwardView } from './contract';
 import { Brass, clock, ModeTag, money2, PieceLabel } from './ui';
 
 export type CreditedMember = { name: string; isMe: boolean; roles: Role[] };
@@ -20,12 +19,14 @@ export function BountyResultScreen({
   squadLabel,
   members,
   offset,
+  on,
 }: {
   award: SquadAwardView;
   bounty: BountyView;
   squadLabel: string;
   members: CreditedMember[];
   offset: number | null;
+  on?: { onClaim?: () => void; onReveal?: () => void };
 }) {
   const now = useServerClock(offset);
   const concept = award.mode === 'concept';
@@ -35,7 +36,7 @@ export function BountyResultScreen({
       footer={
         real ? (
           <>
-            <Button title="Claim your share on Whop" />
+            <Button title="Claim your share on Whop" onPress={on?.onClaim} />
             {award.expiresAt ? (
               <Txt variant="small" color={Palette.paperMuted} style={styles.center}>
                 Link expires in {clock(award.expiresAt - now)}
@@ -43,7 +44,7 @@ export function BountyResultScreen({
             ) : null}
           </>
         ) : (
-          <Button title="See the reveal" variant="secondary" />
+          <Button title="See the reveal" variant="secondary" onPress={on?.onReveal} />
         )
       }>
       <View style={styles.headRow}>
