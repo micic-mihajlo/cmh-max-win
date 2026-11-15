@@ -1,6 +1,8 @@
 import { ConvexError, v } from 'convex/values';
 import type { Doc, Id } from './_generated/dataModel';
+import { internal } from './_generated/api';
 import { mutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
+import { AURORA_REVEAL, PIECES, nudgeText, pieceFor } from './aurora';
 import { ANSWER, DOSSIERS, NUDGES, REVEAL, ROLES } from './case01';
 import { presence as presenceComponent } from './presence';
 import { presence, role, suspect } from './schema';
@@ -14,12 +16,30 @@ import type {
   RoomView,
   SignalErrorCode,
 } from '../src/lib/contract';
+import { RACE_REVEAL_MS } from '../src/lib/contract';
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const MAX_MEMBERS = 3;
+export const WRONG_GUESS_COOLDOWN_MS = 20_000;
 
 export function rolesOf(m: Doc<'members'>): Role[] {
   return m.roles ?? (m.role ? [m.role] : []);
+}
+
+function evidenceFor(room: Doc<'rooms'>, r: Role): DossierView {
+  return room.caseId === 'aurora01' ? PIECES[r] : DOSSIERS[r];
+}
+
+export function bountyShares(totalCents: number, winnerSlots: number, squadSize: number) {
+  const perPlayerCents = Math.floor(totalCents / winnerSlots / squadSize);
+  return { amountCents: perPlayerCents * squadSize, perPlayerCents };
+}
+
+async function findDrop(ctx: QueryCtx, dropId: string) {
+  return ctx.db
+    .query('drops')
+    .withIndex('by_dropId', (q) => q.eq('dropId', dropId))
+    .unique();
 }
 
 function fail(code: SignalErrorCode, message: string): never {
@@ -91,7 +111,7 @@ function canReclaim(holder: Doc<'members'>, seats: SeatPresence) {
 }
 
 function reclaimable(room: Doc<'rooms'>, all: Doc<'members'>[], seats: SeatPresence, me: Doc<'members'> | null): Role[] {
-  if (room.status === 'lobby' || me) return [];
+  if (room.status === 'lobby' || room.dropId || me) return [];
   return ROLES.filter((r) => all.some((m) => m.role === r && canReclaim(m, seats)));
 }
 
@@ -103,12 +123,55 @@ async function clearLockIns(ctx: MutationCtx, roomId: Id<'rooms'>) {
   await Promise.all(locks.map((l) => ctx.db.delete(l._id)));
 }
 
-async function generateCode(ctx: MutationCtx) {
+export async function generateCode(ctx: MutationCtx) {
   for (;;) {
     let code = '';
     for (let i = 0; i < 4; i++) code += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];
     if (!(await findRoom(ctx, code))) return code;
   }
+}
+
+// Called inside the lock-in that resolves a drop squad. The drop doc is read and written in the same
+// serializable transaction, so places are the commit order: exactly winnerSlots winners, no ties, no chance.
+async function recordSolve(ctx: MutationCtx, room: Doc<'rooms'>, now: number) {
+  const drop = await findDrop(ctx, room.dropId!);
+  if (!drop) return;
+  const place = drop.solvedCount + 1;
+  const squadCount = (
+    await ctx.db
+      .query('rooms')
+      .withIndex('by_drop', (q) => q.eq('dropId', drop.dropId))
+      .collect()
+  ).length;
+  const winnersFilled = place >= drop.bounty.winnerSlots;
+  await ctx.db.patch(drop._id, {
+    solvedCount: place,
+    ...(winnersFilled || place >= squadCount ? { status: 'ended' as const } : {}),
+  });
+  await ctx.db.insert('solves', {
+    dropId: drop.dropId,
+    roomId: room._id,
+    place,
+    solvedAt: now,
+    solveMs: Math.max(0, now - (drop.startsAt + RACE_REVEAL_MS)),
+    attempts: room.attempts,
+  });
+  if (place > drop.bounty.winnerSlots) return;
+  const size = room.squadSize ?? MAX_MEMBERS;
+  const { amountCents, perPlayerCents } = bountyShares(drop.bounty.totalCents, drop.bounty.winnerSlots, size);
+  const awardId = await ctx.db.insert('bountyAwards', {
+    dropId: drop.dropId,
+    roomId: room._id,
+    place,
+    amountCents,
+    perPlayerCents,
+    redeemableCount: size,
+    mode: process.env.BOUNTY_MODE === 'sandbox' ? 'sandbox' : 'concept',
+    status: 'pending',
+    claimUrl: null,
+    label: '',
+  });
+  await ctx.scheduler.runAfter(0, internal.bounty.payAward, { awardId, perPlayerCents, redeemableCount: size });
 }
 
 export const activeRoom = query({
@@ -143,13 +206,29 @@ export const room = query({
         .collect()
     ).filter((l) => l.revision === room.theory.revision);
     const locked = new Set(locks.map((l) => l.memberId));
+    const drop = room.dropId ? await findDrop(ctx, room.dropId) : null;
+    const solve = drop
+      ? await ctx.db
+          .query('solves')
+          .withIndex('by_room', (q) => q.eq('roomId', room._id))
+          .unique()
+      : null;
+    const holder = room.lastNudge?.holderMemberId ? all.find((m) => m._id === room.lastNudge?.holderMemberId) : undefined;
     return {
       code: room.code,
       status: room.status,
       caseId: room.caseId,
-      squadSize: 3,
-      drop: null,
-      cooldownUntil: null,
+      squadSize: room.squadSize ?? 3,
+      drop: drop
+        ? {
+            dropId: drop.dropId,
+            title: drop.title,
+            squadLabel: room.squadLabel ?? '',
+            rank: solve?.place ?? null,
+            isWinner: !!solve && solve.place <= drop.bounty.winnerSlots,
+          }
+        : null,
+      cooldownUntil: room.cooldownUntil ?? null,
       isHost: room.hostToken === deviceToken,
       me: me ? { memberId: me._id, role: me.role, name: me.name } : null,
       members: all.map((m) => ({
@@ -172,7 +251,15 @@ export const room = query({
       },
       lockIns: locks.map((l) => ({ memberId: l.memberId, revision: l.revision })),
       attempts: room.attempts,
-      lastNudge: room.lastNudge ? { ...room.lastNudge, holder: null } : null,
+      lastNudge: room.lastNudge
+        ? {
+            wrongPick: room.lastNudge.wrongPick,
+            forRole: room.lastNudge.forRole,
+            text: room.lastNudge.text,
+            revision: room.lastNudge.revision,
+            holder: holder ? { memberId: holder._id, name: holder.name } : null,
+          }
+        : null,
       checkedRevision: room.checkedRevision,
       checkSeq: room.checkSeq,
       lastCheck: room.lastCheck,
@@ -188,11 +275,10 @@ export const myDossier = query({
     if (!room || room.status === 'lobby') return null;
     const me = await findMember(ctx, room._id, deviceToken);
     if (!me?.role) return null;
-    return DOSSIERS[me.role];
+    return evidenceFor(room, me.role);
   },
 });
 
-// Every dossier the caller holds (1 in a private room or a squad of 3, 1 or 2 in a squad of 2). Same gating as myDossier.
 export const myEvidence = query({
   args: { deviceToken: v.string(), code: v.string() },
   handler: async (ctx, { deviceToken, code }): Promise<DossierView[] | null> => {
@@ -200,9 +286,10 @@ export const myEvidence = query({
     if (!room || room.status === 'lobby') return null;
     const me = await findMember(ctx, room._id, deviceToken);
     if (!me?.role) return null;
-    return rolesOf(me).map((r) => DOSSIERS[r]);
+    return rolesOf(me).map((r) => evidenceFor(room, r));
   },
 });
+
 
 export const reveal = query({
   args: { deviceToken: v.string(), code: v.string() },
@@ -211,6 +298,22 @@ export const reveal = query({
     if (!room || room.status !== 'resolved') return null;
     if (!(await findMember(ctx, room._id, deviceToken))) return null;
     const all = await members(ctx, room._id);
+    const holderName = (r: Role) => all.find((m) => rolesOf(m).includes(r))?.name ?? r;
+    if (room.caseId === 'aurora01') {
+      return {
+        culprit: 'jun',
+        headline: AURORA_REVEAL.headline,
+        timeline: [],
+        why: AURORA_REVEAL.why,
+        credits: AURORA_REVEAL.credits.map((c) => ({
+          role: c.role,
+          cleared: c.cleared,
+          memberName: holderName(c.role),
+          line: c.line(holderName(c.role)),
+        })),
+        teaser: { title: AURORA_REVEAL.closer, text: REVEAL.teaser.text },
+      };
+    }
     return {
       culprit: REVEAL.culprit,
       headline: 'Jun took the seed.',
@@ -218,7 +321,7 @@ export const reveal = query({
       why: REVEAL.why,
       credits: REVEAL.credits.map((c) => ({
         ...c,
-        memberName: all.find((m) => m.role === c.role)?.name ?? c.role,
+        memberName: holderName(c.role),
       })),
       teaser: REVEAL.teaser,
     };
@@ -254,6 +357,7 @@ export const joinRoom = mutation({
     if (all.some((m) => m.deviceToken === deviceToken)) {
       return { code: room.code, status: 'rejoined', reclaimableRoles: [] };
     }
+    if (room.dropId) fail('CASE_STARTED', 'This squad is already racing.');
     if (room.status === 'lobby' && all.length < MAX_MEMBERS) {
       await ctx.db.insert('members', {
         roomId: room._id,
@@ -276,6 +380,7 @@ export const reclaimRole = mutation({
   handler: async (ctx, { deviceToken, code, role }) => {
     const room = await requireRoom(ctx, code);
     const all = await members(ctx, room._id);
+    if (room.dropId) fail('CASE_STARTED', 'Drop squad seats cannot be reclaimed.');
     if (room.status === 'lobby') fail('WRONG_STATUS', 'Seats can only be reclaimed once the case has started.');
     if (all.some((m) => m.deviceToken === deviceToken)) fail('WRONG_STATUS', 'You are already in this room.');
     const holder = all.find((m) => m.role === role);
@@ -346,6 +451,7 @@ export const lockIn = mutation({
     if (room.status !== 'playing') fail('WRONG_STATUS', 'Nothing to lock in right now.');
     if (revision !== room.theory.revision) fail('STALE_REVISION', 'The theory changed. Review it and lock in again.');
     if (revision === room.checkedRevision) fail('ALREADY_CHECKED', 'Already checked. Change the theory to try again.');
+    if (room.cooldownUntil && Date.now() < room.cooldownUntil) fail('COOLDOWN', 'Wrong guesses cost time. Talk it through.');
     const culprit = room.theory.culprit;
     if (!culprit) fail('WRONG_STATUS', 'Pick a culprit before locking in.');
 
@@ -361,29 +467,48 @@ export const lockIn = mutation({
       .withIndex('by_room', (q) => q.eq('roomId', room._id))
       .collect();
     const lockedCount = new Set(locks.filter((l) => l.revision === revision).map((l) => l.memberId)).size;
-    if (lockedCount < MAX_MEMBERS) return { outcome: 'locked', lockedCount };
+    if (lockedCount < (room.squadSize ?? MAX_MEMBERS)) return { outcome: 'locked', lockedCount };
 
     const seq = room.checkSeq + 1;
+    const now = Date.now();
     if (culprit === ANSWER) {
       await ctx.db.patch(room._id, {
         status: 'resolved',
         lastNudge: null,
         checkSeq: seq,
-        lastCheck: { seq, result: 'correct', at: Date.now() },
+        lastCheck: { seq, result: 'correct', at: now },
       });
+      if (room.dropId) await recordSolve(ctx, room, now);
       return { outcome: 'resolved' };
     }
-    const nudge = { wrongPick: culprit, ...NUDGES[culprit], revision };
     const attempts = room.attempts + 1;
+    let nudge: { wrongPick: typeof culprit; forRole: Role; text: string; revision: number; holderMemberId?: Id<'members'> };
+    let holder: { memberId: string; name: string } | null = null;
+    if (room.caseId === 'aurora01') {
+      const piece = pieceFor(culprit);
+      const owner = (await members(ctx, room._id)).find((m) => rolesOf(m).includes(piece.role));
+      holder = owner ? { memberId: owner._id, name: owner.name } : null;
+      nudge = {
+        wrongPick: culprit,
+        forRole: piece.role,
+        text: nudgeText(culprit, owner?.name ?? 'your squad'),
+        revision,
+        holderMemberId: owner?._id,
+      };
+    } else {
+      nudge = { wrongPick: culprit, ...NUDGES[culprit], revision };
+    }
     await clearLockIns(ctx, room._id);
     await ctx.db.patch(room._id, {
       attempts,
       lastNudge: nudge,
       checkedRevision: revision,
       checkSeq: seq,
-      lastCheck: { seq, result: 'wrong', at: Date.now() },
+      lastCheck: { seq, result: 'wrong', at: now },
+      ...(room.dropId ? { cooldownUntil: now + WRONG_GUESS_COOLDOWN_MS } : {}),
     });
-    return { outcome: 'wrong', nudge: { ...nudge, holder: null }, attempts };
+    const { holderMemberId: _holderMemberId, ...shown } = nudge;
+    return { outcome: 'wrong', nudge: { ...shown, holder }, attempts };
   },
 });
 

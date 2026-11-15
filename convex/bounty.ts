@@ -1,6 +1,7 @@
 import { ConvexError, v } from 'convex/values';
 
-import { internalAction } from './_generated/server';
+import { internal } from './_generated/api';
+import { internalAction, internalMutation } from './_generated/server';
 import { whopEnvironment, whopRequest } from './whop';
 
 type WhopClaimLink = {
@@ -92,5 +93,59 @@ export const spikeClaimLink = internalAction({
       const data = e instanceof ConvexError ? (e.data as { message?: string }) : null;
       return { ok: false as const, error: data?.message ?? (e instanceof Error ? e.message : 'unknown error') };
     }
+  },
+});
+
+export const CONCEPT_LABEL = 'Concept payout — no real money moves';
+
+// Pays one winning squad's award. Scheduled only by the lock-in that wins a place within winnerSlots.
+// concept (BOUNTY_MODE unset, the default): a labeled concept award with no URL.
+// sandbox: one Whop claim link, redeemable once per squad member, keyed by the award id so retries fund one link.
+export const payAward = internalAction({
+  args: { awardId: v.id('bountyAwards'), perPlayerCents: v.number(), redeemableCount: v.number() },
+  handler: async (ctx, { awardId, perPlayerCents, redeemableCount }) => {
+    if (process.env.BOUNTY_MODE !== 'sandbox') {
+      await ctx.runMutation(internal.bounty.recordAward, { awardId, status: 'ready', claimUrl: null, label: CONCEPT_LABEL });
+      return;
+    }
+    try {
+      const link = await ctx.runAction(internal.bounty.createClaimLink, {
+        amountCents: perPlayerCents,
+        redeemableCount,
+        idempotencyKey: awardId,
+      });
+      await ctx.runMutation(internal.bounty.recordAward, {
+        awardId,
+        status: 'ready',
+        claimUrl: link.claimUrl,
+        claimLinkId: link.claimLinkId,
+        expiresAt: link.expiresAt ?? undefined,
+        label: 'Whop sandbox claim link',
+      });
+    } catch (e) {
+      const data = e instanceof ConvexError ? (e.data as { message?: string }) : null;
+      await ctx.runMutation(internal.bounty.recordAward, {
+        awardId,
+        status: 'failed',
+        claimUrl: null,
+        label: 'Payout could not be created',
+        error: data?.message ?? (e instanceof Error ? e.message : 'unknown error'),
+      });
+    }
+  },
+});
+
+export const recordAward = internalMutation({
+  args: {
+    awardId: v.id('bountyAwards'),
+    status: v.union(v.literal('ready'), v.literal('failed')),
+    claimUrl: v.union(v.string(), v.null()),
+    claimLinkId: v.optional(v.string()),
+    expiresAt: v.optional(v.string()),
+    label: v.string(),
+    error: v.optional(v.string()),
+  },
+  handler: async (ctx, { awardId, ...result }) => {
+    await ctx.db.patch(awardId, result);
   },
 });
