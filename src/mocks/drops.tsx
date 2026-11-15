@@ -106,13 +106,17 @@ const award = (over: Partial<SquadAwardView> = {}): SquadAwardView => ({
   ],
   ...over,
 });
-const winAt = loadedAt;
-const realAward = award({
-  mode: 'sandbox',
-  claimUrl: 'https://whop.com/claim/aurora-demo-3',
-  expiresAt: winAt + 24 * 3600_000 - 60_000,
-  label: 'Squad 14 · 3rd place',
-});
+const paid = (myPayout: SquadAwardView['myPayout']) =>
+  award({
+    mode: 'sandbox',
+    label: 'Squad 14 · 3rd place',
+    myPayout,
+    split: [
+      { name: 'Kit', cents: 3333, isMe: true },
+      { name: 'Lou', cents: 3333, isMe: false },
+      { name: 'Ana', cents: 3333, isMe: false },
+    ],
+  });
 
 const bounty = drop().bounty;
 const nova = { title: 'The Aurora Seed', totalCents: 30000, winnerSlots: 3 };
@@ -243,13 +247,16 @@ export const DropStates: MockState[] = [
     ref: 'beat 8',
     section: 'Drops',
     title: 'Payout · static CONCEPT card',
-    render: () => <BountyResultScreen award={award()} bounty={bounty} squadLabel="Squad 14" offset={0} />,
+    render: () => <BountyResultScreen award={award()} bounty={bounty} />,
   },
+  { id: '16-payout-sign-in', ref: 'payout', section: 'Payout', title: 'Payout · sign in with Whop', render: () => <BountyResultScreen award={paid({ status: 'sign_in_required', amountCents: 3333 })} bounty={bounty} /> },
+  { id: '16-payout-sending', ref: 'payout', section: 'Payout', title: 'Payout · sending', render: () => <BountyResultScreen award={paid({ status: 'sending', amountCents: 3333 })} bounty={bounty} /> },
+  { id: '16-payout-sent', ref: 'payout', section: 'Payout', title: 'Payout · sent', render: () => <BountyResultScreen award={paid({ status: 'sent', amountCents: 3333 })} bounty={bounty} /> },
   {
-    id: '16-win-real-not-demo',
-    ref: 'D6',
-    section: 'Drops',
-    title: 'Not in demo · verified claim link (needs Whop KYC)',
-    render: () => <BountyResultScreen award={realAward} bounty={bounty} squadLabel="Squad 14" offset={0} />,
+    id: '16-payout-failed',
+    ref: 'payout',
+    section: 'Payout',
+    title: 'Payout · failed (KYC)',
+    render: () => <BountyResultScreen award={paid({ status: 'failed', amountCents: 3333, failureCode: 'kyc_required' })} bounty={bounty} />,
   },
 ];

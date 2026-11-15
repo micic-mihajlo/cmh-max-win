@@ -3,6 +3,7 @@ import { ConvexError, v } from 'convex/values';
 import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, mutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
+import { awardMode } from './bounty';
 import { ROLES, type Role } from './case01';
 import { checkScheduledStart, noteHostedDrop } from './feed';
 import { presence as presenceComponent } from './presence';
@@ -17,6 +18,7 @@ import type {
   LeaderboardRow,
   LeaderboardView,
   SignalErrorCode,
+  AwardPayoutView,
   SquadAwardView,
   SquadSize,
 } from '../src/lib/contract';
@@ -104,13 +106,12 @@ async function findEntry(ctx: QueryCtx, dropId: string, deviceToken: string) {
 }
 
 export function bountyView(drop: Doc<'drops'>): BountyView {
-  const sandbox = !drop.conceptOnly && process.env.BOUNTY_MODE === 'sandbox';
   return {
     totalCents: drop.bounty.totalCents,
     currency: 'usd',
     winnerSlots: drop.bounty.winnerSlots,
     perSquadCents: Math.floor(drop.bounty.totalCents / drop.bounty.winnerSlots),
-    mode: sandbox ? 'sandbox' : 'concept',
+    mode: awardMode(drop, Math.floor(drop.bounty.totalCents / drop.bounty.winnerSlots)),
   };
 }
 
@@ -536,8 +537,19 @@ export const myAward = query({
       .query('members')
       .withIndex('by_room', (q) => q.eq('roomId', room._id))
       .collect();
+    const mine =
+      award.mode === 'transfer'
+        ? await ctx.db
+            .query('bountyPayouts')
+            .withIndex('by_award', (q) => q.eq('awardId', award._id))
+            .filter((q) => q.eq(q.field('memberId'), member._id))
+            .first()
+        : null;
+    const myPayout: AwardPayoutView = mine
+      ? { status: mine.status, amountCents: mine.cents, ...(mine.failureCode ? { failureCode: mine.failureCode } : {}) }
+      : { status: award.mode === 'transfer' ? 'sending' : 'concept', amountCents: award.perPlayerCents };
     return {
-      myPayout: { status: 'concept', amountCents: award.perPlayerCents },
+      myPayout,
       split: squad.map((m) => ({ name: m.name, cents: award.perPlayerCents, isMe: m._id === member._id })),
       place: award.place,
       amountCents: award.amountCents,
