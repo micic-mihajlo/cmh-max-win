@@ -180,6 +180,11 @@ describe('evidence gating per squad size', () => {
       nudge: { wrongPick: 'theo', forRole: 'hacker', holder: { memberId: camera.memberId, name: camera.name } },
     });
     expect(result.outcome === 'wrong' && result.nudge.text).toBe(`Not Theo. Ask ${camera.name} to read the Camera Log.`);
+    const seen = await Promise.all(members.map((deviceToken) => t.query(api.signal.room, { deviceToken, code })));
+    expect(seen.map((v) => [v!.me!.memberId === camera.memberId, v!.lastNudge!.text]).sort()).toEqual([
+      [false, `Not Theo. Ask ${camera.name} to read the Camera Log.`],
+      [true, 'Not Theo. Your Camera Log places him at the docking ring.'],
+    ]);
     const cooldownUntil = (await t.query(api.signal.room, { deviceToken: members[0], code }))!.cooldownUntil!;
     expect(cooldownUntil - Date.now()).toBeGreaterThanOrEqual(WRONG_GUESS_COOLDOWN_MS - 5);
     expect(cooldownUntil - Date.now()).toBeLessThanOrEqual(WRONG_GUESS_COOLDOWN_MS + 5);
@@ -196,6 +201,8 @@ describe('evidence gating per squad size', () => {
     expect(reveal?.credits.find((c) => c.role === 'hacker')?.line).toBe(
       `${camera.name}'s Camera Log placed Theo at the docking ring.`,
     );
+    const statement = room.members.find((m) => m.roles.includes('witness'))!;
+    expect(reveal?.credits.find((c) => c.role === 'witness')?.line).toBe(`${statement.name}'s Statement put Priya at the Go board.`);
   });
 });
 

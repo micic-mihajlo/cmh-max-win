@@ -2,7 +2,7 @@ import { ConvexError, v } from 'convex/values';
 import type { Doc, Id } from './_generated/dataModel';
 import { internal } from './_generated/api';
 import { mutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
-import { AURORA_REVEAL, PIECES, nudgeText, pieceFor } from './aurora';
+import { AURORA_REVEAL, PIECES, nudgeText, ownNudgeText, pieceFor } from './aurora';
 import { ANSWER, DOSSIERS, NUDGES, REVEAL, ROLES } from './case01';
 import { presence as presenceComponent } from './presence';
 import { presence, role, suspect } from './schema';
@@ -256,7 +256,10 @@ export const room = query({
         ? {
             wrongPick: room.lastNudge.wrongPick,
             forRole: room.lastNudge.forRole,
-            text: room.lastNudge.text,
+            text:
+              room.caseId === 'aurora01' && holder && holder._id === me?._id && room.lastNudge.wrongPick !== 'jun'
+                ? ownNudgeText(room.lastNudge.wrongPick)
+                : room.lastNudge.text,
             revision: room.lastNudge.revision,
             holder: holder ? { memberId: holder._id, name: holder.name } : null,
           }

@@ -19,8 +19,8 @@ export const PIECES: Record<Role, Piece> = {
   witness: {
     pieceId: 'witness',
     role: 'witness',
-    label: 'Witness statement',
-    docLabel: 'WITNESS',
+    label: 'Statement',
+    docLabel: 'STATEMENT',
     title: 'Dr. Sam Reyes, medic',
     places: 'priya',
     lines: [{ text: 'Priya played Go with me in the lounge from 21:30 to 21:50. Neither of us got up.' }],
@@ -46,12 +46,23 @@ export function nudgeText(suspect: Exclude<SuspectId, 'jun'>, holderName: string
   return `Not ${SUSPECT_NAMES[suspect]}. Ask ${holderName} to read the ${pieceFor(suspect).label}.`;
 }
 
+// The same nudge as seen by the member who holds that piece (a duo's 2-piece phone), per demo-challenge.md §2.6.
+const OWN_PIECE_PLACES: Record<Exclude<SuspectId, 'jun'>, string> = {
+  theo: 'Your Camera Log places him at the docking ring.',
+  priya: 'Your Statement places her in the lounge.',
+  ines: 'Your Scene Notes place her in the clean room.',
+};
+
+export function ownNudgeText(suspect: Exclude<SuspectId, 'jun'>) {
+  return `Not ${SUSPECT_NAMES[suspect]}. ${OWN_PIECE_PLACES[suspect]}`;
+}
+
 export const AURORA_REVEAL = {
   headline: 'Jun took the seed.',
   why: 'She left the galley oven on a timer and slipped into the greenhouse while it baked.',
   credits: [
     { role: 'hacker' as Role, cleared: 'theo' as SuspectId, line: (name: string) => `${name}'s Camera Log placed Theo at the docking ring.` },
-    { role: 'witness' as Role, cleared: 'priya' as SuspectId, line: (name: string) => `${name}'s Witness put Priya at the Go board.` },
+    { role: 'witness' as Role, cleared: 'priya' as SuspectId, line: (name: string) => `${name}'s Statement put Priya at the Go board.` },
     {
       role: 'detective' as Role,
       cleared: 'ines' as SuspectId,
