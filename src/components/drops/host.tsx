@@ -186,6 +186,6 @@ const styles = StyleSheet.create({
   more: { backgroundColor: 'transparent' },
   chip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: Radius.pill, backgroundColor: Palette.accentSoft },
   footer: { flexDirection: 'row', alignItems: 'center', gap: Space.l },
-  deal: { height: 54, paddingHorizontal: Space.xl, borderRadius: 16, backgroundColor: Palette.paper, alignItems: 'center', justifyContent: 'center' },
+  deal: { height: 52, paddingHorizontal: Space.xl, borderRadius: 16, backgroundColor: Palette.paper, alignItems: 'center', justifyContent: 'center' },
   dealOff: { backgroundColor: Palette.inkDeep },
 });

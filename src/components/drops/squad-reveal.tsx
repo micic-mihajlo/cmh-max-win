@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   center: { textAlign: 'center' },
   footer: { gap: Space.s },
-  cta: { height: 54, borderRadius: 16, backgroundColor: Palette.paper, alignItems: 'center', justifyContent: 'center' },
+  cta: { height: 52, borderRadius: 16, backgroundColor: Palette.paper, alignItems: 'center', justifyContent: 'center' },
   card: { padding: 18, borderRadius: 16, backgroundColor: Palette.panel, borderWidth: StyleSheet.hairlineWidth, borderColor: Palette.hairline },
   cardHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
   members: { gap: 10, marginTop: 14 },

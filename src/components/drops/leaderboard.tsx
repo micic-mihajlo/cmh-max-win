@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
   spot: { flex: 1, height: 8, borderRadius: Radius.pill, backgroundColor: Palette.panelRaised },
   spotTaken: { backgroundColor: Palette.paper },
   list: { backgroundColor: Palette.panel, borderRadius: 16, paddingHorizontal: Space.l },
-  row: { flexDirection: 'row', alignItems: 'center', gap: Space.m, height: 56 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: Space.m, height: 64 },
   rank: { minWidth: 28, fontVariant: ['tabular-nums'] },
   card: {
     gap: Space.s,

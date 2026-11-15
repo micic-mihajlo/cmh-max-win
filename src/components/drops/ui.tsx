@@ -144,5 +144,5 @@ const styles = StyleSheet.create({
   pieces: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   piece: { width: 14, height: 18, borderRadius: 3, borderWidth: 1.5 },
   stat: { flex: 1, gap: 2 },
-  statValue: { fontSize: 40, lineHeight: 48, letterSpacing: 1 },
+  statValue: { fontSize: 40, lineHeight: 48 },
 });
