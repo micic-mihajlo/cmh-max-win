@@ -65,7 +65,7 @@ export function JoinCodeScreen({
       .toUpperCase()
       .replace(/[^A-Z0-9]/g, '')
       .slice(0, JOIN_CODE_LENGTH);
-    if (next.length > code.length) Haptic.tap();
+    if (next.length > code.length) (next.length === JOIN_CODE_LENGTH ? Haptic.tap : Haptic.select)();
     onChange?.(next);
     if (next.length === JOIN_CODE_LENGTH) onSubmit?.(next);
   };
@@ -92,7 +92,7 @@ export function JoinCodeScreen({
               </View>
             );
             return ch ? (
-              <Enter key={`${i}${ch}`} from={0} stagger={0}>
+              <Enter key={`${i}${ch}`} from={8} stagger={0}>
                 {tile}
               </Enter>
             ) : (
@@ -102,7 +102,7 @@ export function JoinCodeScreen({
         </Animated.View>
       </Pressable>
       <Txt variant="small" color={phase === 'error' ? Palette.danger : Palette.paperMuted} style={styles.text}>
-        {phase === 'error' ? 'No drop with that code.' : phase === 'checking' ? 'Checking…' : ' '}
+        {phase === 'error' ? 'That code isn’t live yet. Check the host’s chat.' : phase === 'checking' ? 'Checking…' : ' '}
       </Txt>
       <TextInput
         ref={input}
