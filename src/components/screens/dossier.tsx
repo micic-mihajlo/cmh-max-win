@@ -12,7 +12,7 @@ import { Suspects } from '@/constants/case01';
 import { Palette, Space } from '@/constants/signal';
 import type { DossierView, MemberView, Role, RoomView, SuspectId } from '@/lib/contract';
 
-function useNewestPresence(members: MemberView[]) {
+function useNewestPresence(members: MemberView[], skipOffline: boolean) {
   const [newestId, setNewestId] = useState<string | null>(null);
   const before = useRef(members);
   useEffect(() => {
@@ -20,7 +20,7 @@ function useNewestPresence(members: MemberView[]) {
     before.current = members;
     if (changed) setNewestId(changed.memberId);
   }, [members]);
-  const others = members.filter((m) => !m.isMe);
+  const others = members.filter((m) => !m.isMe && !(skipOffline && m.presence === 'offline'));
   return others.find((m) => m.memberId === newestId) ?? others[0] ?? null;
 }
 
@@ -55,7 +55,7 @@ export function DossierScreen({
 }) {
   const role: Role = room.me?.role ?? 'detective';
   const roles = pieces?.length ? pieces.map((p) => p.role) : [role];
-  const presence = useNewestPresence(room.members);
+  const presence = useNewestPresence(room.members, !!ui.banner);
   const nudgeForMe = room.lastNudge?.holder ? room.lastNudge.holder.memberId === room.me?.memberId : !!room.lastNudge && roles.includes(room.lastNudge.forRole);
   return (
     <Screen

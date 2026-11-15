@@ -200,4 +200,18 @@ describe('follow and remind', () => {
     await t.mutation(api.discovery.cancelChallengeReminder, { deviceToken: 'fan', challengeId: sooner.challengeId });
     expect((await t.query(api.discovery.upcomingReminders, { deviceToken: 'fan' })).map((r) => r.title)).toEqual(['Later', 'On stream']);
   });
+
+  test("a reminder row names up to 3 others already waiting, never the device's own", async () => {
+    const t = await creator();
+    const soon = await publish(t, { title: 'Soon', startMode: 'scheduled', startsAt: Date.now() + 30 * MIN });
+    const empty = await publish(t, { title: 'Empty', startMode: 'scheduled', startsAt: Date.now() + 60 * MIN });
+    await join(t, soon.joinCode, ['p1', 'p2', 'p3', 'p4']);
+    for (const d of ['fan', 'p1']) for (const c of [soon, empty]) await t.mutation(api.discovery.remindChallenge, { deviceToken: d, challengeId: c.challengeId });
+    const fan = await t.query(api.discovery.upcomingReminders, { deviceToken: 'fan' });
+    expect(fan.map((r) => [r.title, r.squadmates])).toEqual([
+      ['Soon', ['Name-p1', 'Name-p2', 'Name-p3']],
+      ['Empty', undefined],
+    ]);
+    expect((await t.query(api.discovery.upcomingReminders, { deviceToken: 'p1' }))[0].squadmates).toEqual(['Name-p2', 'Name-p3', 'Name-p4']);
+  });
 });

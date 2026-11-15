@@ -1,3 +1,5 @@
+import type { DropTemplateId } from './contract-passphrase';
+
 // SIGNAL client contract (Lane B owns this file).
 // Lane A builds mocks against these types; Lane B's hooks in src/hooks/use-*.ts implement the signatures.
 // Every call resolves the caller from the device token in src/lib/device.ts; no member id is ever sent by the client.
@@ -135,6 +137,7 @@ export type SignalErrorCode =
   | 'TEAM_NOT_FULL' // mixer: confirming before every color is in
   | 'TEAM_NOT_LOCKED'
   | 'CHALLENGE_FULL' // a new device joining a challenge at capacity (contract-hardening.ts)
+  | 'BAD_ANSWER' // split passphrase: the answer doesn't have one word per slot
 
 export type SignalError = { code: SignalErrorCode; message: string };
 
@@ -199,6 +202,7 @@ export type DropView = DropSummaryView & {
     squad: { code: string; size: SquadSize; label: string } | null; // set at start; open the room with this code
     unmatched: boolean; // entered, but the drop started with nobody left to pair with
   };
+  template?: DropTemplateId; // absent: the Case 01 mystery. 'split-passphrase': open usePassphrase(me.squad.code)
 };
 
 export type LeaderboardRow = {
@@ -341,7 +345,7 @@ export type UseHostView = (dropId: string | null) => HostView | null | undefined
 // creatorName heads the race ("Nova's drop"). Omitted: the newest name this device token used server-side, else "Host".
 // startsAt (ms epoch, 2 minutes to 30 days ahead): a scheduled drop, listed under "Coming up" with Remind me until it opens.
 // Omitted: the drop opens now and the streamer goes live, as before.
-export type UseHostDrop = () => (args: { title?: string; winnerSlots?: number; totalCents?: number; creatorName?: string; startsAt?: number }) => Promise<{ dropId: string; joinCode: string }>;
+export type UseHostDrop = () => (args: { title?: string; winnerSlots?: number; totalCents?: number; creatorName?: string; startsAt?: number; template?: DropTemplateId }) => Promise<{ dropId: string; joinCode: string }>;
 export type UseDealSquads = (dropId: string) => () => Promise<void>; // host only; NOT_ENOUGH_PLAYERS below 4
 
 export type UseDropByCode = (code: string | null) => DropView | null | undefined; // null = no open drop with that code
@@ -706,3 +710,4 @@ export * from './contract-growth';
 export * from './contract-hardening';
 export * from './contract-whop';
 export * from './contract-live'; // live layer: host start, lock and actions, public live view (CAP-40)
+export * from './contract-passphrase'; // split passphrase in the live room (dealt)

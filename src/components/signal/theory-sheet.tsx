@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { PanResponder, ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { FadeIn, LinearTransition, SlideInDown } from 'react-native-reanimated';
+import Animated, { FadeIn, LinearTransition, SlideInDown, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Palette, Radius, RoleMeta, Space } from '@/constants/signal';
@@ -82,18 +82,22 @@ export function TheorySheet({
         : null;
   const ruledOut = room.lastNudge;
   const cooldown = useSecondsUntil(room.cooldownUntil, serverOffset);
-  const drag = useMemo(
-    () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 8 && Math.abs(g.dy) > Math.abs(g.dx),
-        onPanResponderRelease: (_, g) => {
-          const down = g.dy > 60 || g.vy > 0.5;
-          const up = g.dy < -60 || g.vy < -0.5;
-          if ((expanded && down) || (!expanded && up)) onToggle?.();
-        },
-      }),
-    [expanded, onToggle],
-  );
+  const dragY = useSharedValue(0);
+  const dragStyle = useAnimatedStyle(() => ({ transform: [{ translateY: dragY.get() }] }));
+  const drag = useMemo(() => {
+    const settle = (vy: number) => dragY.set(reduced ? 0 : withSpring(0, { velocity: vy * 1000, damping: 20, stiffness: 240 }));
+    return PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 8 && Math.abs(g.dy) > Math.abs(g.dx),
+      onPanResponderMove: (_, g) => dragY.set(expanded ? Math.max(0, g.dy) : Math.min(0, g.dy)),
+      onPanResponderRelease: (_, g) => {
+        const down = g.dy > 60 || g.vy > 0.5;
+        const up = g.dy < -60 || g.vy < -0.5;
+        if ((expanded && down) || (!expanded && up)) onToggle?.();
+        settle(g.vy);
+      },
+      onPanResponderTerminate: (_, g) => settle(g.vy),
+    });
+  }, [expanded, onToggle, reduced, dragY]);
 
   return (
     <>
@@ -107,6 +111,7 @@ export function TheorySheet({
           styles.sheet,
           { paddingBottom: insets.bottom + Space.m },
           fullHeight && expanded && { top: insets.top + Space.s },
+          dragStyle,
         ]}>
         <View {...drag.panHandlers}>
           <PressScale accessibilityRole="button" accessibilityLabel="Shared theory" scaleTo={0.98} onPress={onToggle} style={styles.summary}>

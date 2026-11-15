@@ -69,6 +69,7 @@ export type ChallengeReminderView = {
   startMode: StartMode;
   startsAt: number | null; // null: live mode, starts when the stream goes live
   joinCode: string | null;
+  squadmates?: string[]; // first names of up to 3 others already joined, or on this device's team; never this device
 };
 
 export type HandleCheckView = { handle: string; available: boolean; problem: string | null }; // handle is normalized
