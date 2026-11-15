@@ -6,9 +6,9 @@ import { Button, Label } from '@/components/signal/primitives';
 import { Txt } from '@/components/signal/txt';
 import { Palette, Space } from '@/constants/signal';
 
-export function ClosedScreen({ code }: { code: string }) {
+export function ClosedScreen({ code, onNewCase }: { code: string; onNewCase?: () => void }) {
   return (
-    <Screen contentStyle={styles.content} footer={<Button title="Start a new case" />}>
+    <Screen contentStyle={styles.content} footer={<Button title="Start a new case" onPress={onNewCase} />}>
       <Icon name="archivebox" size={40} color={Palette.paperMuted} />
       <Label>{`Room ${code}`}</Label>
       <Txt variant="display" style={styles.center}>

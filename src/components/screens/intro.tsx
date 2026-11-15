@@ -9,7 +9,7 @@ import { Palette, Space } from '@/constants/signal';
 import { Case01 } from '@/constants/case01';
 import type { RoomView } from '@/lib/contract';
 
-export function IntroScreen({ room, opening }: { room: RoomView; opening?: boolean }) {
+export function IntroScreen({ room, opening, onReady }: { room: RoomView; opening?: boolean; onReady?: () => void }) {
   const ready = room.members.filter((m) => m.presence === 'ready');
   const meReady = room.members.some((m) => m.isMe && m.presence === 'ready');
   const away = room.members.find((m) => !m.isMe && m.presence === 'offline');
@@ -37,7 +37,7 @@ export function IntroScreen({ room, opening }: { room: RoomView; opening?: boole
           ) : (
             <NextStep>Read the briefing. Tap when you’re done.</NextStep>
           )}
-          <Button title={meReady ? 'Ready ✓' : 'I’ve read it'} variant={meReady ? 'secondary' : 'primary'} disabled={opening} />
+          <Button title={meReady ? 'Ready ✓' : 'I’ve read it'} variant={meReady ? 'secondary' : 'primary'} disabled={opening} onPress={meReady ? undefined : onReady} />
         </>
       }>
       <View style={styles.head}>
