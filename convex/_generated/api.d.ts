@@ -9,9 +9,11 @@
  */
 
 import type * as case01 from "../case01.js";
+import type * as http from "../http.js";
 import type * as pings from "../pings.js";
 import type * as presence from "../presence.js";
 import type * as signal from "../signal.js";
+import type * as whop from "../whop.js";
 
 import type {
   ApiFromModules,
@@ -21,9 +23,11 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   case01: typeof case01;
+  http: typeof http;
   pings: typeof pings;
   presence: typeof presence;
   signal: typeof signal;
+  whop: typeof whop;
 }>;
 
 /**
