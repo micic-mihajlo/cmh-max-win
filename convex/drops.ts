@@ -110,7 +110,7 @@ function bountyView(drop: Doc<'drops'>): BountyView {
     currency: 'usd',
     winnerSlots: drop.bounty.winnerSlots,
     perSquadCents: Math.floor(drop.bounty.totalCents / drop.bounty.winnerSlots),
-    mode: awardMode(drop),
+    mode: awardMode(drop, Math.floor(drop.bounty.totalCents / drop.bounty.winnerSlots)),
   };
 }
 

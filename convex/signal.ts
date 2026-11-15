@@ -162,7 +162,7 @@ async function recordSolve(ctx: MutationCtx, room: Doc<'rooms'>, now: number) {
   if (place > drop.bounty.winnerSlots) return;
   const size = room.squadSize ?? MAX_MEMBERS;
   const { amountCents, perPlayerCents } = bountyShares(drop.bounty.totalCents, drop.bounty.winnerSlots, size);
-  const mode = awardMode(drop);
+  const mode = awardMode(drop, amountCents);
   const awardId = await ctx.db.insert('bountyAwards', {
     dropId: drop.dropId,
     roomId: room._id,

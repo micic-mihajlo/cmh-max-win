@@ -80,12 +80,11 @@ const myAward = (t: ReturnType<typeof convexTest>, deviceToken: string) => t.que
 
 describe('real payouts (SIGNAL_REAL_PAYOUTS)', () => {
   test('the flag off keeps concept and sandbox exactly as before', async () => {
-    expect(awardMode({ conceptOnly: true })).toBe('concept');
+    expect(awardMode({ conceptOnly: true }, 999)).toBe('concept');
+    expect(awardMode({}, 999)).toBe('concept');
     vi.stubEnv('BOUNTY_MODE', 'sandbox');
-    expect(awardMode({})).toBe('sandbox');
-    expect(awardMode({ conceptOnly: true })).toBe('concept');
-    vi.stubEnv('SIGNAL_REAL_PAYOUTS', 'on');
-    expect(awardMode({ conceptOnly: true })).toBe('transfer');
+    expect(awardMode({}, 999)).toBe('sandbox');
+    expect(awardMode({ conceptOnly: true }, 999)).toBe('concept');
 
     vi.stubEnv('SIGNAL_REAL_PAYOUTS', '');
     const t = convexTest(schema, modules);
@@ -95,6 +94,18 @@ describe('real payouts (SIGNAL_REAL_PAYOUTS)', () => {
     expect(await rows(t)).toEqual([]);
     expect(transfers).toEqual([]);
     expect((await myAward(t, 'dev-a'))?.myPayout).toEqual({ status: 'concept', amountCents: 333 });
+  });
+
+  test('the flag on pays hosted drops by transfer up to the cap, and above it stays concept', async () => {
+    vi.stubEnv('SIGNAL_REAL_PAYOUTS', 'on');
+    expect(awardMode({ conceptOnly: true }, 1000)).toBe('transfer');
+    expect(awardMode({ conceptOnly: true }, 1001)).toBe('concept');
+    expect(awardMode({}, 1001)).toBe('concept');
+    vi.stubEnv('SIGNAL_REAL_PAYOUT_CAP_CENTS', '300');
+    expect(awardMode({ conceptOnly: true }, 300)).toBe('transfer');
+    expect(awardMode({ conceptOnly: true }, 301)).toBe('concept');
+    vi.stubEnv('SIGNAL_REAL_PAYOUT_CAP_CENTS', '0');
+    expect(awardMode({}, 1)).toBe('concept');
   });
 
   test('linked members are paid once each; the split adds up to the squad share', async () => {

@@ -167,8 +167,15 @@ export const recordAward = internalMutation({
 export const TRANSFER_LABEL = 'Paid by Whop transfer';
 const MAX_TRANSFER_ATTEMPTS = 4;
 
-export function awardMode(drop: Pick<Doc<'drops'>, 'conceptOnly'>): 'concept' | 'sandbox' | 'transfer' {
-  if (process.env.SIGNAL_REAL_PAYOUTS === 'on') return 'transfer';
+// Real transfers are capped per award (SIGNAL_REAL_PAYOUT_CAP_CENTS, default $10): anyone can host a drop
+// with any pool, so an award above the cap stays concept.
+export function realPayoutCapCents(): number {
+  const cap = Number(process.env.SIGNAL_REAL_PAYOUT_CAP_CENTS);
+  return Number.isFinite(cap) && cap >= 0 && process.env.SIGNAL_REAL_PAYOUT_CAP_CENTS ? cap : 1000;
+}
+
+export function awardMode(drop: Pick<Doc<'drops'>, 'conceptOnly'>, awardCents: number): 'concept' | 'sandbox' | 'transfer' {
+  if (process.env.SIGNAL_REAL_PAYOUTS === 'on') return awardCents <= realPayoutCapCents() ? 'transfer' : 'concept';
   return !drop.conceptOnly && process.env.BOUNTY_MODE === 'sandbox' ? 'sandbox' : 'concept';
 }
 
