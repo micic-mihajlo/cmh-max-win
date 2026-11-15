@@ -65,10 +65,10 @@ export function CaseMenu({ room, mode, actions = {} }: { room: RoomView; mode: M
           </View>
         ) : (
           <View style={styles.items}>
-            <Label>{`Case 01 · room ${room.code}`}</Label>
+            <Label>{room.drop ? `${room.drop.title} · ${room.drop.squadLabel}` : `Case 01 · room ${room.code}`}</Label>
             <Item icon="person.3" title="Suspect directory" onPress={actions.onSuspects} />
             <Item icon="speaker.slash" title="Sound" value="Off" />
-            {room.isHost ? (
+            {room.drop ? null : room.isHost ? (
               <Item icon="arrow.counterclockwise" title="Restart case" danger onPress={actions.onRestart} />
             ) : (
               <View style={styles.item}>

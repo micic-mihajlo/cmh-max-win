@@ -138,7 +138,7 @@ export const MockStates: MockState[] = [
     section: 'Dossier',
     title: 'Squad of 2 · I hold two pieces',
     render: () => (
-      <DossierScreen room={room({ members: [{ who: 'maya' }, { who: 'ravi' }] })} pieces={[Dossiers.detective, Dossiers.witness]} />
+      <DossierScreen room={room({ me: 'ravi', members: [{ who: 'maya' }, { who: 'ravi', roles: ['hacker', 'witness'] }], drop: { dropId: 'aurora-demo', title: 'The Aurora Seed', squadLabel: 'Squad 4' } })} pieces={[Dossiers.hacker, Dossiers.witness]} />
     ),
   },
   {
@@ -148,8 +148,8 @@ export const MockStates: MockState[] = [
     title: 'Squad of 2 · 1 of 2 agree',
     render: () => (
       <DossierScreen
-        room={room({ members: [{ who: 'maya' }, { who: 'ravi' }], culprit: 'jun', revision: 3, editedBy: 'ravi', locked: ['ravi'] })}
-        pieces={[Dossiers.detective, Dossiers.witness]}
+        room={room({ me: 'ravi', members: [{ who: 'maya' }, { who: 'ravi', roles: ['hacker', 'witness'] }], drop: { dropId: 'aurora-demo', title: 'The Aurora Seed', squadLabel: 'Squad 4' }, culprit: 'jun', revision: 3, editedBy: 'maya', locked: ['maya'] })}
+        pieces={[Dossiers.hacker, Dossiers.witness]}
         ui={{ sheet: { expanded: true } }}
       />
     ),
@@ -197,7 +197,7 @@ export const MockStates: MockState[] = [
     ref: 'N',
     section: 'Agreement',
     title: 'Squad of 2 · checking',
-    render: () => <AgreementScreen phase="checking" room={room({ members: [{ who: 'maya' }, { who: 'ravi' }], culprit: 'jun', revision: 3, editedBy: 'ravi', locked: ['maya', 'ravi'] })} />,
+    render: () => <AgreementScreen phase="checking" room={room({ me: 'ravi', members: [{ who: 'maya' }, { who: 'ravi', roles: ['hacker', 'witness'] }], drop: { dropId: 'aurora-demo', title: 'The Aurora Seed', squadLabel: 'Squad 4' }, culprit: 'jun', revision: 3, editedBy: 'maya', locked: ['maya', 'ravi'] })} />,
   },
   { id: '06-nudge-theo', ref: '6.2 / 6.5', section: 'Agreement', title: 'Wrong · Theo', render: () => <AgreementScreen phase="wrong" room={wrong('detective', 'theo', 1)} /> },
   { id: '06-nudge-priya', ref: '6.3', section: 'Agreement', title: 'Wrong · Priya', render: () => <AgreementScreen phase="wrong" room={wrong('detective', 'priya', 2)} /> },
