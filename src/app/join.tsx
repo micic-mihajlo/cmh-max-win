@@ -1,0 +1,44 @@
+import { Redirect } from 'expo-router';
+import { useState } from 'react';
+
+import { JoinCodeScreen, type JoinPhase } from '@/components/drops/join-code';
+import { NameEntryScreen } from '@/components/screens/name-entry';
+import { useDrop, useEnterDropByCode } from '@/hooks/use-drops';
+import { usePlayerName } from '@/hooks/use-player-name';
+
+// Phone join by code: name once, four tiles, then wait for the deal and hand off to the squad reveal.
+export default function JoinRoute() {
+  const { name, save } = usePlayerName();
+  const [draft, setDraft] = useState('');
+  const [code, setCode] = useState('');
+  const [phase, setPhase] = useState<JoinPhase>('typing');
+  const [dropId, setDropId] = useState<string | null>(null);
+  const enter = useEnterDropByCode();
+  const drop = useDrop(dropId);
+
+  if (name === undefined) return null;
+  if (name === null) return <NameEntryScreen name={draft} onChangeName={setDraft} onContinue={() => save(draft.trim())} />;
+  if (dropId && drop?.me.squad) return <Redirect href={{ pathname: '/drop/[id]', params: { id: dropId } }} />;
+
+  return (
+    <JoinCodeScreen
+      code={code}
+      phase={dropId ? 'joined' : phase}
+      name={name}
+      onChange={(next) => {
+        setCode(next);
+        if (phase === 'error') setPhase('typing');
+      }}
+      onSubmit={async (full) => {
+        setPhase('checking');
+        try {
+          const r = await enter({ code: full, name });
+          setDropId(r.dropId);
+        } catch {
+          setPhase('error');
+          setCode('');
+        }
+      }}
+    />
+  );
+}

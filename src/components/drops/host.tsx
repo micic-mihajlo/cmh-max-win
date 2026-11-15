@@ -5,28 +5,15 @@ import { Screen } from '@/components/signal/backdrop';
 import { Txt } from '@/components/signal/txt';
 import { FontFamily, Palette, Radius, Space } from '@/constants/signal';
 import { Enter, PressScale, Seal, Stagger } from '@/motion';
-import { RACE_REVEAL_MS } from '@/lib/contract';
+import type { HostView } from '@/lib/contract';
 
 import { money, short } from './ui';
-
-// The host's view of a drop (drops:hostView, CMHM-10's join-code PR). Mirrors that shape until it's in the contract.
-export type HostView = {
-  dropId: string;
-  joinCode: string;
-  creatorName: string;
-  entrants: { name: string }[];
-  entrantCount: number;
-  bounty: { totalCents: number; winnerSlots: number };
-  startsAt: number | null; // set at the deal
-  squads: { label: string; members: string[] }[] | null; // null until the deal
-  solves: { squadLabel: string; at: number }[]; // server commit order
-};
 
 export const MIN_TO_DEAL = 4;
 
 // The shared big screen before the deal: the code is the hero, the QR (code only) is secondary.
-export function HostScreen({ view, dealing, onDeal }: { view: HostView; dealing?: boolean; onDeal?: () => void }) {
-  if (view.squads) return <HostBoard view={view} squads={view.squads} />;
+export function HostScreen({ view, hostName, dealing, onDeal }: { view: HostView; hostName: string; dealing?: boolean; onDeal?: () => void }) {
+  if (view.squads.length) return <HostBoard view={view} />;
   const canDeal = view.entrantCount >= MIN_TO_DEAL && !dealing;
   return (
     <Screen
@@ -43,7 +30,7 @@ export function HostScreen({ view, dealing, onDeal }: { view: HostView; dealing?
         </View>
       }>
       <Txt variant="display" style={styles.center}>
-        {`Join ${view.creatorName}’s drop`}
+        {`Join ${hostName}’s drop`}
       </Txt>
       <View style={styles.codeRow}>
         <View style={styles.tiles}>
@@ -82,10 +69,9 @@ export function HostScreen({ view, dealing, onDeal }: { view: HostView; dealing?
 }
 
 // After the deal: squads with their chips, then the race. Solved squads stamp in commit order and fill the bounty bars.
-function HostBoard({ view, squads }: { view: HostView; squads: NonNullable<HostView['squads']> }) {
-  const place = new Map(view.solves.map((s, i) => [s.squadLabel, { rank: i + 1, at: s.at }]));
-  const order = [...squads].sort((a, b) => (place.get(a.label)?.rank ?? Infinity) - (place.get(b.label)?.rank ?? Infinity));
-  const raceStart = (view.startsAt ?? 0) + RACE_REVEAL_MS;
+function HostBoard({ view }: { view: HostView }) {
+  const solve = new Map(view.solves.map((s) => [s.squadLabel, s]));
+  const order = [...view.squads].sort((a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity));
   const filled = Math.min(view.solves.length, view.bounty.winnerSlots);
   return (
     <Screen>
@@ -109,24 +95,23 @@ function HostBoard({ view, squads }: { view: HostView; squads: NonNullable<HostV
       <View style={styles.squads}>
         <Stagger stagger={30}>
           {order.map((s) => {
-            const solved = place.get(s.label);
-            const winner = solved && solved.rank <= view.bounty.winnerSlots;
+            const solved = solve.get(s.squadLabel);
             return (
-              <View key={s.label} style={[styles.squad, winner && styles.squadWinner]}>
+              <View key={s.squadLabel} style={[styles.squad, solved?.isWinner && styles.squadWinner]}>
                 <View style={styles.squadHead}>
                   <Txt variant="name" style={styles.flex}>
-                    {s.label}
+                    {s.squadLabel}
                   </Txt>
                   {solved ? (
                     <>
-                      <Txt variant="time">{short(solved.at - raceStart)}</Txt>
-                      <Seal locked color={winner ? Palette.ember : Palette.paperMuted} initial={String(solved.rank)} size={32} />
+                      <Txt variant="time">{short(solved.solveMs)}</Txt>
+                      <Seal locked color={solved.isWinner ? Palette.ember : Palette.paperMuted} initial={String(solved.place)} size={32} />
                     </>
                   ) : null}
                 </View>
                 <View style={styles.chips}>
-                  {s.members.map((m) => (
-                    <View key={m} style={styles.chip}>
+                  {s.memberNames.map((m, i) => (
+                    <View key={`${m}-${i}`} style={styles.chip}>
                       <Txt variant="small">{m}</Txt>
                     </View>
                   ))}
