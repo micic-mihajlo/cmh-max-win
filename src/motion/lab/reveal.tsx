@@ -5,9 +5,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { SeasonPackState } from '@/lib/contract';
 import { labReveal } from '@/mocks/motion-fixtures';
-import { Enter, Haptic, PackButton, Palette, PressScale, RoleColor, RoleLabel, Stagger } from '@/motion';
+import { Enter, Haptic, PackButton, PressScale, RoleColor, RoleLabel, Spring, Stagger } from '@/motion';
 
-import { ui } from './ui';
+import { C, ui } from './ui';
 
 // Reveal: headline settles, then credits stagger in one per player, then the season shelf.
 export default function LabReveal() {
@@ -18,7 +18,7 @@ export default function LabReveal() {
   const buy = () => {
     setPack('checkout');
     setTimeout(() => setPack('verifying'), 900);
-    setTimeout(() => setPack('owned'), 2700);
+    setTimeout(() => setPack('owned'), 4900);
   };
 
   return (
@@ -31,7 +31,7 @@ export default function LabReveal() {
           <Text style={[ui.callout, { marginTop: 8 }]}>{labReveal.why}</Text>
         </Enter>
         <View style={{ gap: 10 }}>
-          <Stagger delay={350} stagger={90} from={24}>
+          <Stagger delay={200} stagger={60} from={24} spring={Spring.file}>
             {labReveal.credits.map((c) => (
               <View key={c.role} style={[ui.paper, { borderLeftWidth: 4, borderLeftColor: RoleColor[c.role] }]}>
                 <Text style={[ui.label, { color: '#51504F' }]}>{RoleLabel[c.role]} · {c.memberName}</Text>
@@ -40,7 +40,7 @@ export default function LabReveal() {
             ))}
           </Stagger>
         </View>
-        <Enter delay={700} from={16} style={[ui.card, { gap: 12 }]}>
+        <Enter delay={400} from={12} style={[ui.card, { gap: 12 }]}>
           <Text style={ui.label}>{labReveal.teaser.title}</Text>
           <Text style={ui.callout}>{labReveal.teaser.text}</Text>
           <PackButton state={pack} onBuy={buy} price="$4.99" sandbox />
@@ -56,5 +56,5 @@ export default function LabReveal() {
 const styles = StyleSheet.create({
   creditLine: { fontSize: 17, lineHeight: 24, color: '#3B3A3B' },
   back: { height: 48, alignItems: 'center', justifyContent: 'center' },
-  backText: { fontSize: 15, color: Palette.muted },
+  backText: { fontSize: 15, color: C.muted },
 });

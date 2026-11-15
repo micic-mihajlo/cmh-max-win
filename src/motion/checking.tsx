@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { Enter } from './enter';
-import { Palette } from './palette';
+import { useMotionColors } from './palette';
 import { useReduced } from './reduced';
 import { Duration, Ease } from './tokens';
 
@@ -20,11 +20,13 @@ export function useCheckingHold(key: string | number | null, pending = false, mi
   return pending || (key != null && settled !== key);
 }
 
-type Props = { label?: string; minMs?: number; color?: string };
+type Props = { label?: string; minMs?: number; color?: string; trackColor?: string };
 
 // Mount while checking. A hairline fills linearly across the hold: constant motion, so linear.
-export function Checking({ label = 'Checking…', minMs = Duration.checkingHold, color = Palette.paper }: Props) {
+export function Checking({ label = 'Checking…', minMs = Duration.checkingHold, color, trackColor }: Props) {
   const reduced = useReduced();
+  const colors = useMotionColors();
+  const ink = color ?? colors.ink;
   const progress = useSharedValue(0);
 
   useEffect(() => {
@@ -36,12 +38,12 @@ export function Checking({ label = 'Checking…', minMs = Duration.checkingHold,
 
   return (
     <Enter from={6} style={styles.wrap}>
-      <Text accessibilityLiveRegion="polite" style={[styles.label, { color }]}>
+      <Text accessibilityLiveRegion="polite" style={[styles.label, { color: ink }]}>
         {label}
       </Text>
       {!reduced && (
-        <View style={styles.track}>
-          <Animated.View style={[styles.fill, { backgroundColor: color }, fill]} />
+        <View style={[styles.track, { backgroundColor: trackColor ?? colors.hairline }]}>
+          <Animated.View style={[styles.fill, { backgroundColor: ink }, fill]} />
         </View>
       )}
     </Enter>
@@ -50,7 +52,7 @@ export function Checking({ label = 'Checking…', minMs = Duration.checkingHold,
 
 const styles = StyleSheet.create({
   wrap: { alignItems: 'center', gap: 10 },
-  label: { fontSize: 15, lineHeight: 22 },
-  track: { width: 120, height: 1, backgroundColor: Palette.hairline, overflow: 'hidden' },
+  label: { fontSize: 17, lineHeight: 24 },
+  track: { width: 120, height: 1, overflow: 'hidden' },
   fill: { width: 120, height: 1, transformOrigin: 'left' },
 });

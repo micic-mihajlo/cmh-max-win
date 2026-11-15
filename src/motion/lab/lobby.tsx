@@ -4,9 +4,9 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LAB_ROOM_CODE, labCrew } from '@/mocks/motion-fixtures';
-import { Enter, InviteCode, Palette, PressScale, RoleColor, RoleInitial, RoleLabel, Seal } from '@/motion';
+import { Enter, InviteCode, PressScale, RoleColor, RoleInitial, RoleLabel, Seal } from '@/motion';
 
-import { ui } from './ui';
+import { C, ui } from './ui';
 
 // Lobby: the code deals in, then Ravi and Lena claim their seats on a timer (mock backend).
 export default function LabLobby() {
@@ -48,8 +48,8 @@ export default function LabLobby() {
         onPress={() => router.push('/lab/case')}
         accessibilityRole="button"
         accessibilityState={{ disabled: !ready }}
-        style={[styles.primary, { opacity: ready ? 1 : 0.4, transitionProperty: 'opacity', transitionDuration: 200 }]}>
-        <Text style={styles.primaryText}>Start case</Text>
+        style={[styles.primary, !ready && styles.primaryOff, { transitionProperty: ['backgroundColor', 'borderColor'], transitionDuration: 200 }]}>
+        <Text style={[styles.primaryText, !ready && styles.primaryTextOff]}>Start case</Text>
       </PressScale>
     </View>
   );
@@ -57,8 +57,10 @@ export default function LabLobby() {
 
 const styles = StyleSheet.create({
   seats: { marginTop: 28, gap: 12 },
-  seat: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderRadius: 14, backgroundColor: Palette.panel, borderWidth: 1, borderColor: Palette.hairline },
+  seat: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderRadius: 14, backgroundColor: C.card, borderWidth: 1, borderColor: C.hairline },
   next: { textAlign: 'center', marginBottom: 12 },
-  primary: { height: 56, borderRadius: 14, backgroundColor: Palette.ember, alignItems: 'center', justifyContent: 'center' },
-  primaryText: { fontSize: 17, fontWeight: '600', color: Palette.ink },
+  primary: { height: 56, borderRadius: 14, borderWidth: 1, borderColor: C.accent, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center' },
+  primaryOff: { backgroundColor: C.card, borderColor: C.hairline },
+  primaryTextOff: { color: C.faint },
+  primaryText: { fontSize: 17, fontWeight: '600', color: C.onAccent },
 });
