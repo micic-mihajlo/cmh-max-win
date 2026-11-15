@@ -231,6 +231,10 @@ export const leaveDrop = mutation({
   },
 });
 
+// The video's rival squads (scripts/demo/rivals.mjs) enter with this prefix; an all-demo squad is labelled
+// "Demo Squad A/B/C" so it never reads as real players.
+export const DEMO_NAME_PREFIX = 'Demo · ';
+
 async function formSquads(ctx: MutationCtx, drop: Doc<'drops'>) {
   if (drop.status !== 'scheduled') return;
   const entries = await entriesOf(ctx, drop.dropId);
@@ -243,9 +247,11 @@ async function formSquads(ctx: MutationCtx, drop: Doc<'drops'>) {
     return;
   }
   let next = 0;
+  let demoSquads = 0;
   for (const [squadIndex, size] of sizes.entries()) {
     const seats = entries.slice(next, next + size);
     next += size;
+    const demo = seats.every((e) => e.name.startsWith(DEMO_NAME_PREFIX));
     const roomId = await ctx.db.insert('rooms', {
       code: await generateCode(ctx),
       hostToken: '',
@@ -253,7 +259,7 @@ async function formSquads(ctx: MutationCtx, drop: Doc<'drops'>) {
       dropId: drop.dropId,
       squadSize: size,
       squadIndex,
-      squadLabel: `Squad ${squadIndex + 1}`,
+      squadLabel: demo ? `Demo Squad ${String.fromCharCode(65 + demoSquads++)}` : `Squad ${squadIndex + 1 - demoSquads}`,
       status: 'intro',
       theory: { culprit: null, revision: 0, lastEditedBy: null },
       attempts: 0,

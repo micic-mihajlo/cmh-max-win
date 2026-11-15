@@ -500,6 +500,24 @@ describe('host screen', () => {
     return { t, dropId, joinCode };
   }
 
+  test('an all-demo squad is labelled Demo Squad A/B/C; real squads keep their numbers', async () => {
+    const { t, dropId, joinCode } = await hosted(3);
+    for (const n of ['Rio', 'Kai', 'Ash', 'Lux', 'Bo', 'Ivy']) {
+      await t.mutation(api.drops.enterDropByCode, { deviceToken: 'demo-' + n, code: joinCode, name: 'Demo · ' + n });
+    }
+    await t.mutation(api.drops.enterDropByCode, { deviceToken: 'p4', code: joinCode, name: 'p4' });
+    await t.mutation(api.drops.enterDropByCode, { deviceToken: 'p5', code: joinCode, name: 'Demo · Mix' });
+    await t.mutation(api.drops.enterDropByCode, { deviceToken: 'p6', code: joinCode, name: 'p6' });
+    await t.mutation(api.drops.dealSquads, { deviceToken: 'host', dropId });
+    const board = await t.query(api.drops.leaderboard, { deviceToken: 'p1', dropId });
+    expect(board?.rows.map((r) => [r.squadLabel, r.memberNames])).toEqual([
+      ['Squad 1', ['p1', 'p2', 'p3']],
+      ['Demo Squad A', ['Demo · Rio', 'Demo · Kai', 'Demo · Ash']],
+      ['Demo Squad B', ['Demo · Lux', 'Demo · Bo', 'Demo · Ivy']],
+      ['Squad 2', ['p4', 'Demo · Mix', 'p6']],
+    ]);
+  });
+
   test('hosted drops stay out of listDrops but answer to their code', async () => {
     const { t, joinCode } = await hosted(1);
     await t.mutation(internal.drops.seedDemo, { startsInSeconds: 60 });
