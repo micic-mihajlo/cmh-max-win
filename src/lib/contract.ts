@@ -125,6 +125,7 @@ export type SignalErrorCode =
   | 'NOT_ELIGIBLE' // reserved: whop_members enforcement after Sign in with Whop
   | 'WHOP_SIGN_IN_REQUIRED' // joining a requireWhopToJoin challenge, or claiming, without a linked Whop account
   | 'CLAIM_EXPIRED'
+  | 'WHOP_NOT_CONFIGURED' // publishing a whop_members challenge on a deployment without Whop sign-in
   | 'PLAYER_NOT_FOUND' // mixer: no entrant with that player code in this challenge
   | 'DUPLICATE_COLOR' // mixer: the team already has that color
   | 'ALREADY_IN_TEAM' // mixer: a player sits in one team at a time
