@@ -122,7 +122,9 @@ export type SignalErrorCode =
   | 'INVALID_CONFIG' // publish with config issues; data.issues: ConfigIssue[]
   | 'CHALLENGE_CLOSED' // joining after entry closed, or a host action in the wrong status
   | 'CHALLENGE_CANCELLED'
-  | 'NOT_ELIGIBLE'; // reserved: whop_members enforcement after Sign in with Whop
+  | 'NOT_ELIGIBLE' // reserved: whop_members enforcement after Sign in with Whop
+  | 'WHOP_SIGN_IN_REQUIRED' // joining a requireWhopToJoin challenge, or claiming, without a linked Whop account
+  | 'CLAIM_EXPIRED'
 
 export type SignalError = { code: SignalErrorCode; message: string };
 
@@ -342,6 +344,8 @@ export type ChallengeConfig = {
   poolCents: number; // integer >= 0
   currency: 'usd';
   payoutAdapter: PayoutAdapterId;
+  requireWhopToJoin: boolean; // forced true for whop_members; recommended for large pools. Otherwise Whop is needed only to claim
+  claimWindowMs: number; // how long a winner has to claim after approval; default 7 days. Unclaimed shares return to the pool
 };
 export type ChallengeConfigPatch = Partial<ChallengeConfig>;
 export type ConfigIssue = { field: keyof ChallengeConfig; message: string }; // why publish would be refused
@@ -406,20 +410,36 @@ export type ChallengeResultRow = {
 // Exact integer cents. Each paid place gets its budget (winner_takes_all: the pool; top_x_equal:
 // floor(pool / places); tiered: floor(pool * percent / 100)), split per player rounding down. Every leftover
 // cent goes to first place's first player (entry order). Budgets of places nobody filled return to the creator.
-// Invariant: sum(lines[].players[].cents) + returnedCents === poolCents.
+// Invariant: paidCents + returnedCents === poolCents, where returnedCents = sum(returned).
+// Before approval paidCents is what the policy allocates; afterwards the ledger moves shares into returned when a
+// Whop account already holds a share in this challenge (one share per Whop account) or a claim expires.
 export type PayoutPreviewView = {
   poolCents: number;
   paidCents: number;
   returnedCents: number;
+  returned: { unfilledPlaces: number; duplicateWhopAccount: number; expired: number }; // cents back to the creator
   lines: {
     place: number;
     teamLabel: string;
     budgetCents: number; // the place's budget before the per-player rounding
-    players: { name: string; cents: number }[];
+    players: { name: string; cents: number; status: PayoutStatus | null }[]; // status: the ledger row, null before approval
   }[];
 };
 
-export type PayoutStatus = 'pending' | 'approved' | 'sent' | 'sent_concept' | 'failed';
+// Whop is needed only to claim (unless requireWhopToJoin): anyone plays on the device identity, and a winner signs in
+// with Whop to receive their share. pending -> approved (Whop already linked) or claim_pending_whop (waiting for the
+// winner to sign in and claim) -> sent | sent_concept | failed. duplicate: this Whop account already has a share in
+// the challenge, so this one returns to the pool. expired: unclaimed after claimWindowMs, returned to the pool.
+// A claim is tied to the device token that played the seat; linking the same Whop account on another device can't claim it.
+export type PayoutStatus =
+  | 'pending'
+  | 'claim_pending_whop'
+  | 'approved'
+  | 'sent'
+  | 'sent_concept'
+  | 'failed'
+  | 'duplicate'
+  | 'expired';
 export type PayoutRowView = {
   name: string;
   place: number;
@@ -428,6 +448,7 @@ export type PayoutRowView = {
   status: PayoutStatus;
   adapter: PayoutAdapterId;
   method: 'concept' | 'transfer' | 'claim_link' | null; // how the adapter paid; null until sent
+  claimExpiresAt: number | null; // claim_pending_whop only
   error: string | null;
 };
 
@@ -472,6 +493,7 @@ export type PlayerChallengeView = {
     team: { teamId: string; label: string; roomCode: string; size: number } | null; // open the RoomView with roomCode
     waitingNextRound: boolean; // left over under wait_next_round
   };
+  requireWhopToJoin: boolean;
 };
 
 export type MyPayoutView = {
@@ -482,6 +504,8 @@ export type MyPayoutView = {
   adapter: PayoutAdapterId;
   method: 'concept' | 'transfer' | 'claim_link' | null;
   claimUrl: string | null; // claim_link method only
+  claimExpiresAt: number | null; // claim_pending_whop: claim before this or the share returns to the pool
+  needsWhopSignIn: boolean; // claim_pending_whop and this device has no linked Whop account yet
   label: string; // e.g. 'Concept payout — no real money moves'
 };
 
@@ -521,5 +545,6 @@ export type UseJoinChallenge = () => (args: { code: string; name: string }) => P
 export type UseLeaveChallenge = (challengeId: string) => () => Promise<void>; // before your team is dealt
 export type UseMyChallenge = (challengeId: string | null) => PlayerChallengeView | null | undefined;
 export type UseMyPayout = (challengeId: string | null) => MyPayoutView | null | undefined; // null = nothing for you
+export type UseClaimPayout = (challengeId: string) => () => Promise<MyPayoutView>; // WHOP_SIGN_IN_REQUIRED, CLAIM_EXPIRED; idempotent
 export type UseChallengeRecap = (challengeId: string | null) => ChallengeRecapView | null | undefined; // null until ended
 
