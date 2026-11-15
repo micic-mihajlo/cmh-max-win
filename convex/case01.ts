@@ -21,14 +21,14 @@ export const DOSSIERS: Record<Role, Dossier> = {
     docLabel: 'SYSTEMS LOG',
     title: 'Systems log · 21:30–21:50',
     lines: [
-      { time: '21:33', text: 'GALLEY oven started — manual, 40-min timer' },
+      { time: '21:33', text: 'GALLEY oven started at the panel — 40-min timer' },
       { time: '21:38', text: 'DOCK RING seal test started — badge T. MARSH' },
       { time: '21:42', text: 'GREENHOUSE door OPEN — maintenance override, no badge' },
       { time: '21:44', text: 'GREENHOUSE door CLOSED' },
       { time: '21:47', text: 'DOCK RING seal test complete — badge T. MARSH removed' },
     ],
     notes:
-      "System notes: the seal test needs the badge held in the reader for the whole run. Override codes went to all crew for last month's evacuation drill and were never revoked.",
+      "System notes: the seal test needs the badge held in the reader for the whole run. Override codes went to all crew for last month's evacuation drill and were never revoked. This is the only greenhouse door event between 21:30 and 21:50.",
   },
   witness: {
     role: 'witness',
@@ -36,7 +36,7 @@ export const DOSSIERS: Record<Role, Dossier> = {
     title: 'Statement · Dr. Sam Reyes, medic',
     lines: [
       {
-        text: "I started my break in the lounge at 21:30. Priya was already there, so we began a game of Go at the window table. Neither of us got up until the alarm. I know the time because my 20-minute break timer went off with it. Someone passed the doorway around 21:40, but with the window glare I couldn't see who.",
+        text: "I started my break in the lounge at 21:30. Priya was already there, so we began a game of Go at the window table. Neither of us got up until the alarm. I know the time because my 20-minute break timer went off with it. Someone passed the doorway around 21:40, heading aft toward the greenhouse, but with the window glare I couldn't see who.",
       },
     ],
   },
@@ -45,10 +45,10 @@ export const DOSSIERS: Record<Role, Dossier> = {
     docLabel: 'SCENE NOTES',
     title: 'Scene notes · station security',
     lines: [
-      { text: 'Seed case opened cleanly, no forced lock. Misting system ran 21:35–21:45, so the floor was still wet.' },
+      { text: 'Seed case opened cleanly, no forced lock. Misting system ran 21:35–21:45, so anyone who went in came out soaked.' },
       {
         time: '21:52',
-        text: 'I went room to room. Clean room: the single-use tamper strip on the door was signed by Ines at 21:15 and still intact when I knocked at 21:53. She was inside and had to tear it to come out. The clean room has only one door.',
+        text: 'Security sweep, room by room. Clean room: the single-use tamper strip on the door was signed by Ines at 21:15 and still intact when I knocked at 21:53. She was inside and had to tear it to come out. The clean room has only one door.',
       },
     ],
   },

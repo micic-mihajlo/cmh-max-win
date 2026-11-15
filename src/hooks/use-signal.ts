@@ -1,16 +1,19 @@
 import { api } from '@convex/_generated/api';
-import { useMutation, useQuery } from 'convex/react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { usePresence } from '@convex-dev/presence/react-native';
+import { useConvexConnectionState, useMutation, useQuery } from 'convex/react';
+import { useCallback } from 'react';
 
 import { useDeviceToken } from '@/hooks/use-device-token';
 import type {
   UseActiveRoom,
   UseClaimRole,
+  UseConnection,
   UseCreateRoom,
   UseJoinRoom,
   UseLeaveRoom,
   UseLockIn,
   UseMyDossier,
+  UseReclaimRole,
   UseReveal,
   UseRestart,
   UseRoom,
@@ -20,9 +23,6 @@ import type {
 } from '@/lib/contract';
 import { getDeviceToken } from '@/lib/device';
 
-const HEARTBEAT_MS = 15_000;
-const OFFLINE_AFTER_MS = 45_000;
-
 export const useActiveRoom: UseActiveRoom = () => {
   const deviceToken = useDeviceToken();
   return useQuery(api.signal.activeRoom, deviceToken ? { deviceToken } : 'skip');
@@ -30,31 +30,13 @@ export const useActiveRoom: UseActiveRoom = () => {
 
 export const useRoom: UseRoom = (code) => {
   const deviceToken = useDeviceToken();
-  const raw = useQuery(api.signal.room, deviceToken && code ? { deviceToken, code } : 'skip');
-  const heartbeat = useMutation(api.signal.heartbeat);
-  const [now, setNow] = useState(() => Date.now());
+  usePresence(api.presence, code ?? '', deviceToken ?? '');
+  return useQuery(api.signal.room, deviceToken && code ? { deviceToken, code } : 'skip');
+};
 
-  useEffect(() => {
-    if (!deviceToken || !code) return;
-    const beat = () => {
-      setNow(Date.now());
-      heartbeat({ deviceToken, code }).catch(() => {});
-    };
-    beat();
-    const id = setInterval(beat, HEARTBEAT_MS);
-    return () => clearInterval(id);
-  }, [deviceToken, code, heartbeat]);
-
-  return useMemo(() => {
-    if (!raw) return raw;
-    return {
-      ...raw,
-      members: raw.members.map(({ lastSeenAt, ...m }) => ({
-        ...m,
-        presence: !m.isMe && now - lastSeenAt > OFFLINE_AFTER_MS ? 'offline' : m.presence,
-      })),
-    };
-  }, [raw, now]);
+export const useConnection: UseConnection = () => {
+  const { isWebSocketConnected, hasEverConnected } = useConvexConnectionState();
+  return { connected: isWebSocketConnected, everConnected: hasEverConnected };
 };
 
 export const useMyDossier: UseMyDossier = (code) => {
@@ -85,6 +67,16 @@ export const useClaimRole: UseClaimRole = (code) => {
   return useCallback(async (role) => {
       await claim({ deviceToken: await getDeviceToken(), code, role });
     }, [claim, code]);
+};
+
+export const useReclaimRole: UseReclaimRole = (code) => {
+  const reclaim = useMutation(api.signal.reclaimRole);
+  return useCallback(
+    async (role) => {
+      await reclaim({ deviceToken: await getDeviceToken(), code, role });
+    },
+    [reclaim, code],
+  );
 };
 
 export const useStartCase: UseStartCase = (code) => {

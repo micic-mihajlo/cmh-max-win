@@ -20,7 +20,16 @@ export default defineSchema({
       lastEditedBy: v.union(v.id('members'), v.null()),
     }),
     attempts: v.number(),
-    lastNudge: v.union(v.object({ wrongPick: suspect, forRole: role, text: v.string() }), v.null()),
+    lastNudge: v.union(
+      v.object({ wrongPick: suspect, forRole: role, text: v.string(), revision: v.number() }),
+      v.null(),
+    ),
+    checkedRevision: v.union(v.number(), v.null()),
+    checkSeq: v.number(),
+    lastCheck: v.union(
+      v.object({ seq: v.number(), result: v.union(v.literal('wrong'), v.literal('correct')), at: v.number() }),
+      v.null(),
+    ),
   }).index('by_code', ['code']),
   members: defineTable({
     roomId: v.id('rooms'),
@@ -28,7 +37,6 @@ export default defineSchema({
     name: v.string(),
     role: v.union(role, v.null()),
     presence,
-    lastSeenAt: v.number(),
   })
     .index('by_room', ['roomId'])
     .index('by_token', ['deviceToken'])

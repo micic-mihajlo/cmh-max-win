@@ -10,6 +10,7 @@
 
 import type * as case01 from "../case01.js";
 import type * as pings from "../pings.js";
+import type * as presence from "../presence.js";
 import type * as signal from "../signal.js";
 
 import type {
@@ -21,6 +22,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   case01: typeof case01;
   pings: typeof pings;
+  presence: typeof presence;
   signal: typeof signal;
 }>;
 
@@ -50,4 +52,6 @@ export declare const internal: FilterApi<
   FunctionReference<any, "internal">
 >;
 
-export declare const components: {};
+export declare const components: {
+  presence: import("@convex-dev/presence/_generated/component.js").ComponentApi<"presence">;
+};

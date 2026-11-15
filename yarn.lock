@@ -825,6 +825,36 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@convex-dev/batch-worker@npm:^0.2.0":
+  version: 0.2.2
+  resolution: "@convex-dev/batch-worker@npm:0.2.2"
+  peerDependencies:
+    convex: ^1.36.1
+    react: ^18.3.1 || ^19.0.0
+  checksum: 10c0/9cb7f1d843e6bbf208804e676cb08f0cf55253e069e6c1e26a7c1c1a87c51fb1b2e3e97d00d69357f2d1c24ec541739403f04d939e7583a2b189d7262cfa1c9b
+  languageName: node
+  linkType: hard
+
+"@convex-dev/presence@npm:0.4.0":
+  version: 0.4.0
+  resolution: "@convex-dev/presence@npm:0.4.0"
+  dependencies:
+    "@convex-dev/batch-worker": "npm:^0.2.0"
+  peerDependencies:
+    convex: ^1.36.1
+    expo-crypto: ">=14.1.0"
+    react: ~18.3.1 || ^19.0.0
+    react-dom: ~18.3.1 || ^19.0.0
+    react-native: ">=0.79.0"
+  peerDependenciesMeta:
+    expo-crypto:
+      optional: true
+    react-native:
+      optional: true
+  checksum: 10c0/9a2d432947e5247176db2ec330be0379078b318b375549216b10e4201dd9bebc577a404738f574f992b4da0bff89e133aa4bd0912a3ea1191e7f7405bfdab377
+  languageName: node
+  linkType: hard
+
 "@edge-runtime/primitives@npm:6.0.0":
   version: 6.0.0
   resolution: "@edge-runtime/primitives@npm:6.0.0"
@@ -3630,6 +3660,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "cmh-max-win@workspace:."
   dependencies:
+    "@convex-dev/presence": "npm:0.4.0"
     "@edge-runtime/vm": "npm:^5.0.0"
     "@expo/ui": "npm:~58.0.28"
     "@types/react": "npm:~19.3.0"

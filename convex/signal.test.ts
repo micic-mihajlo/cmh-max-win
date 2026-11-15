@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+import presenceTest from '@convex-dev/presence/test';
 import { convexTest } from 'convex-test';
 import { describe, expect, test } from 'vitest';
 
@@ -20,6 +21,23 @@ const UNIQUE_DOSSIER_TEXT = {
 } as const;
 const ANSWER_LEAKS = ['jun', 'Jun', 'Halloway', 'drill override', 'anonymous message', 'Second Seed'];
 
+function newTest() {
+  const t = convexTest(schema, modules);
+  presenceTest.register(t);
+  return t;
+}
+type T = ReturnType<typeof newTest>;
+
+async function online(t: T, code: string, deviceToken: string) {
+  const { sessionToken } = await t.mutation(api.presence.heartbeat, {
+    roomId: code,
+    userId: deviceToken,
+    sessionId: `session-${deviceToken}`,
+    interval: 10_000,
+  });
+  return sessionToken;
+}
+
 async function errorCode(p: Promise<unknown>) {
   try {
     await p;
@@ -30,24 +48,26 @@ async function errorCode(p: Promise<unknown>) {
 }
 
 async function lobby() {
-  const t = convexTest(schema, modules);
+  const t = newTest();
   const { code } = await t.mutation(api.signal.createRoom, { deviceToken: HOST, name: 'Maya' });
   await t.mutation(api.signal.joinRoom, { deviceToken: B, code, name: 'Ravi' });
   await t.mutation(api.signal.joinRoom, { deviceToken: C, code, name: 'Ana' });
   for (const deviceToken of ALL) {
     await t.mutation(api.signal.claimRole, { deviceToken, code, role: ROLE_OF[deviceToken] });
   }
-  return { t, code };
+  const sessions: Record<string, string> = {};
+  for (const deviceToken of ALL) sessions[deviceToken] = await online(t, code, deviceToken);
+  return { t, code, sessions };
 }
 
 async function playing() {
-  const { t, code } = await lobby();
+  const { t, code, sessions } = await lobby();
   await t.mutation(api.signal.startCase, { deviceToken: HOST, code });
   for (const deviceToken of ALL) await t.mutation(api.signal.setPresence, { deviceToken, code, presence: 'ready' });
-  return { t, code };
+  return { t, code, sessions };
 }
 
-async function pickAndLock(t: Awaited<ReturnType<typeof playing>>['t'], code: string, culprit: 'theo' | 'jun', lockers = ALL) {
+async function pickAndLock(t: T, code: string, culprit: 'theo' | 'priya' | 'ines' | 'jun', lockers = ALL) {
   const { revision } = await t.mutation(api.signal.setTheory, { deviceToken: B, code, culprit });
   const results = [];
   for (const deviceToken of lockers) results.push(await t.mutation(api.signal.lockIn, { deviceToken, code, revision }));
@@ -56,7 +76,7 @@ async function pickAndLock(t: Awaited<ReturnType<typeof playing>>['t'], code: st
 
 describe('lobby', () => {
   test('one role per player, 3 max, start is host-only and needs all roles', async () => {
-    const t = convexTest(schema, modules);
+    const t = newTest();
     const { code } = await t.mutation(api.signal.createRoom, { deviceToken: HOST, name: 'Maya' });
     expect(code).toMatch(/^[A-Z2-9]{4}$/);
     await t.mutation(api.signal.joinRoom, { deviceToken: B, code: code.toLowerCase(), name: 'Ravi' });
@@ -64,6 +84,7 @@ describe('lobby', () => {
     expect(await errorCode(t.mutation(api.signal.claimRole, { deviceToken: B, code, role: 'hacker' }))).toBe('ROLE_TAKEN');
     expect(await errorCode(t.mutation(api.signal.startCase, { deviceToken: HOST, code }))).toBe('ROLES_NOT_FILLED');
     await t.mutation(api.signal.joinRoom, { deviceToken: C, code, name: 'Ana' });
+    for (const deviceToken of ALL) await online(t, code, deviceToken);
     expect(await errorCode(t.mutation(api.signal.joinRoom, { deviceToken: 'd', code, name: 'Dee' }))).toBe('ROOM_FULL');
     expect(await errorCode(t.mutation(api.signal.joinRoom, { deviceToken: 'd', code: 'ZZZZ', name: 'Dee' }))).toBe(
       'ROOM_NOT_FOUND',
@@ -110,7 +131,9 @@ describe('dossier gating', () => {
     expect(await t.query(api.signal.myDossier, { deviceToken: HOST, code })).toBeNull();
     await t.mutation(api.signal.startCase, { deviceToken: HOST, code });
     expect(await t.query(api.signal.myDossier, { deviceToken: 'outsider', code })).toBeNull();
-    expect(await t.query(api.signal.room, { deviceToken: 'outsider', code })).toBeNull();
+    const outsiderView = await t.query(api.signal.room, { deviceToken: 'outsider', code });
+    expect(outsiderView?.me).toBeNull();
+    expect(JSON.stringify(outsiderView)).not.toMatch(/tamper strip|game of Go|DOCK RING/);
   });
 });
 
@@ -148,7 +171,11 @@ describe('theory and lock-in', () => {
     const { t, code } = await playing();
     const { results } = await pickAndLock(t, code, 'theo');
     const result = results.at(-1);
-    expect(result).toMatchObject({ outcome: 'wrong', attempts: 1, nudge: { wrongPick: 'theo', forRole: 'hacker' } });
+    expect(result).toMatchObject({
+      outcome: 'wrong',
+      attempts: 1,
+      nudge: { wrongPick: 'theo', forRole: 'hacker', revision: 1 },
+    });
     for (const deviceToken of ALL) {
       const room = await t.query(api.signal.room, { deviceToken, code });
       const reveal = await t.query(api.signal.reveal, { deviceToken, code });
@@ -182,11 +209,15 @@ describe('rejoin and restart', () => {
     const { revision } = await t.mutation(api.signal.setTheory, { deviceToken: B, code, culprit: 'theo' });
     await t.mutation(api.signal.lockIn, { deviceToken: B, code, revision });
     const before = await t.query(api.signal.room, { deviceToken: B, code });
-    expect(await t.mutation(api.signal.joinRoom, { deviceToken: B, code, name: 'Ravi again' })).toEqual({ code });
+    expect(await t.mutation(api.signal.joinRoom, { deviceToken: B, code, name: 'Ravi again' })).toEqual({
+      code,
+      status: 'rejoined',
+      reclaimableRoles: [],
+    });
     const after = await t.query(api.signal.room, { deviceToken: B, code });
     expect(after?.me).toEqual(before?.me);
     expect(after?.theory).toEqual(before?.theory);
-    expect(after?.lockIns).toEqual([{ memberId: before?.me.memberId, revision }]);
+    expect(after?.lockIns).toEqual([{ memberId: before?.me?.memberId, revision }]);
     expect(await t.query(api.signal.activeRoom, { deviceToken: B })).toEqual({ code, status: 'playing', role: 'witness' });
     expect((await t.query(api.signal.myDossier, { deviceToken: B, code }))?.role).toBe('witness');
     expect(await errorCode(t.mutation(api.signal.joinRoom, { deviceToken: 'new', code, name: 'Dee' }))).toBe(
@@ -207,5 +238,104 @@ describe('rejoin and restart', () => {
     expect(room).toMatchObject({ status: 'lobby', attempts: 0, lastNudge: null, lockIns: [] });
     expect(room?.theory.culprit).toBeNull();
     expect(room?.members.map((m) => m.role)).toEqual(['hacker', 'witness', 'detective']);
+  });
+});
+
+describe('battle-test fixes', () => {
+  test('a checked revision cannot be locked again, so replays never add an attempt', async () => {
+    const { t, code } = await playing();
+    const { revision } = await t.mutation(api.signal.setTheory, { deviceToken: B, code, culprit: 'theo' });
+    await t.mutation(api.signal.lockIn, { deviceToken: HOST, code, revision });
+    expect(await t.mutation(api.signal.lockIn, { deviceToken: HOST, code, revision })).toEqual({
+      outcome: 'locked',
+      lockedCount: 1,
+    });
+    await t.mutation(api.signal.lockIn, { deviceToken: B, code, revision });
+    expect((await t.mutation(api.signal.lockIn, { deviceToken: C, code, revision })).outcome).toBe('wrong');
+    for (const deviceToken of ALL) {
+      expect(await errorCode(t.mutation(api.signal.lockIn, { deviceToken, code, revision }))).toBe('ALREADY_CHECKED');
+    }
+    const room = await t.query(api.signal.room, { deviceToken: HOST, code });
+    expect(room).toMatchObject({ attempts: 1, checkedRevision: revision, checkSeq: 1, lockIns: [] });
+    expect(room?.lastCheck).toMatchObject({ seq: 1, result: 'wrong' });
+  });
+
+  test('every check bumps checkSeq once and a correct one records it', async () => {
+    const { t, code } = await playing();
+    await pickAndLock(t, code, 'theo');
+    await pickAndLock(t, code, 'priya');
+    await pickAndLock(t, code, 'jun');
+    const room = await t.query(api.signal.room, { deviceToken: C, code });
+    expect(room).toMatchObject({ status: 'resolved', attempts: 2, checkSeq: 3 });
+    expect(room?.lastCheck).toMatchObject({ seq: 3, result: 'correct' });
+  });
+
+  test('re-picking the chosen suspect is a no-op that keeps lock-ins', async () => {
+    const { t, code } = await playing();
+    const { revision } = await t.mutation(api.signal.setTheory, { deviceToken: B, code, culprit: 'ines' });
+    await t.mutation(api.signal.lockIn, { deviceToken: HOST, code, revision });
+    expect(await t.mutation(api.signal.setTheory, { deviceToken: C, code, culprit: 'ines' })).toEqual({ revision });
+    const room = await t.query(api.signal.room, { deviceToken: HOST, code });
+    expect(room?.theory.revision).toBe(revision);
+    expect(room?.lockIns).toHaveLength(1);
+    expect(room?.members.find((m) => m.isMe)?.presence).toBe('ready');
+  });
+
+  test('revisions keep rising through a restart, so an old lock-in replay is stale', async () => {
+    const { t, code } = await playing();
+    const { revision: old } = await t.mutation(api.signal.setTheory, { deviceToken: B, code, culprit: 'theo' });
+    await t.mutation(api.signal.restart, { deviceToken: HOST, code, confirm: true });
+    const afterRestart = (await t.query(api.signal.room, { deviceToken: HOST, code }))!.theory.revision;
+    expect(afterRestart).toBeGreaterThan(old);
+    await t.mutation(api.signal.startCase, { deviceToken: HOST, code });
+    for (const deviceToken of ALL) await t.mutation(api.signal.setPresence, { deviceToken, code, presence: 'ready' });
+    const { revision } = await t.mutation(api.signal.setTheory, { deviceToken: B, code, culprit: 'theo' });
+    expect(revision).toBeGreaterThan(afterRestart);
+    expect(await errorCode(t.mutation(api.signal.lockIn, { deviceToken: HOST, code, revision: old }))).toBe(
+      'STALE_REVISION',
+    );
+  });
+
+  test('a new device reclaims an offline seat, never an online one', async () => {
+    const { t, code, sessions } = await playing();
+    const { revision } = await t.mutation(api.signal.setTheory, { deviceToken: B, code, culprit: 'theo' });
+    await t.mutation(api.signal.lockIn, { deviceToken: C, code, revision });
+    const before = await t.query(api.signal.room, { deviceToken: C, code });
+
+    expect(await errorCode(t.mutation(api.signal.joinRoom, { deviceToken: 'phone', code, name: 'Ana' }))).toBe(
+      'CASE_STARTED',
+    );
+    expect(await errorCode(t.mutation(api.signal.reclaimRole, { deviceToken: 'phone', code, role: 'detective' }))).toBe(
+      'ROLE_TAKEN',
+    );
+
+    await t.mutation(api.presence.disconnect, { sessionToken: sessions[C] });
+    expect((await t.query(api.signal.room, { deviceToken: HOST, code }))?.members[2].presence).toBe('offline');
+    expect(await t.mutation(api.signal.joinRoom, { deviceToken: 'phone', code, name: 'Ana' })).toEqual({
+      code,
+      status: 'reclaim',
+      reclaimableRoles: ['detective'],
+    });
+    expect((await t.query(api.signal.room, { deviceToken: 'phone', code }))?.reclaimableRoles).toEqual(['detective']);
+    expect(await errorCode(t.mutation(api.signal.reclaimRole, { deviceToken: 'phone', code, role: 'hacker' }))).toBe(
+      'ROLE_TAKEN',
+    );
+    await t.mutation(api.signal.reclaimRole, { deviceToken: 'phone', code, role: 'detective' });
+
+    const after = await t.query(api.signal.room, { deviceToken: 'phone', code });
+    expect(after?.me).toEqual(before?.me);
+    expect(after?.lockIns).toEqual(before?.lockIns);
+    expect((await t.query(api.signal.myDossier, { deviceToken: 'phone', code }))?.role).toBe('detective');
+    expect(await t.query(api.signal.myDossier, { deviceToken: C, code })).toBeNull();
+  });
+
+  test('reclaiming the host seat hands the host role to the new device', async () => {
+    const { t, code, sessions } = await playing();
+    await t.mutation(api.presence.disconnect, { sessionToken: sessions[HOST] });
+    await t.mutation(api.signal.reclaimRole, { deviceToken: 'new-host', code, role: 'hacker' });
+    expect((await t.query(api.signal.room, { deviceToken: 'new-host', code }))?.isHost).toBe(true);
+    expect(await errorCode(t.mutation(api.signal.restart, { deviceToken: HOST, code, confirm: true }))).toBe(
+      'NOT_A_MEMBER',
+    );
   });
 });
