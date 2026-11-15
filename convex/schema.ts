@@ -366,6 +366,7 @@ export default defineSchema({
     scheduledFor: v.union(v.number(), v.null()),
     openedAt: v.union(v.number(), v.null()),
     expiredAt: v.optional(v.number()), // feed.expireStaleDrops ended it as abandoned or a test; kept out of past lists
+    rehearsal: v.optional(v.boolean()), // hostDrop({ rehearsal: true }): kept out of Find streamers and the following feed
   })
     .index('by_streamer', ['streamerId', 'createdAt'])
     .index('by_drop', ['dropId']),

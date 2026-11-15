@@ -436,6 +436,60 @@ describe('showcase hygiene', () => {
     expect((await t.query(api.feed.streamerForDrop, { deviceToken: 'x', dropId: a.dropId }))!.avatarUrl).toBeUndefined();
     expect((await t.query(api.feed.streamerForDrop, { deviceToken: 'x', dropId: b.dropId }))!.avatarUrl).toBe('https://example.com/bo.png');
   });
+
+  test('one streamer per name in discovery and the feed; the seeded streamer wins over newer ad-hoc hosts', async () => {
+    const t = newTest();
+    const seeded = await hostAs(t, 'seed-host-nova', 'Nova');
+    vi.advanceTimersByTime(MIN);
+    const adHoc = [await hostAs(t, 'rehearsal-1', ' nova '), await hostAs(t, 'rehearsal-2', 'NOVA')];
+    const kai = [await hostAs(t, 'kai-1', 'Kai'), await hostAs(t, 'kai-2', 'Kai')];
+    await t.run(async (ctx) => {
+      for (const s of [seeded, ...adHoc]) await ctx.db.insert('follows', { deviceToken: 'fan', streamerId: s.streamerId as never, createdAt: 0 });
+    });
+
+    const cards = await t.query(api.feed.streamers, { deviceToken: 'fan' });
+    expect(cards.map((c) => [c.name, c.streamerId]).sort()).toEqual([
+      ['Kai', kai[1].streamerId],
+      ['Nova', seeded.streamerId],
+    ]);
+    const feed = await t.query(api.feed.followingFeed, { deviceToken: 'fan' });
+    expect(feed.following.map((s) => s.streamerId)).toEqual([seeded.streamerId]);
+    expect(feed.live.map((l) => l.dropId)).toEqual([seeded.dropId]);
+  });
+
+  test('rehearsal and QA host names stay out of discovery and the feed; real names that only contain the words do not', async () => {
+    const t = newTest();
+    const junk: Awaited<ReturnType<typeof hostAs>>[] = [];
+    for (const [i, name] of ['Capy QA', 'Capy Host', 'PP Host', 'Rehearsal Nova', 'test host', 'qa'].entries()) junk.push(await hostAs(t, 'junk-' + i, name));
+    const real: Awaited<ReturnType<typeof hostAs>>[] = [];
+    for (const [i, name] of ['Mihajlo Micic', 'Qadir', 'Testa', 'Capybara Club'].entries()) real.push(await hostAs(t, 'real-' + i, name));
+    await t.run(async (ctx) => {
+      for (const s of [...junk, ...real]) await ctx.db.insert('follows', { deviceToken: 'fan', streamerId: s.streamerId as never, createdAt: 0 });
+    });
+
+    const realNames = ['Capybara Club', 'Mihajlo Micic', 'Qadir', 'Testa'];
+    expect((await t.query(api.feed.streamers, { deviceToken: 'fan' })).map((s) => s.name).sort()).toEqual(realNames);
+    const feed = await t.query(api.feed.followingFeed, { deviceToken: 'fan' });
+    expect(feed.following.map((s) => s.name).sort()).toEqual(realNames);
+    expect(feed.live.map((l) => l.streamerName).sort()).toEqual(realNames);
+    expect(await t.query(api.feed.streamerForDrop, { deviceToken: 'fan', dropId: junk[1].dropId })).toMatchObject({ name: 'Capy Host' });
+    expect(await t.mutation(internal.feed.hideTestHosts, {})).toEqual({ hidden: 1 });
+  });
+
+  test('hostDrop with rehearsal: true plays as usual but stays out of discovery and the feed', async () => {
+    const t = newTest();
+    const rehearsal = await t.mutation(api.drops.hostDrop, { deviceToken: 'mira', creatorName: 'Mira', rehearsal: true });
+    await t.mutation(api.drops.enterDrop, { deviceToken: 'p1', dropId: rehearsal.dropId, name: 'Pat' });
+    expect(await t.query(api.feed.streamers, { deviceToken: 'fan' })).toEqual([]);
+    const mira = await t.query(api.feed.streamerForDrop, { deviceToken: 'fan', dropId: rehearsal.dropId });
+    expect(mira).toMatchObject({ name: 'Mira', live: false });
+    await t.mutation(api.feed.followStreamer, { deviceToken: 'fan', streamerId: mira!.streamerId });
+    expect(await t.query(api.feed.followingFeed, { deviceToken: 'fan' })).toMatchObject({ following: [], live: [], upcoming: [], results: [] });
+
+    const real = await t.mutation(api.drops.hostDrop, { deviceToken: 'mira', creatorName: 'Mira' });
+    expect(await t.query(api.feed.streamers, { deviceToken: 'fan' })).toMatchObject([{ name: 'Mira', live: true }]);
+    expect((await t.query(api.feed.followingFeed, { deviceToken: 'fan' })).live.map((l) => l.dropId)).toEqual([real.dropId]);
+  });
 });
 
 describe('live status at read time', () => {
