@@ -56,7 +56,7 @@ export function StreamerScreen({
           <Avatar initials={page.name.slice(0, 1)} size={84} />
           <Txt variant="display">{page.name}</Txt>
           <Txt variant="body" color={Palette.paperMuted}>
-            {followers(page.followerCount)} followers
+            {followers(page.followerCount)}
           </Txt>
         </Enter>
         <View style={[showcase.gutter, styles.follow]}>
