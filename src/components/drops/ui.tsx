@@ -11,7 +11,7 @@ export const Tagline = 'Everyone holds a piece. Nobody solves it alone.';
 
 export const PieceLabel: Record<Role, string> = {
   hacker: 'Camera Log',
-  witness: 'Witness statement',
+  witness: 'Statement',
   detective: 'Scene Notes',
 };
 

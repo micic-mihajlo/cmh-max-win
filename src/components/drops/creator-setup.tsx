@@ -35,7 +35,7 @@ export function CreatorSetupScreen({ drop, live, onOpen }: { drop: CreatorDrop; 
       <View style={[styles.card, live && styles.cardLive]}>
         <View style={styles.row}>
           <View style={styles.art}>
-            <Txt variant="title" color={Palette.ok}>
+            <Txt variant="title" color={Palette.paper}>
               A
             </Txt>
           </View>

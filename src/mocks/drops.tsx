@@ -40,7 +40,7 @@ const live = (size: 2 | 3) =>
 
 const piece = (role: DossierView['role'], docLabel: string, title: string, text: string): DossierView => ({ role, docLabel, title, lines: [{ text }] });
 const camera = piece('hacker', 'CAMERA LOG', 'Station systems', 'The dock camera shows Theo at the docking ring from 21:30 to 21:50. He never left.');
-const witness = piece('witness', 'WITNESS', 'Dr. Sam Reyes, medic', 'Priya played Go with me in the lounge from 21:30 to 21:50. Neither of us got up.');
+const witness = piece('witness', 'STATEMENT', 'Dr. Sam Reyes, medic', 'Priya played Go with me in the lounge from 21:30 to 21:50. Neither of us got up.');
 
 const trio: SquadMemberView[] = [
   { memberId: 'm_ravi', name: 'Ravi', role: 'hacker', roles: ['hacker'], isMe: true },

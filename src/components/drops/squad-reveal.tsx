@@ -58,7 +58,7 @@ export function SquadRevealScreen({
               {ordered.map((m) => (
                 <View key={m.memberId} style={styles.mem}>
                   <View style={[styles.avatar, { backgroundColor: m.isMe ? Palette.ember : m.role ? RoleColors[m.role] : Palette.paperMuted }]}>
-                    <Txt variant="smallStrong" color={Palette.ink}>
+                    <Txt variant="smallStrong" color={Palette.onAccent}>
                       {m.name.charAt(0)}
                     </Txt>
                   </View>
@@ -81,10 +81,8 @@ export function SquadRevealScreen({
       </Enter>
       {(pieces ?? []).map((p, i) => (
         <Enter key={p.role} play={play} delay={1400 + i * 120}>
-          <View style={[styles.piece, { borderColor: RoleColors[p.role] }]}>
-            <Txt variant="label" color={RoleColors[p.role]}>
-              {p.docLabel}
-            </Txt>
+          <View style={[styles.piece, { borderColor: Palette.hairline }]}>
+            <Txt variant="bodyStrong">{p.docLabel.split(' · ')[0].charAt(0) + p.docLabel.split(' · ')[0].slice(1).toLowerCase()}</Txt>
             <Txt variant="small" color={Palette.paperMuted}>
               {p.title}
             </Txt>

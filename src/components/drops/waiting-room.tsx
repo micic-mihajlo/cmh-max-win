@@ -3,12 +3,12 @@ import { StyleSheet, View } from 'react-native';
 import { Screen } from '@/components/signal/backdrop';
 import { Banner, Button, Label } from '@/components/signal/primitives';
 import { Txt } from '@/components/signal/txt';
-import { FontFamily, Palette, Radius, RoleColors, Space } from '@/constants/signal';
+import { FontFamily, Palette, RoleColors, Space } from '@/constants/signal';
 import { Enter } from '@/motion';
 
 import { useServerClock } from './clock';
 import type { DropView } from '@/lib/contract';
-import { clock, Tagline } from './ui';
+import { clock } from './ui';
 
 const avatarColors = [Palette.ember, RoleColors.witness, RoleColors.hacker, RoleColors.detective];
 
@@ -40,20 +40,13 @@ export function WaitingRoomScreen({ drop, offset, onBack }: { drop: DropView; of
           <View style={styles.flex}>
             <Txt variant="bodyStrong">{display}</Txt>
             <Txt variant="small" color={Palette.paperMuted}>
-              presents a squad challenge
+              is live
             </Txt>
           </View>
-          <View style={styles.live}>
-            <Txt variant="label" color={Palette.onAccent}>
-              Live drop
-            </Txt>
-          </View>
+          <View style={styles.live} />
         </View>
         <Txt variant="display" style={styles.title}>
           {drop.title}
-        </Txt>
-        <Txt variant="small" color={Palette.paperMuted}>
-          {Tagline}
         </Txt>
       </Enter>
 
@@ -73,7 +66,7 @@ export function WaitingRoomScreen({ drop, offset, onBack }: { drop: DropView; of
             <View style={styles.stack}>
               {drop.entrants.slice(0, 4).map((p, i) => (
                 <View key={p.name + i} style={[styles.avatar, { backgroundColor: avatarColors[i % 4] }]}>
-                  <Txt variant="smallStrong" color={Palette.ink}>
+                  <Txt variant="smallStrong" color={Palette.onAccent}>
                     {p.name.charAt(0)}
                   </Txt>
                 </View>
@@ -108,7 +101,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  live: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: Radius.pill, backgroundColor: Palette.ember },
+  live: { width: 6, height: 6, borderRadius: 3, backgroundColor: Palette.ember },
   title: { marginTop: Space.l },
   countBox: { alignItems: 'center', gap: 4, marginTop: Space.s },
   count: { fontFamily: FontFamily.uiMedium, fontSize: 76, lineHeight: 84, letterSpacing: -2, color: Palette.paper, fontVariant: ['tabular-nums'] },
