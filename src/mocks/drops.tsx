@@ -2,6 +2,7 @@ import { BountyResultScreen } from '@/components/drops/bounty-result';
 import { RACE_REVEAL_MS, type DossierView, type DropView, type LeaderboardRow, type LeaderboardView, type SquadAwardView } from '@/lib/contract';
 import { CreatorSetupScreen } from '@/components/drops/creator-setup';
 import { DropEntryScreen } from '@/components/drops/drop-entry';
+import { JoinCodeScreen } from '@/components/drops/join-code';
 import { LeaderboardScreen } from '@/components/drops/leaderboard';
 import { SquadRevealScreen, type SquadMemberView } from '@/components/drops/squad-reveal';
 import { WaitingRoomScreen } from '@/components/drops/waiting-room';
@@ -115,6 +116,28 @@ export const DropStates: MockState[] = [
     title: 'Creator · live drop card (live count in the app)',
     render: () => <CreatorSetupScreen drop={nova} live={{ entrantCount: 212, shareUrl: 'cmhmaxwin://drop/aurora-demo' }} />,
   },
+  {
+    id: '11-join-empty',
+    ref: 'host.md',
+    section: 'Drops',
+    title: 'Join · code tiles empty',
+    render: () => <JoinCodeScreen code="" phase="typing" name="Kit" onScan={() => {}} />,
+  },
+  {
+    id: '11-join-typing',
+    ref: 'host.md',
+    section: 'Drops',
+    title: 'Join · typing',
+    render: () => <JoinCodeScreen code="KR" phase="typing" name="Kit" onScan={() => {}} />,
+  },
+  {
+    id: '11-join-error',
+    ref: 'host.md',
+    section: 'Drops',
+    title: 'Join · no drop with that code',
+    render: () => <JoinCodeScreen code="KRQZ" phase="error" name="Kit" />,
+  },
+  { id: '11-join-in', ref: 'host.md', section: 'Drops', title: 'Join · you’re in', render: () => <JoinCodeScreen code="KRQX" phase="joined" name="Kit" /> },
   {
     id: '11-entry',
     ref: 'D2',
