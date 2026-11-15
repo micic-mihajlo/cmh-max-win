@@ -9,7 +9,7 @@ export default function Shelf() {
   const { view, buy } = useSeasonPack();
   return (
     <ShelfScreen
-      attempts={Number(attempts ?? 1)}
+      attempts={Number(attempts ?? 0)}
       crew={crew ? crew.split(',') : []}
       pack={view ?? { pack: 'season01', state: 'locked', real: true, environment: null, error: null }}
       onBuy={buy}
