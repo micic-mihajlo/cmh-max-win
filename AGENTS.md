@@ -58,8 +58,10 @@ Docs: https://docs.expo.dev/eas/index.md
 There is no Xcode on the Linux machine. Build a simulator `.app` on Revyl and install it on a cloud phone:
 
 1. `tools.mobile.build` start, platform `ios`, app `cmh-max-win`, workspace source at the repo root with commands:
-   `corepack enable` → `corepack yarn install --immutable` → `corepack yarn expo prebuild --platform ios --no-install` → `cd ios && pod install` → `cd ios && xcodebuild -workspace cmhmaxwin.xcworkspace -scheme cmhmaxwin -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build CODE_SIGNING_ALLOWED=NO`
+   `corepack enable` → `YARN_HTTP_TIMEOUT=120000 YARN_HTTP_RETRY=5 corepack yarn install --immutable` → `corepack yarn expo prebuild --platform ios --no-install` → `cd ios && pod install` → `cd ios && xcodebuild -workspace cmhmaxwin.xcworkspace -scheme cmhmaxwin -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER= CODE_SIGNING_REQUIRED=NO`
    and output `ios/build/Build/Products/Release-iphonesimulator/cmhmaxwin.app`.
 2. `tools.capy.phone` `install` the build id on an attached iOS phone, then screenshot it.
+
+Ad-hoc signing (`CODE_SIGN_IDENTITY=-`) embeds entitlements so the Keychain works; with `CODE_SIGNING_ALLOWED=NO` SecureStore never resolves and the app hangs on a blank screen. The yarn retry env rides out Revyl runner fetch timeouts.
 
 Release config embeds the JS bundle, so the phone needs no Metro connection. `ios/` and `android/` are generated and gitignored.
