@@ -352,6 +352,14 @@ describe('showcase hygiene', () => {
     expect(hidden.filter((s) => s.hidden).map((s) => s.name).sort()).toEqual(['CMHM-10 host', 'Ivy (ignore)', 'Load runner', 'QA bot', 'Rio', 'load · 12']);
   });
 
+  test('hideStreamers hides exact names, ignoring case, once', async () => {
+    const t = newTest();
+    for (const [d, name] of [['h1', 'Host'], ['h2', 'kit'], ['h3', 'Kitty'], ['h4', 'Nova']]) await hostAs(t, d, name);
+    expect(await t.mutation(internal.feed.hideStreamers, { names: ['HOST', ' Kit ', 'nobody'] })).toEqual({ hidden: 2 });
+    expect(await t.mutation(internal.feed.hideStreamers, { names: ['host', 'kit'] })).toEqual({ hidden: 0 });
+    expect((await t.query(api.feed.streamers, { deviceToken: 'fan' })).map((s) => s.name).sort()).toEqual(['Kitty', 'Nova']);
+  });
+
   test('drops titled like tests stay out of live and past lists', async () => {
     const t = newTest();
     const ignored = await hostAs(t, HOST, 'Nova', 'Warmup (ignore)');

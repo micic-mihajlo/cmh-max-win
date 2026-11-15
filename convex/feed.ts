@@ -572,6 +572,21 @@ export const hideTestHosts = internalMutation({
   },
 });
 
+// Hides the named streamers (exact name, any case), e.g. rehearsal hosts. Idempotent; returns how many it newly hid.
+export const hideStreamers = internalMutation({
+  args: { names: v.array(v.string()) },
+  handler: async (ctx, { names }) => {
+    const wanted = new Set(names.map((n) => n.trim().toLowerCase()).filter(Boolean));
+    let hidden = 0;
+    for (const s of await ctx.db.query('streamers').collect()) {
+      if (s.hidden || !wanted.has(s.name.trim().toLowerCase())) continue;
+      await ctx.db.patch(s._id, { hidden: true });
+      hidden++;
+    }
+    return { hidden };
+  },
+});
+
 // Cron: ends test hosted drops older than STALE_DROP_MS, and real ones older than ABANDONED_DROP_MS that were dealt
 // and have no squad still racing. A real drop that is waiting to be dealt is never touched. Idempotent: ended
 // drops are skipped. "Live now" doesn't depend on this; reads already drop idle drops.
