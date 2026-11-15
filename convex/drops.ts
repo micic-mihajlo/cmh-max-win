@@ -231,6 +231,10 @@ export const leaveDrop = mutation({
   },
 });
 
+// The video's rival squads (scripts/demo/rivals.mjs) enter with this prefix; an all-demo squad is labelled
+// "Demo Squad A/B/C" so it never reads as real players.
+export const DEMO_NAME_PREFIX = 'Demo · ';
+
 async function formSquads(ctx: MutationCtx, drop: Doc<'drops'>) {
   if (drop.status !== 'scheduled') return;
   const entries = await entriesOf(ctx, drop.dropId);
@@ -243,9 +247,11 @@ async function formSquads(ctx: MutationCtx, drop: Doc<'drops'>) {
     return;
   }
   let next = 0;
+  let demoSquads = 0;
   for (const [squadIndex, size] of sizes.entries()) {
     const seats = entries.slice(next, next + size);
     next += size;
+    const demo = seats.every((e) => e.name.startsWith(DEMO_NAME_PREFIX));
     const roomId = await ctx.db.insert('rooms', {
       code: await generateCode(ctx),
       hostToken: '',
@@ -253,7 +259,7 @@ async function formSquads(ctx: MutationCtx, drop: Doc<'drops'>) {
       dropId: drop.dropId,
       squadSize: size,
       squadIndex,
-      squadLabel: `Squad ${squadIndex + 1}`,
+      squadLabel: demo ? `Demo Squad ${String.fromCharCode(65 + demoSquads++)}` : `Squad ${squadIndex + 1 - demoSquads}`,
       status: 'intro',
       theory: { culprit: null, revision: 0, lastEditedBy: null },
       attempts: 0,
@@ -506,19 +512,30 @@ const HOSTED_DROP_HOLD_MS = 24 * 60 * 60 * 1000;
 
 // Host screen: creates a drop this device runs and deals by hand. Public, so it always pays in concept mode;
 // no client can create a drop that spends real money. The bounty is display only.
+// The newest name this device has played or entered a drop under, from squad seats and drop entries.
+async function lastNameOf(ctx: MutationCtx, deviceToken: string): Promise<string | null> {
+  const [member, entry] = await Promise.all([
+    ctx.db.query('members').withIndex('by_token', (q) => q.eq('deviceToken', deviceToken)).order('desc').first(),
+    ctx.db.query('dropEntries').withIndex('by_token', (q) => q.eq('deviceToken', deviceToken)).order('desc').first(),
+  ]);
+  const latest = [member, entry].filter((d) => d !== null).sort((a, b) => b._creationTime - a._creationTime)[0];
+  return latest?.name.trim() || null;
+}
+
 export const hostDrop = mutation({
   args: {
     deviceToken: v.string(),
     title: v.optional(v.string()),
     winnerSlots: v.optional(v.number()),
     totalCents: v.optional(v.number()),
+    creatorName: v.optional(v.string()),
   },
-  handler: async (ctx, { deviceToken, title, winnerSlots, totalCents }) => {
+  handler: async (ctx, { deviceToken, title, winnerSlots, totalCents, creatorName }) => {
     if (!deviceToken) fail('WRONG_STATUS', 'Missing device token.');
     return insertDrop(ctx, {
       dropId: `host-${Date.now().toString(36)}-${Math.floor(Math.random() * 46656).toString(36)}`,
       title: (title ?? 'The Aurora Seed').trim().slice(0, 60) || 'The Aurora Seed',
-      creatorName: 'Host',
+      creatorName: (creatorName ?? '').trim().slice(0, 24) || (await lastNameOf(ctx, deviceToken)) || 'Host',
       squadSize: 3,
       startsAt: Date.now() + HOSTED_DROP_HOLD_MS,
       bounty: { totalCents: totalCents ?? 30_000, winnerSlots: winnerSlots ?? 3 },
