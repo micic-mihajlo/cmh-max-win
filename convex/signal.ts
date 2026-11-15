@@ -143,12 +143,15 @@ export const room = query({
       code: room.code,
       status: room.status,
       caseId: room.caseId,
+      squadSize: 3,
+      drop: null,
       isHost: room.hostToken === deviceToken,
       me: me ? { memberId: me._id, role: me.role, name: me.name } : null,
       members: all.map((m) => ({
         memberId: m._id,
         name: m.name,
         role: m.role,
+        roles: m.role ? [m.role] : [],
         presence: !online.has(m._id)
           ? 'offline'
           : room.status === 'playing' && locked.has(m._id)

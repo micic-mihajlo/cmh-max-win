@@ -19,7 +19,8 @@ export type RoomStatus = 'lobby' | 'intro' | 'playing' | 'resolved';
 export type MemberView = {
   memberId: string; // display/key only; the server never accepts it as identity
   name: string;
-  role: Role | null;
+  role: Role | null; // primary role (the seal and color)
+  roles: Role[]; // every role whose evidence this player holds: 1 in a squad of 3, 1 or 2 in a squad of 2
   presence: Presence;
   isHost: boolean;
   isMe: boolean;
@@ -38,9 +39,13 @@ export type NudgeView = {
   revision: number; // the theory revision this nudge answered
 };
 
+export type SquadSize = 2 | 3;
+
 export type RoomView = {
   code: string; // 4 chars, uppercase
   status: RoomStatus;
+  squadSize: SquadSize; // 3 for a private room
+  drop: { dropId: string; title: string; squadLabel: string } | null; // set when this room is a drop squad
   caseId: CaseId;
   isHost: boolean;
   me: { memberId: string; role: Role | null; name: string } | null; // null = this device isn't a member (join / reclaim)
@@ -93,7 +98,10 @@ export type SignalErrorCode =
   | 'WRONG_STATUS'
   | 'STALE_REVISION'
   | 'ALREADY_CHECKED'
-  | 'CONFIRM_REQUIRED';
+  | 'CONFIRM_REQUIRED'
+  | 'DROP_NOT_FOUND'
+  | 'DROP_CLOSED' // entries close at the start time; a late joiner gets this
+  | 'NOT_ENTERED';
 
 export type SignalError = { code: SignalErrorCode; message: string };
 
@@ -110,10 +118,82 @@ export type LockInResult =
   | { outcome: 'wrong'; nudge: NudgeView; attempts: number }
   | { outcome: 'resolved' };
 
+// ---------- Drops: creator challenges with a skill-only bounty ----------
+// A drop is free to enter. At startsAt the server splits entrants into squads of 3 (or 2 to absorb the
+// remainder: 4 -> 2+2, 5 -> 3+2, 7 -> 3+2+2) and each squad is a RoomView room that starts at 'intro' with
+// roles already assigned. The first winnerSlots squads to resolve correctly win, ranked by the order the
+// server committed their correct final lock-in (serializable, so no ties and nothing random).
+
+export type DropStatus = 'scheduled' | 'live' | 'ended';
+export type BountyMode = 'concept' | 'sandbox';
+
+export type BountyView = {
+  totalCents: number;
+  currency: 'usd';
+  winnerSlots: number; // X: the first X correct squads split the pool
+  perSquadCents: number; // totalCents / winnerSlots, floored
+  mode: BountyMode; // 'concept' moves no money and must be labeled as a concept in the UI
+};
+
+export type DropSummaryView = {
+  dropId: string; // slug, e.g. 'aurora-demo'
+  title: string;
+  creatorName: string;
+  caseId: CaseId;
+  startsAt: number; // ms epoch, server clock
+  status: DropStatus;
+  entrantCount: number;
+  bounty: BountyView;
+  winnersSoFar: number;
+};
+
+// The waiting room before start, and the drop hub after it.
+export type DropView = DropSummaryView & {
+  entrants: { name: string; isMe: boolean }[]; // names only, in entry order
+  me: {
+    entered: boolean;
+    name: string | null;
+    squad: { code: string; size: SquadSize; label: string } | null; // set at start; open the room with this code
+    unmatched: boolean; // entered, but the drop started with nobody left to pair with
+  };
+};
+
+export type LeaderboardRow = {
+  rank: number | null; // 1-based finishing place once solved, null while still solving
+  squadLabel: string; // 'Squad 3'
+  memberNames: string[];
+  status: 'solving' | 'solved' | 'winner';
+  solveMs: number | null; // server time from drop start to the correct final lock-in
+  attempts: number;
+  isMine: boolean;
+};
+
+export type LeaderboardView = {
+  dropId: string;
+  status: DropStatus;
+  startsAt: number;
+  winnerSlots: number;
+  rows: LeaderboardRow[]; // solved squads by rank, then solving squads by squad label
+};
+
+// Only the members of the winning squad ever receive this; everyone else gets null.
+export type SquadAwardView = {
+  place: number;
+  amountCents: number; // the squad's share
+  perPlayerCents: number; // amountCents / squad size, floored
+  currency: 'usd';
+  mode: BountyMode;
+  status: 'pending' | 'ready' | 'failed';
+  claimUrl: string | null; // a Whop claim link, one claim per player; null in concept mode
+  redeemableCount: number; // = squad size
+  label: string; // e.g. 'Concept payout — no real money moves'
+};
+
 // Hook signatures. Queries return undefined while loading and null when there is nothing to show.
 export type UseActiveRoom = () => ActiveRoomView | undefined;
 export type UseRoom = (code: string | null) => RoomView | null | undefined; // null = no such room; also keeps this device's presence alive
-export type UseMyDossier = (code: string | null) => DossierView | null | undefined;
+export type UseMyDossier = (code: string | null) => DossierView | null | undefined; // primary role only
+export type UseMyEvidence = (code: string | null) => DossierView[] | null | undefined; // every dossier this player holds
 export type UseReveal = (code: string | null) => RevealView | null | undefined;
 
 export type UseCreateRoom = () => (args: { name: string }) => Promise<{ code: string }>;
@@ -149,3 +229,10 @@ export type SeasonPackView = {
 };
 // view is undefined while loading.
 export type UseSeasonPack = () => { view: SeasonPackView | undefined; buy: () => Promise<void> };
+
+export type UseDrops = () => DropSummaryView[] | undefined; // scheduled and live drops, soonest first
+export type UseDrop = (dropId: string | null) => DropView | null | undefined;
+export type UseLeaderboard = (dropId: string | null) => LeaderboardView | null | undefined;
+export type UseMyAward = (code: string | null) => SquadAwardView | null | undefined;
+export type UseEnterDrop = (dropId: string) => (args: { name: string }) => Promise<void>; // free, idempotent
+export type UseLeaveDrop = (dropId: string) => () => Promise<void>; // waiting room only
