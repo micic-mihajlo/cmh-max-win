@@ -97,7 +97,7 @@ export function LeaderboardScreen({
         ) : inMoney ? (
           <>
             <Txt variant="small" color={Palette.paperMuted} style={styles.center}>
-              Jun took the seed. All three pieces counted.
+              {`Jun took the seed. All ${(mine?.memberNames.length || drop.squadSize) === 2 ? 'two' : 'three'} pieces counted.`}
             </Txt>
             <Button title="See your share" onPress={on?.onShare} />
           </>

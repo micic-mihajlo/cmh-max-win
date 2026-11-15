@@ -1,6 +1,7 @@
 import { BountyResultScreen } from '@/components/drops/bounty-result';
 import { RACE_REVEAL_MS, type DossierView, type DropView, type LeaderboardRow, type LeaderboardView, type SquadAwardView } from '@/lib/contract';
 import { CreatorSetupScreen, POTS } from '@/components/drops/creator-setup';
+import { JoinChooser } from '@/components/drops/join-chooser';
 import { DropEntryScreen } from '@/components/drops/drop-entry';
 import { JoinCodeScreen } from '@/components/drops/join-code';
 import { LeaderboardScreen } from '@/components/drops/leaderboard';
@@ -165,6 +166,7 @@ export const DropStates: MockState[] = [
     title: 'Join · no drop with that code',
     render: () => <JoinCodeScreen code="KRQZ" phase="error" name="Kit" />,
   },
+  { id: '11-join-chooser', ref: 'web join', section: 'Drops', title: 'Web · QR landing (app or browser)', render: () => <JoinChooser code="KRQX" /> },
   {
     id: '11-join-error-host',
     ref: 'host.md',
