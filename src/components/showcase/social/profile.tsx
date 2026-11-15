@@ -1,56 +1,34 @@
 import { StyleSheet, View } from 'react-native';
 
+import { Avatar } from '@/components/signal/primitives';
 import { Txt } from '@/components/signal/txt';
-import { FontFamily, Palette, Radius, Space } from '@/constants/signal';
+import { Palette, Space } from '@/constants/signal';
 import { me } from '@/mocks/showcase/social';
 import { Enter } from '@/motion';
 
 import { nameList } from './copy';
-import { Avatar, Screen, Section, Wash, showcase } from './kit';
+import { Screen, Section, showcase } from './kit';
 
 export function ProfileScreen() {
   return (
     <Screen title="Profile">
       <Enter style={[showcase.gutter, styles.head]}>
-        <Avatar initials={me.initials} size={84} />
-        <Txt variant="display">@{me.handle}</Txt>
-        <Txt variant="small" color={Palette.paperMuted}>
-          Sample data · {me.joined}
+        <Avatar name={me.name} size={48} filled />
+        <Txt variant="display" style={styles.name}>
+          {me.name}
+        </Txt>
+        <Txt variant="caption" color={Palette.paperMuted}>
+          @{me.handle} · {me.joined} · Sample data
+        </Txt>
+        <Txt variant="body" style={styles.summary}>
+          {me.solved} cases solved with {me.squadCount} squads. {`Best\u00A0finish\u00A0${me.bestFinish}.`}
         </Txt>
       </Enter>
 
-      <Enter index={1} style={[showcase.gutter, styles.grid]}>
-        {me.stats.map((s) => (
-          <View key={s.label} style={styles.cell}>
-            <Txt style={styles.stat}>
-              {s.value}
-            </Txt>
-            <Txt variant="small" color={Palette.paperMuted}>
-              {s.label}
-            </Txt>
-          </View>
-        ))}
-      </Enter>
-
-      <Section title="Season packs">
-        <View style={styles.packs}>
-          {me.packs.map((p) => (
-            <View key={p.id} style={[styles.pack, { backgroundColor: Wash.pick(p.creator) }]}>
-              <Txt variant="bodyStrong" numberOfLines={2}>
-                {p.title}
-              </Txt>
-              <Txt variant="small" color={Palette.paperMuted}>
-                {p.creator} · {p.owned} of {p.episodes}
-              </Txt>
-            </View>
-          ))}
-        </View>
-      </Section>
-
       <Section title="Recent squads">
         <View style={showcase.list}>
-          {me.squads.map((q) => (
-            <View key={q.id} style={showcase.row}>
+          {me.squads.map((q, i) => (
+            <Enter key={q.id} index={i + 1} style={showcase.row}>
               <Txt variant="bodyStrong" style={styles.place}>
                 {q.placement}
               </Txt>
@@ -63,14 +41,16 @@ export function ProfileScreen() {
                 </Txt>
               </View>
               <View style={styles.right}>
-                <Txt variant="smallStrong" style={styles.tabular}>
-                  {q.earned ?? ''}
-                </Txt>
+                {q.earned ? (
+                  <Txt variant="smallStrong" style={styles.tabular}>
+                    {q.earned}
+                  </Txt>
+                ) : null}
                 <Txt variant="small" color={Palette.paperMuted}>
                   {q.when}
                 </Txt>
               </View>
-            </View>
+            </Enter>
           ))}
         </View>
       </Section>
@@ -79,13 +59,10 @@ export function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  head: { alignItems: 'center', gap: Space.s, marginTop: Space.s },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: Space.xl, marginTop: Space.xxl },
-  cell: { width: '50%' },
+  head: { gap: Space.xs, marginTop: Space.s },
+  name: { marginTop: Space.m },
+  summary: { marginTop: Space.l },
   tabular: { fontVariant: ['tabular-nums'] },
-  stat: { fontFamily: FontFamily.uiSemi, fontSize: 28, lineHeight: 34, fontVariant: ['tabular-nums'] },
-  packs: { flexDirection: 'row', gap: Space.m },
-  pack: { flex: 1, borderRadius: Radius.m, padding: Space.l, minHeight: 128, justifyContent: 'flex-end', gap: Space.xs },
   place: { width: 36, fontVariant: ['tabular-nums'] },
   right: { alignItems: 'flex-end' },
 });
