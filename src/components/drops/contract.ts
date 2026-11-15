@@ -27,6 +27,7 @@ export type DropSummaryView = {
 };
 
 export type DropView = DropSummaryView & {
+  serverNow: number; // server ms at query time; derive one clock offset from it
   entrants: { name: string; isMe: boolean }[];
   me: {
     entered: boolean;
@@ -51,8 +52,12 @@ export type LeaderboardView = {
   status: DropStatus;
   startsAt: number;
   winnerSlots: number;
+  serverNow: number;
   rows: LeaderboardRow[];
 };
+
+// The squad-assignment choreography runs this long after startsAt; the race clock starts after it.
+export const RACE_REVEAL_MS = 2400;
 
 export type SquadAwardView = {
   place: number;
@@ -62,6 +67,7 @@ export type SquadAwardView = {
   mode: BountyMode;
   status: 'pending' | 'ready' | 'failed';
   claimUrl: string | null;
+  expiresAt: number | null; // the claim link's expiry; null in concept mode
   redeemableCount: number;
   label: string;
 };

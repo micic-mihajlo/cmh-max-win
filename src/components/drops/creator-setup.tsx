@@ -1,173 +1,157 @@
+import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/signal/backdrop';
-import { Icon } from '@/components/signal/icon';
-import { Button, Label, NextStep, Segmented } from '@/components/signal/primitives';
+import { Label, Segmented } from '@/components/signal/primitives';
 import { Txt } from '@/components/signal/txt';
-import { Palette, Radius, RoleColors, Space } from '@/constants/signal';
+import { Palette, Radius, Space } from '@/constants/signal';
+import { PressScale } from '@/motion';
 
-import type { BountyMode, SquadSize } from './contract';
-import { ModeTag, money, PieceLabel, Tagline } from './ui';
+import type { SquadSize } from './contract';
+import { ModeTag, money, money2, Tagline } from './ui';
 
-export type CreatorDraft = {
-  title: string;
-  squadSize: SquadSize;
-  totalCents: number;
-  winnerSlots: number;
-  startsInMin: number;
-  mode: BountyMode;
-};
+export type CreatorDraft = { title: string; squadSize: SquadSize; totalCents: number; winnerSlots: number; startsIn: 'now' | '5' | '15' };
 
-function Stepper({ label, value, hint }: { label: string; value: string; hint: string }) {
+function Field({ k, children }: { k: string; children: ReactNode }) {
   return (
     <View style={styles.field}>
-      <Label>{label}</Label>
-      <View style={styles.stepper}>
-        <View style={styles.stepBtn}>
-          <Icon name="minus" size={14} color={Palette.paperMuted} />
-        </View>
-        <Txt variant="title" style={styles.stepValue}>
-          {value}
-        </Txt>
-        <View style={styles.stepBtn}>
-          <Icon name="plus" size={14} color={Palette.paper} />
-        </View>
-      </View>
-      <Txt variant="small" color={Palette.paperMuted}>
-        {hint}
-      </Txt>
+      <Txt variant="bodyStrong">{k}</Txt>
+      {children}
     </View>
   );
 }
 
-export function CreatorSetupScreen({ draft, publishing }: { draft: CreatorDraft; publishing?: boolean }) {
+function Stepper({ value }: { value: string }) {
+  return (
+    <View style={styles.step}>
+      <View style={styles.stepBtn}>
+        <Txt variant="bodyStrong" color={Palette.paperMuted}>
+          −
+        </Txt>
+      </View>
+      <Txt variant="bodyStrong" style={styles.stepValue}>
+        {value}
+      </Txt>
+      <View style={styles.stepBtn}>
+        <Txt variant="bodyStrong" color={Palette.paperMuted}>
+          +
+        </Txt>
+      </View>
+    </View>
+  );
+}
+
+export function CreatorSetupScreen({ draft, opening }: { draft: CreatorDraft; opening?: boolean }) {
   const perSquad = Math.floor(draft.totalCents / draft.winnerSlots);
   const perPlayer = Math.floor(perSquad / draft.squadSize);
   return (
     <Screen
       footer={
         <>
-          <NextStep>{`Goes live now. Squads form in ${draft.startsInMin} min.`}</NextStep>
-          <Button
-            title={publishing ? 'Going live…' : 'Go live'}
-            disabled={publishing}
-            icon={<Icon name="dot.radiowaves.left.and.right" color={publishing ? Palette.paperMuted : Palette.ink} />}
-          />
+          <PressScale disabled={opening} style={[styles.cta, opening && styles.ctaBusy]}>
+            <Txt variant="button" color={opening ? Palette.paperMuted : Palette.ink}>
+              {opening ? 'Opening…' : 'Open drop'}
+            </Txt>
+          </PressScale>
+          <Txt variant="small" color={Palette.paperMuted} style={styles.center}>
+            Free to enter. The first correct squads win, no luck involved.
+          </Txt>
         </>
       }>
       <View style={styles.head}>
-        <Label>New drop</Label>
+        <Label>New drop · creator</Label>
         <Txt variant="display">Set up your drop</Txt>
-        <Txt variant="small" color={Palette.paperMuted}>
-          Followers join a waiting room. When it opens, they’re split into squads and race the same challenge.
-        </Txt>
       </View>
 
-      <View style={styles.challenge}>
-        <Label>Challenge</Label>
-        <Txt variant="title">{draft.title}</Txt>
-        <Txt variant="small" color={Palette.paperMuted}>
-          Who stole the Aurora Seed? 4 suspects, 3 pieces. Solves take 20–45 s.
-        </Txt>
-        <View style={styles.pieceRow}>
-          {(['hacker', 'witness', 'detective'] as const).map((r) => (
-            <View key={r} style={[styles.piece, { borderColor: RoleColors[r] }]}>
-              <Txt variant="smallStrong" color={RoleColors[r]}>
-                {PieceLabel[r]}
-              </Txt>
-            </View>
-          ))}
+      <View style={styles.chal}>
+        <View style={styles.art}>
+          <Txt variant="title" color={Palette.ok}>
+            A
+          </Txt>
         </View>
-        <Txt variant="quote" color={Palette.paperMuted}>
-          {Tagline}
-        </Txt>
-      </View>
-
-      <View style={styles.field}>
-        <Label>Squad size</Label>
-        <Segmented
-          value={String(draft.squadSize) as '2' | '3'}
-          options={[
-            { value: '2', label: 'Duos · 2' },
-            { value: '3', label: 'Trios · 3' },
-          ]}
-        />
-        <Txt variant="small" color={Palette.paperMuted}>
-          Leftovers still play: an odd one out turns a {draft.squadSize === 3 ? 'trio into two duos' : 'duo into a trio'}.
-        </Txt>
-      </View>
-
-      <View style={styles.row}>
-        <Stepper label="Bounty" value={money(draft.totalCents)} hint="Total pool" />
-        <Stepper label="Winners" value={String(draft.winnerSlots)} hint="First correct squads" />
-      </View>
-
-      <View style={styles.split}>
-        <View style={styles.splitHead}>
-          <Label>Payout</Label>
-          <ModeTag mode={draft.mode} />
+        <View style={styles.flex}>
+          <Txt variant="name">{draft.title}</Txt>
+          <Txt variant="small" color={Palette.paperMuted}>
+            Squad whodunit · 3 pieces · ~2 min
+          </Txt>
         </View>
-        <Txt variant="bodyStrong">{`Each of the first ${draft.winnerSlots} squads gets ${money(perSquad)}, ${money(perPlayer)} per player.`}</Txt>
-        <Txt variant="small" color={Palette.paperMuted}>
-          Free to enter. Skill only: winners are the first correct squads in the order the server checks them.
+      </View>
+
+      <View style={styles.card}>
+        <Field k="Squad size">
+          <View style={styles.seg}>
+            <Segmented
+              value={String(draft.squadSize) as '2' | '3'}
+              options={[
+                { value: '2', label: '2' },
+                { value: '3', label: '3' },
+              ]}
+            />
+          </View>
+        </Field>
+        <Field k="Bounty">
+          <Stepper value={money(draft.totalCents)} />
+        </Field>
+        <Field k="Winning squads">
+          <Stepper value={String(draft.winnerSlots)} />
+        </Field>
+        <Txt variant="small" color={Palette.paperMuted} style={styles.math}>
+          Each winning squad gets <Txt variant="smallStrong">{money(perSquad)}</Txt>, so <Txt variant="smallStrong">{money2(perPlayer)}</Txt> per player.
         </Txt>
       </View>
+
+      <View style={styles.card}>
+        <Field k="Starts">
+          <View style={styles.seg}>
+            <Segmented
+              value={draft.startsIn}
+              options={[
+                { value: 'now', label: 'Now' },
+                { value: '5', label: '5 min' },
+                { value: '15', label: '15 min' },
+              ]}
+            />
+          </View>
+        </Field>
+        <Field k="Paid with">
+          <View style={styles.paid}>
+            <Txt variant="body" color={Palette.paperMuted}>
+              Whop
+            </Txt>
+            <ModeTag mode="concept" />
+          </View>
+        </Field>
+      </View>
+      <Txt variant="quote" color={Palette.paperMuted}>
+        {Tagline}
+      </Txt>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
+  center: { textAlign: 'center' },
   head: { gap: Space.s, marginTop: Space.s },
-  challenge: {
-    gap: Space.s,
+  chal: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
     padding: Space.l,
-    borderRadius: Radius.l,
+    borderRadius: 16,
     backgroundColor: Palette.panel,
-    borderWidth: 1,
-    borderColor: Palette.hairline,
+    borderWidth: 1.5,
+    borderColor: Palette.ember,
   },
-  pieceRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginVertical: Space.xs,
-  },
-  piece: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-  },
-  field: { flex: 1, gap: Space.s },
-  row: { flexDirection: 'row', gap: Space.l },
-  stepper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 6,
-    borderRadius: Radius.pill,
-    backgroundColor: Palette.panel,
-    borderWidth: 1,
-    borderColor: Palette.hairline,
-  },
-  stepBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Palette.panelRaised,
-  },
-  stepValue: { fontVariant: ['tabular-nums'] },
-  split: {
-    gap: Space.s,
-    borderLeftWidth: 2,
-    borderLeftColor: Palette.ember,
-    paddingLeft: Space.l,
-  },
-  splitHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
+  art: { width: 56, height: 56, borderRadius: Radius.m, backgroundColor: Palette.panelRaised, alignItems: 'center', justifyContent: 'center' },
+  card: { borderRadius: 16, backgroundColor: Palette.panel, borderWidth: StyleSheet.hairlineWidth, borderColor: Palette.hairline },
+  field: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 56, paddingHorizontal: Space.l, gap: Space.m },
+  seg: { minWidth: 140 },
+  step: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  stepBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: Palette.ink },
+  stepValue: { minWidth: 44, textAlign: 'center', fontVariant: ['tabular-nums'] },
+  math: { paddingHorizontal: Space.l, paddingBottom: Space.m },
+  paid: { flexDirection: 'row', alignItems: 'center', gap: Space.s },
+  cta: { height: 54, borderRadius: 16, backgroundColor: Palette.ember, alignItems: 'center', justifyContent: 'center' },
+  ctaBusy: { backgroundColor: Palette.panel },
 });

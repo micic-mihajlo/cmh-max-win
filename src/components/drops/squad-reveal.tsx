@@ -1,90 +1,102 @@
 import { StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/signal/backdrop';
-import { Button, Label, NextStep } from '@/components/signal/primitives';
-import { Seal } from '@/components/signal/seal';
+import { Label } from '@/components/signal/primitives';
 import { Txt } from '@/components/signal/txt';
 import { Palette, Radius, RoleColors, Space } from '@/constants/signal';
-import { Enter, Stagger } from '@/motion';
+import { Enter, PressScale, Stagger } from '@/motion';
 
-import type { DropView, SquadMemberView } from './contract';
-import { names, PieceLabel, Tagline } from './ui';
+import { RACE_REVEAL_MS, type DropView, type SquadMemberView } from './contract';
+import { PieceCopy } from './ui';
 
-export function SquadRevealScreen({ drop, members }: { drop: DropView; members: SquadMemberView[] }) {
+// The reveal is held for RACE_REVEAL_MS on every phone: squad card at 900 ms, piece at 1400 ms, CTA at the end.
+export function SquadRevealScreen({ drop, members, play = true }: { drop: DropView; members: SquadMemberView[]; play?: boolean }) {
   const squad = drop.me.squad;
-  const others = members.filter((m) => !m.isMe).map((m) => m.name);
+  const me = members.find((m) => m.isMe);
+  const ordered = [...members].sort((a, b) => Number(b.isMe) - Number(a.isMe));
+  const mine = me?.roles ?? [];
   return (
     <Screen
       footer={
-        <>
-          <NextStep>Everyone locks in the same name. Then the server checks.</NextStep>
-          <Button title="Open the case" />
-        </>
-      }>
-      <View style={styles.head}>
-        <Label color={Palette.ember}>{drop.title} · squads formed</Label>
-        <Enter>
-          <Txt variant="hero">{squad?.label ?? 'Your squad'}</Txt>
+        <Enter play={play} delay={RACE_REVEAL_MS - 400}>
+          <View style={styles.footer}>
+            <Txt variant="small" color={Palette.paperMuted} style={styles.center}>
+              Read it out to your squad.
+            </Txt>
+            <PressScale style={styles.cta}>
+              <Txt variant="button" color={Palette.ink}>
+                Open the case
+              </Txt>
+            </PressScale>
+          </View>
         </Enter>
-        <Txt variant="title">{`You’re in ${squad?.label ?? 'a squad'} with ${names(others)}.`}</Txt>
-      </View>
-      <View style={styles.seals}>{members.map((m) => (m.role ? <Seal key={m.memberId} role={m.role} filled size={56} /> : null))}</View>
-      <View style={styles.list}>
-        <Stagger>
-          {members.map((m) => (
-            <View key={m.memberId} style={[styles.member, m.isMe && styles.memberMe]}>
-              <View style={styles.memberHead}>
-                <Txt variant="name">{m.isMe ? `${m.name} (you)` : m.name}</Txt>
-                <Txt variant="smallStrong" color={Palette.paperMuted}>
-                  {m.roles.length} {m.roles.length === 1 ? 'piece' : 'pieces'}
-                </Txt>
-              </View>
-              <View style={styles.pieces}>
-                {m.roles.map((r) => (
-                  <View key={r} style={[styles.piece, { borderColor: RoleColors[r] }]}>
-                    <Txt variant="small" color={RoleColors[r]}>
-                      {m.isMe ? PieceLabel[r] : 'Sealed'}
+      }>
+      <Label>{mine.length > 1 ? 'Your pieces' : 'Your squad'}</Label>
+      <Enter play={play} delay={900}>
+        <View style={styles.card}>
+          <View style={styles.cardHead}>
+            <Txt variant="title">{squad?.label ?? 'Your squad'}</Txt>
+            <Txt variant="smallStrong" color={Palette.paperMuted}>
+              {members.length} players
+            </Txt>
+          </View>
+          <View style={styles.members}>
+            <Stagger play={play} delay={900}>
+              {ordered.map((m) => (
+                <View key={m.memberId} style={styles.mem}>
+                  <View style={[styles.avatar, { backgroundColor: m.isMe ? Palette.ember : m.role ? RoleColors[m.role] : Palette.paperMuted }]}>
+                    <Txt variant="smallStrong" color={Palette.ink}>
+                      {m.name.charAt(0)}
                     </Txt>
                   </View>
-                ))}
-              </View>
-            </View>
-          ))}
-        </Stagger>
-      </View>
-      <Txt variant="small" color={Palette.paperMuted}>
-        {`3 pieces between ${members.length} phones. Only the holder can see a piece, so read yours out.`}
-      </Txt>
-      <Txt variant="quote" color={Palette.paperMuted}>
-        {Tagline}
-      </Txt>
+                  <Txt variant="bodyStrong" style={styles.flex}>
+                    {m.isMe ? `${m.name} · you` : m.name}
+                  </Txt>
+                  <Txt variant="small" color={Palette.paperMuted}>
+                    {m.roles.length} {m.roles.length === 1 ? 'piece' : 'pieces'}
+                  </Txt>
+                  <View style={styles.mini}>
+                    {m.roles.map((r) => (
+                      <View key={r} style={[styles.miniPiece, { backgroundColor: m.isMe ? RoleColors[r] : Palette.hairline }]} />
+                    ))}
+                  </View>
+                </View>
+              ))}
+            </Stagger>
+          </View>
+        </View>
+      </Enter>
+      {mine.map((r, i) => (
+        <Enter key={r} play={play} delay={1400 + i * 120}>
+          <View style={[styles.piece, { borderColor: RoleColors[r] }]}>
+            <Txt variant="label" color={RoleColors[r]}>
+              {PieceCopy[r].doc}
+            </Txt>
+            <Txt variant="small" color={Palette.paperMuted}>
+              {PieceCopy[r].source}
+            </Txt>
+            <Txt variant="quote">{PieceCopy[r].text}</Txt>
+            <Txt variant="small" color={Palette.paperFaint}>
+              Only you can see this. Read it out.
+            </Txt>
+          </View>
+        </Enter>
+      ))}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  head: { gap: Space.s, marginTop: Space.s },
-  seals: { flexDirection: 'row', gap: Space.m },
-  list: { gap: Space.s },
-  member: {
-    gap: Space.s,
-    padding: Space.l,
-    borderRadius: Radius.m,
-    backgroundColor: Palette.panel,
-    borderWidth: 1,
-    borderColor: Palette.hairline,
-  },
-  memberMe: { borderColor: Palette.ember },
-  memberHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  pieces: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
-  piece: {
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-  },
+  flex: { flex: 1 },
+  center: { textAlign: 'center' },
+  footer: { gap: Space.s },
+  cta: { height: 54, borderRadius: 16, backgroundColor: Palette.ember, alignItems: 'center', justifyContent: 'center' },
+  card: { padding: 18, borderRadius: 16, backgroundColor: Palette.panel, borderWidth: StyleSheet.hairlineWidth, borderColor: Palette.hairline },
+  cardHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
+  members: { gap: 10, marginTop: 14 },
+  mem: { flexDirection: 'row', alignItems: 'center', gap: Space.m },
+  avatar: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  mini: { flexDirection: 'row', gap: 3 },
+  miniPiece: { width: 10, height: 14, borderRadius: 2 },
+  piece: { gap: 6, padding: Space.l, borderRadius: Radius.l, backgroundColor: Palette.panel, borderWidth: 1.5 },
 });

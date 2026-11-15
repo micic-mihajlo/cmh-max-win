@@ -17,8 +17,37 @@ export const PieceLabel: Record<Role, string> = {
   detective: 'Scene Notes',
 };
 
+export const Brass = RoleColors.detective;
+
+export const PieceCopy: Record<Role, { doc: string; source: string; text: string }> = {
+  hacker: {
+    doc: 'CAMERA LOG · HACKER',
+    source: 'Station systems',
+    text: '“The dock camera shows Theo at the docking ring from 21:30 to 21:50. He never left.”',
+  },
+  witness: {
+    doc: 'STATEMENT · WITNESS',
+    source: 'Dr. Sam Reyes, medic',
+    text: '“Priya played Go with me in the lounge from 21:30 to 21:50. Neither of us got up.”',
+  },
+  detective: {
+    doc: 'SCENE NOTES · DETECTIVE',
+    source: 'Station security',
+    text: '“Ines was locked inside the clean room from 21:30 to 21:50. Its only door never opened.”',
+  },
+};
+
 export function money(cents: number) {
   return cents % 100 === 0 ? `$${cents / 100}` : `$${(cents / 100).toFixed(2)}`;
+}
+
+export function money2(cents: number) {
+  return `$${(cents / 100).toFixed(2)}`;
+}
+
+export function short(ms: number) {
+  const s = Math.max(0, Math.round(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
 export function clock(ms: number) {
@@ -40,8 +69,8 @@ export function ModeTag({ mode }: { mode: BountyMode }) {
   const concept = mode === 'concept';
   return (
     <View style={[styles.mode, concept ? styles.modeConcept : styles.modeReal]}>
-      <Icon name={concept ? 'flask' : 'checkmark.seal.fill'} size={12} color={concept ? Palette.paper : Palette.ok} />
-      <Txt variant="label" color={concept ? Palette.paper : Palette.ok}>
+      <Icon name={concept ? 'flask' : 'checkmark.seal.fill'} size={12} color={concept ? Brass : Palette.ok} />
+      <Txt variant="label" color={concept ? Brass : Palette.ok}>
         {concept ? 'Concept' : 'Verified · Whop sandbox'}
       </Txt>
     </View>
@@ -115,11 +144,8 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
     borderWidth: 1,
   },
-  modeConcept: { borderColor: Palette.paperMuted, borderStyle: 'dashed' },
-  modeReal: {
-    borderColor: Palette.ok,
-    backgroundColor: 'rgba(159,196,154,0.1)',
-  },
+  modeConcept: { borderColor: Brass, borderStyle: 'dashed' },
+  modeReal: { borderColor: Palette.ok },
   bounty: { flexDirection: 'row', alignItems: 'baseline', gap: Space.s },
   card: {
     gap: Space.m,

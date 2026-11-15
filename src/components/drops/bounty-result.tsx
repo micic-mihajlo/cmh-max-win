@@ -1,127 +1,116 @@
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/signal/backdrop';
-import { Icon } from '@/components/signal/icon';
-import { Button, Label, NextStep } from '@/components/signal/primitives';
+import { Button, Label } from '@/components/signal/primitives';
 import { Txt } from '@/components/signal/txt';
-import { Palette, Radius, Space } from '@/constants/signal';
+import { Palette, Radius, RoleColors, Space } from '@/constants/signal';
 import { Enter } from '@/motion';
+import type { Role } from '@/lib/contract';
 
-import type { DropView, LeaderboardRow, SquadAwardView } from './contract';
-import { clock, ModeTag, money, names, ordinal, Tagline } from './ui';
+import { useServerNow } from './clock';
+import type { BountyView, SquadAwardView } from './contract';
+import { Brass, clock, ModeTag, money2, PieceLabel } from './ui';
 
-export function BountyResultScreen({ drop, row, award, squad }: { drop: DropView; row: LeaderboardRow; award: SquadAwardView | null; squad: string[] }) {
-  const me = squad[0];
-  const others = squad.slice(1);
-  const place = ordinal(row.rank ?? 0);
-  if (!award) {
-    return (
-      <Screen
-        footer={
-          <>
-            <NextStep>{`The first ${drop.bounty.winnerSlots} squads took the bounty. Next drop, read faster.`}</NextStep>
-            <Button title="See the leaderboard" variant="secondary" />
-          </>
-        }>
-        <View style={styles.head}>
-          <Label color={Palette.ok}>{row.squadLabel} · solved</Label>
-          <Txt variant="hero">{`Solved, ${place}.`}</Txt>
-          <Txt variant="title" color={Palette.paperMuted}>
-            No bounty this time.
-          </Txt>
-        </View>
-        <View style={styles.facts}>
-          <Fact label="Time" value={clock(row.solveMs ?? 0)} />
-          <Fact label="Wrong guesses" value={String(Math.max(0, row.attempts - 1))} />
-          <Fact label="Squad" value={squad.join(' · ')} />
-        </View>
-        <Txt variant="quote" color={Palette.paperMuted}>
-          {Tagline}
-        </Txt>
-      </Screen>
-    );
-  }
+export type CreditedMember = { name: string; isMe: boolean; roles: Role[] };
+
+// The win screen. Only the winning squad ever gets a SquadAwardView, so there is no loser variant here.
+export function BountyResultScreen({
+  award,
+  bounty,
+  squadLabel,
+  members,
+  serverNow,
+}: {
+  award: SquadAwardView;
+  bounty: BountyView;
+  squadLabel: string;
+  members: CreditedMember[];
+  serverNow: number;
+}) {
+  const now = useServerNow(serverNow);
   const concept = award.mode === 'concept';
-  const ready = award.status === 'ready';
+  const real = !concept && award.status === 'ready' && award.claimUrl;
   return (
     <Screen
       footer={
-        concept ? (
+        real ? (
           <>
-            <NextStep>Concept preview: in a live drop this opens a Whop claim link.</NextStep>
-            <Button title={`Claim ${money(award.perPlayerCents)} (concept)`} disabled />
-          </>
-        ) : ready ? (
-          <>
-            <NextStep>{`One link, ${award.redeemableCount} claims. ${names(others)} claim on their own phones.`}</NextStep>
-            <Button title={`Claim ${money(award.perPlayerCents)} on Whop`} icon={<Icon name="arrow.up.right" color={Palette.ink} />} />
+            <Button title="Claim your share on Whop" />
+            {award.expiresAt ? (
+              <Txt variant="small" color={Palette.paperMuted} style={styles.center}>
+                Link expires in {clock(award.expiresAt - now)}
+              </Txt>
+            ) : null}
           </>
         ) : (
-          <>
-            <NextStep>Creating your squad’s claim link on Whop…</NextStep>
-            <Button title="Preparing claim link" disabled icon={<ActivityIndicator color={Palette.paperMuted} />} />
-          </>
+          <Button title="See the reveal" variant="secondary" />
         )
       }>
-      <View style={styles.head}>
-        <View style={styles.headRow}>
-          <Label color={Palette.ember}>
-            {row.squadLabel} · {place} place
-          </Label>
-          <ModeTag mode={award.mode} />
-        </View>
-        <Enter>
-          <Txt variant="hero">You won.</Txt>
-        </Enter>
-        <Txt variant="title">{`${money(award.amountCents)} for ${row.squadLabel}, solved in ${clock(row.solveMs ?? 0)}.`}</Txt>
+      <View style={styles.headRow}>
+        <Label>{`${squadLabel} · #${award.place} of ${bounty.winnerSlots}`}</Label>
+        <ModeTag mode={award.mode} />
       </View>
-      {concept ? (
-        <View style={styles.concept}>
-          <Label>Concept</Label>
-          <Txt variant="bodyStrong">{award.label}</Txt>
-          <Txt variant="small" color={Palette.paperMuted}>
-            This shows how a winning squad gets paid. No link was created.
-          </Txt>
-        </View>
-      ) : null}
-      <View style={[styles.split, concept && styles.splitConcept]}>
-        {squad.map((n) => (
-          <View key={n} style={styles.splitRow}>
+      <Enter>
+        <Txt variant="display">You’re in the money.</Txt>
+      </Enter>
+      <View style={styles.share}>
+        <Label>Your share</Label>
+        <Txt variant="hero" color={concept ? Palette.paper : Palette.ember}>
+          {money2(award.perPlayerCents)}
+        </Txt>
+      </View>
+      <View style={styles.card}>
+        <Line k="Bounty" v={money2(bounty.totalCents)} />
+        <Line k={`÷ ${bounty.winnerSlots} winning squads`} v={money2(award.amountCents)} />
+        <Line k={`÷ ${award.redeemableCount} players in ${squadLabel}`} v={money2(award.perPlayerCents)} strong />
+      </View>
+      <View style={styles.card}>
+        {members.map((m) => (
+          <View key={m.name} style={styles.mem}>
+            <View style={[styles.avatar, { backgroundColor: m.isMe ? Palette.ember : RoleColors[m.roles[0]] }]}>
+              <Txt variant="smallStrong" color={Palette.ink}>
+                {m.name.charAt(0)}
+              </Txt>
+            </View>
             <Txt variant="bodyStrong" style={styles.flex}>
-              {n === me ? `${n} (you)` : n}
+              {m.isMe ? `${m.name} · you` : m.name}
             </Txt>
-            <Txt variant="name" color={concept ? Palette.paperMuted : Palette.ember}>
-              {money(award.perPlayerCents)}
+            <Txt variant="small" color={Palette.paperMuted}>
+              {m.roles.map((r) => PieceLabel[r]).join(' + ')}
             </Txt>
           </View>
         ))}
       </View>
-      {!concept && ready && award.claimUrl ? (
-        <View style={styles.link}>
-          <Icon name="link" size={14} color={Palette.paperMuted} />
-          <Txt variant="small" color={Palette.paperMuted} numberOfLines={1} style={styles.flex}>
-            {award.claimUrl.replace('https://', '')}
+      {concept ? (
+        <View style={styles.concept} accessibilityLabel="Concept payout. Nothing to tap.">
+          <View style={styles.conceptHead}>
+            <Txt variant="bodyStrong">Claim your share on Whop</Txt>
+            <ModeTag mode="concept" />
+          </View>
+          <Txt variant="small" color={Palette.paperMuted}>
+            In the live version, each player signs in to Whop and claims once. The link expires 24 h after the win.
           </Txt>
-          <Txt variant="label" color={Palette.ok}>
-            {`0 of ${award.redeemableCount} claimed`}
+          <Txt variant="label" color={Brass}>
+            {award.label}
           </Txt>
         </View>
-      ) : null}
-      {!concept ? (
+      ) : !real ? (
         <Txt variant="small" color={Palette.paperMuted}>
-          Sign in to Whop to claim. Each squad member claims once, and only your squad can see this link.
+          Creating your squad’s claim link on Whop…
         </Txt>
       ) : null}
     </Screen>
   );
 }
 
-function Fact({ label, value }: { label: string; value: string }) {
+function Line({ k, v, strong }: { k: string; v: string; strong?: boolean }) {
   return (
-    <View style={styles.fact}>
-      <Label>{label}</Label>
-      <Txt variant="bodyStrong" style={styles.flex}>
-        {value}
+    <View style={styles.line}>
+      <Txt variant={strong ? 'bodyStrong' : 'body'} color={strong ? Palette.paper : Palette.paperMuted} style={styles.flex}>
+        {k}
+      </Txt>
+      <Txt variant={strong ? 'bodyStrong' : 'body'} style={styles.num}>
+        {v}
       </Txt>
     </View>
   );
@@ -129,47 +118,14 @@ function Fact({ label, value }: { label: string; value: string }) {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  head: { gap: Space.s, marginTop: Space.s },
-  headRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  concept: {
-    gap: 4,
-    padding: Space.l,
-    borderRadius: Radius.m,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: Palette.paperMuted,
-  },
-  split: {
-    padding: Space.l,
-    gap: Space.m,
-    borderRadius: Radius.l,
-    backgroundColor: Palette.panel,
-    borderWidth: 1,
-    borderColor: Palette.hairline,
-  },
-  splitConcept: { opacity: 0.75 },
-  splitRow: { flexDirection: 'row', alignItems: 'center' },
-  link: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Space.s,
-    padding: Space.m,
-    borderRadius: Radius.m,
-    backgroundColor: Palette.panel,
-    borderWidth: 1,
-    borderColor: Palette.ok,
-  },
-  facts: {
-    gap: Space.m,
-    padding: Space.l,
-    borderRadius: Radius.l,
-    backgroundColor: Palette.panel,
-    borderWidth: 1,
-    borderColor: Palette.hairline,
-  },
-  fact: { flexDirection: 'row', alignItems: 'center', gap: Space.l },
+  center: { textAlign: 'center' },
+  headRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: Space.s },
+  share: { gap: 2 },
+  card: { gap: 10, padding: Space.l, borderRadius: 16, backgroundColor: Palette.panel, borderWidth: StyleSheet.hairlineWidth, borderColor: Palette.hairline },
+  line: { flexDirection: 'row', alignItems: 'center' },
+  num: { fontVariant: ['tabular-nums'] },
+  mem: { flexDirection: 'row', alignItems: 'center', gap: Space.m },
+  avatar: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  concept: { gap: Space.s, padding: Space.l, borderRadius: Radius.l, borderWidth: 1.5, borderStyle: 'dashed', borderColor: Brass },
+  conceptHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Space.s },
 });

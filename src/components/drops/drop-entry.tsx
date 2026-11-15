@@ -6,10 +6,12 @@ import { Banner, Button, NextStep } from '@/components/signal/primitives';
 import { Txt } from '@/components/signal/txt';
 import { Palette, Space } from '@/constants/signal';
 
+import { useServerNow } from './clock';
 import type { DropView } from './contract';
 import { clock, DropCard, Stat } from './ui';
 
-export function DropEntryScreen({ drop, now, error, joining }: { drop: DropView; now: number; error?: 'DROP_CLOSED' | 'DROP_NOT_FOUND'; joining?: boolean }) {
+export function DropEntryScreen({ drop, error, joining }: { drop: DropView; error?: 'DROP_CLOSED' | 'DROP_NOT_FOUND'; joining?: boolean }) {
+  const now = useServerNow(drop.serverNow);
   const closed = error === 'DROP_CLOSED';
   return (
     <Screen

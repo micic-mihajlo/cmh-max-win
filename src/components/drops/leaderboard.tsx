@@ -1,155 +1,155 @@
 import { StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/signal/backdrop';
-import { Icon } from '@/components/signal/icon';
-import { Button, Label, NextStep } from '@/components/signal/primitives';
+import { Button, Label } from '@/components/signal/primitives';
 import { Txt } from '@/components/signal/txt';
-import { Palette, Radius, Space } from '@/constants/signal';
-import { Stagger } from '@/motion';
+import { Palette, Radius, RoleColors, Space } from '@/constants/signal';
+import { NudgeEntrance, Seal, Stagger } from '@/motion';
+import type { Role } from '@/lib/contract';
 
-import type { DropView, LeaderboardRow, LeaderboardView } from './contract';
-import { BountyLine, clock, ordinal } from './ui';
+import { useServerNow } from './clock';
+import { RACE_REVEAL_MS, type DropView, type LeaderboardRow, type LeaderboardView } from './contract';
+import { short } from './ui';
+
+// RoomView-derived state for the bottom card while the squad is racing.
+export type RacingSquad = { pick: string | null; locked: number; size: number; nudge: string | null; cooldownMs: number | null };
 
 function Row({ row }: { row: LeaderboardRow }) {
-  const winner = row.status === 'winner';
-  const solving = row.status === 'solving';
   return (
-    <View style={[styles.row, row.isMine && styles.rowMine, winner && styles.rowWinner]}>
-      <Txt variant="name" color={winner ? Palette.ember : solving ? Palette.paperFaint : Palette.paper} style={styles.rank}>
+    <View style={[styles.row, row.isMine && styles.rowMine]}>
+      <Txt variant="bodyStrong" color={row.status === 'winner' ? Palette.ember : Palette.paperMuted} style={styles.rank}>
         {row.rank ?? '–'}
       </Txt>
-      <View style={styles.flex}>
-        <Txt variant="bodyStrong">
-          {row.squadLabel}
-          {row.isMine ? ' · you' : ''}
-        </Txt>
-        <Txt variant="small" color={Palette.paperMuted} numberOfLines={1}>
-          {row.memberNames.join(' · ')}
-        </Txt>
-      </View>
-      <View style={styles.right}>
-        {solving ? (
-          <Txt variant="smallStrong" color={Palette.paperMuted}>
-            solving…
-          </Txt>
-        ) : (
-          <Txt variant="time">{clock(row.solveMs ?? 0)}</Txt>
-        )}
-        {winner ? (
-          <View style={styles.badge}>
-            <Icon name="trophy.fill" size={11} color={Palette.ink} />
-            <Txt variant="label" color={Palette.ink}>
-              Bounty
-            </Txt>
-          </View>
-        ) : row.status === 'solved' ? (
-          <Txt variant="label" color={Palette.paperFaint}>
-            Solved
-          </Txt>
-        ) : null}
-      </View>
+      <Txt variant="bodyStrong" style={styles.flex}>
+        {row.squadLabel}
+        {row.isMine ? ' · you' : ''}
+      </Txt>
+      <Txt variant="time" color={row.status === 'solving' ? Palette.paperMuted : Palette.paper}>
+        {row.status === 'solving' ? 'Racing' : short(row.solveMs ?? 0)}
+      </Txt>
     </View>
   );
 }
 
-export function LeaderboardScreen({ drop, board, now }: { drop: DropView; board: LeaderboardView; now: number }) {
-  const winners = board.rows.filter((r) => r.status === 'winner').length;
-  const left = board.winnerSlots - winners;
+export function LeaderboardScreen({ drop, board, racing, roles }: { drop: DropView; board: LeaderboardView; racing?: RacingSquad; roles?: Role[] }) {
+  const now = useServerNow(board.serverNow);
+  const raceMs = now - (board.startsAt + RACE_REVEAL_MS);
+  const taken = board.rows.filter((r) => r.status === 'winner').length;
   const mine = board.rows.find((r) => r.isMine);
-  const solved = board.rows.filter((r) => r.rank !== null).length;
-  const status = !mine
-    ? 'You’re watching this race.'
-    : mine.status === 'solving'
-      ? `Your squad is still solving. ${solved} squads have finished.`
-      : `Your squad finished ${ordinal(mine.rank ?? 0)}.`;
+  const solved = board.rows.filter((r) => r.rank !== null);
+  const stillRacing = board.rows.length - solved.length;
+  const inMoney = mine?.status === 'winner';
+  const missed = mine?.status === 'solved';
+  const creator = drop.creatorName.replace('@', '');
+  const title = inMoney ? `You placed #${mine?.rank}` : missed ? `Solved · #${mine?.rank}` : 'Race';
+  const sub = missed
+    ? `The bounty went to the first ${board.winnerSlots} squads.`
+    : taken >= board.winnerSlots
+      ? `All ${board.winnerSlots} bounty spots taken`
+      : `${taken} of ${board.winnerSlots} bounty spots taken`;
+  const shown = missed ? [...board.rows.filter((r) => r.status === 'winner'), mine!] : board.rows.filter((r) => r.rank !== null || r.isMine);
   return (
     <Screen
       footer={
-        <>
-          <NextStep>{status}</NextStep>
-          {mine?.status === 'solving' ? <Button title="Back to the case" /> : null}
-        </>
-      }>
-      <View style={styles.head}>
-        <View style={styles.liveRow}>
-          <View style={styles.liveDot} />
-          <Label color={Palette.ember}>Live · {clock(now - board.startsAt)}</Label>
-        </View>
-        <Txt variant="display">{drop.title}</Txt>
-        <BountyLine bounty={drop.bounty} />
-      </View>
-      <View style={styles.slots}>
-        {Array.from({ length: board.winnerSlots }, (_, i) => (
-          <View key={i} style={[styles.slot, i < winners && styles.slotTaken]}>
-            <Txt variant="smallStrong" color={i < winners ? Palette.ink : Palette.paperMuted}>
-              {ordinal(i + 1)}
-            </Txt>
+        racing ? (
+          <View style={styles.card}>
+            <View style={styles.cardHead}>
+              <Label>Your squad’s pick</Label>
+              <Txt variant="smallStrong" color={Palette.paperMuted}>
+                {racing.locked} of {racing.size} locked
+              </Txt>
+            </View>
+            <Txt variant="name">{racing.pick ?? 'No pick yet'}</Txt>
+            {racing.nudge ? (
+              <NudgeEntrance haptic={false}>
+                <Txt variant="body" color={Palette.paperMuted}>
+                  {racing.nudge}
+                </Txt>
+              </NudgeEntrance>
+            ) : null}
+            <Button title={racing.cooldownMs ? `Try again in ${short(racing.cooldownMs)}` : 'Lock in'} disabled={!!racing.cooldownMs} />
           </View>
+        ) : inMoney ? (
+          <>
+            <View style={styles.seals}>
+              {(roles ?? []).map((r) => (
+                <Seal key={r} locked color={RoleColors[r]} initial={r.charAt(0).toUpperCase()} size={44} />
+              ))}
+            </View>
+            <Txt variant="small" color={Palette.paperMuted} style={styles.center}>
+              Jun took the seed. All three pieces counted.
+            </Txt>
+            <Button title="See your share" />
+          </>
+        ) : (
+          <>
+            <Txt variant="small" color={Palette.paperMuted} style={styles.center}>
+              {`You solved it in ${short(mine?.solveMs ?? 0)} with ${Math.max(0, (mine?.attempts ?? 1) - 1)} wrong pick${(mine?.attempts ?? 1) - 1 === 1 ? '' : 's'}. Jun took the seed.`}
+            </Txt>
+            <Button title="See the reveal" variant="secondary" />
+          </>
+        )
+      }>
+      <Label>{`${creator.charAt(0).toUpperCase()}${creator.slice(1)}’s drop · ${drop.title}`}</Label>
+      <View style={styles.titleRow}>
+        <View style={styles.flex}>
+          <Txt variant="display">{title}</Txt>
+          <Txt variant="small" color={Palette.paperMuted}>
+            {sub}
+          </Txt>
+        </View>
+        <Txt variant="time">{short(missed || inMoney ? (mine?.solveMs ?? 0) : raceMs)}</Txt>
+      </View>
+      <View style={styles.spots}>
+        {Array.from({ length: board.winnerSlots }, (_, i) => (
+          <View key={i} style={[styles.spot, i < taken && styles.spotTaken]} />
         ))}
-        <Txt variant="smallStrong" color={left > 0 ? Palette.paper : Palette.paperMuted} style={styles.flex}>
-          {left > 0 ? `${left} of ${board.winnerSlots} bounty slots left` : 'All bounty slots taken'}
-        </Txt>
       </View>
       <View style={styles.list}>
         <Stagger>
-          {board.rows.map((r) => (
+          {shown.map((r) => (
             <Row key={r.squadLabel} row={r} />
           ))}
         </Stagger>
       </View>
+      {racing && stillRacing > 1 ? (
+        <Txt variant="small" color={Palette.paperMuted} style={styles.center}>
+          {stillRacing - 1} squads still racing
+        </Txt>
+      ) : null}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  head: { gap: Space.s, marginTop: Space.s },
-  liveRow: { flexDirection: 'row', alignItems: 'center', gap: Space.s },
-  liveDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Palette.ember,
-  },
-  slots: { flexDirection: 'row', alignItems: 'center', gap: Space.s },
-  slot: {
-    width: 44,
-    height: 32,
-    borderRadius: Radius.s,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: Palette.paperMuted,
-  },
-  slotTaken: {
-    backgroundColor: Palette.ember,
-    borderColor: Palette.ember,
-    borderStyle: 'solid',
-  },
+  center: { textAlign: 'center' },
+  titleRow: { flexDirection: 'row', alignItems: 'flex-end', gap: Space.m },
+  spots: { flexDirection: 'row', gap: 6 },
+  spot: { flex: 1, height: 8, borderRadius: Radius.pill, backgroundColor: Palette.panelRaised },
+  spotTaken: { backgroundColor: Palette.ember },
   list: { gap: 6 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Space.m,
-    paddingVertical: 10,
-    paddingHorizontal: Space.m,
+    paddingVertical: 12,
+    paddingHorizontal: Space.l,
     borderRadius: Radius.m,
     backgroundColor: Palette.panel,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: Palette.hairline,
   },
-  rowMine: { borderColor: Palette.paper },
-  rowWinner: { backgroundColor: 'rgba(227,155,91,0.08)' },
-  rank: { width: 26, textAlign: 'center', fontVariant: ['tabular-nums'] },
-  right: { alignItems: 'flex-end', gap: 2 },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: Radius.pill,
-    backgroundColor: Palette.ember,
+  rowMine: { borderWidth: 1, borderColor: Palette.ember },
+  rank: { width: 20, fontVariant: ['tabular-nums'] },
+  card: {
+    gap: Space.s,
+    padding: Space.l,
+    borderRadius: 16,
+    backgroundColor: Palette.panel,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Palette.hairline,
   },
+  cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  seals: { flexDirection: 'row', justifyContent: 'center', gap: Space.m },
 });
