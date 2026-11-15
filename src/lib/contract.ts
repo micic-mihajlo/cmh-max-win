@@ -134,6 +134,7 @@ export type SignalErrorCode =
   | 'TEAM_LOCKED' // mixer: the team locked, so nobody joins or leaves
   | 'TEAM_NOT_FULL' // mixer: confirming before every color is in
   | 'TEAM_NOT_LOCKED'
+  | 'CHALLENGE_FULL' // a new device joining a challenge at capacity (contract-hardening.ts)
 
 export type SignalError = { code: SignalErrorCode; message: string };
 
@@ -678,3 +679,4 @@ export type UseSubmitMixerAnswer = (challengeId: string) => (answer: string) => 
 
 export type UseChallengeRecap = (challengeId: string | null) => ChallengeRecapView | null | undefined; // null until ended
 
+export * from './contract-hardening';

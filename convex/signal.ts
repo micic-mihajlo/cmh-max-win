@@ -82,7 +82,7 @@ async function requireCaller(ctx: MutationCtx, code: string, deviceToken: string
 }
 
 function requireHost(room: Doc<'rooms'>, deviceToken: string) {
-  if (room.hostToken !== deviceToken) fail('NOT_HOST', 'Only the host can do that.');
+  if (!room.hostToken || room.hostToken !== deviceToken) fail('NOT_HOST', 'Only the host can do that.');
 }
 
 async function members(ctx: QueryCtx, roomId: Id<'rooms'>) {
@@ -113,7 +113,7 @@ function canReclaim(holder: Doc<'members'>, seats: SeatPresence) {
 }
 
 function reclaimable(room: Doc<'rooms'>, all: Doc<'members'>[], seats: SeatPresence, me: Doc<'members'> | null): Role[] {
-  if (room.status === 'lobby' || room.dropId || me) return [];
+  if (room.status === 'lobby' || room.dropId || room.challengeId || me) return [];
   return ROLES.filter((r) => all.some((m) => m.role === r && canReclaim(m, seats)));
 }
 
@@ -386,7 +386,7 @@ export const reclaimRole = mutation({
   handler: async (ctx, { deviceToken, code, role }) => {
     const room = await requireRoom(ctx, code);
     const all = await members(ctx, room._id);
-    if (room.dropId) fail('CASE_STARTED', 'Drop squad seats cannot be reclaimed.');
+    if (room.dropId || room.challengeId) fail('CASE_STARTED', 'Squad and team seats cannot be reclaimed.');
     if (room.status === 'lobby') fail('WRONG_STATUS', 'Seats can only be reclaimed once the case has started.');
     if (all.some((m) => m.deviceToken === deviceToken)) fail('WRONG_STATUS', 'You are already in this room.');
     const holder = all.find((m) => m.role === role);

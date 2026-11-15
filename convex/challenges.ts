@@ -19,6 +19,8 @@ import { mixerTemplate, verifyMixerTeam } from './templates/engine';
 import { listTemplates } from './templates/registry';
 import { checkWhopAccess } from './whopAuth';
 import { challengeConfig } from './schema';
+import { releaseChallengeSeat, takeChallengeSeat } from './hardening';
+import { enforceRateLimit } from './rateLimits';
 import { CODE_ALPHABET, generateCode } from './signal';
 import { whopEnvironment, whopRequest } from './whop';
 import type {
@@ -450,6 +452,7 @@ export const createChallenge = mutation({
     const me = await resolveIdentity(ctx, deviceToken);
     const profile = await ctx.db.query('creators').withIndex('by_token', (q) => q.eq('deviceToken', me.deviceToken)).first();
     if (!profile) fail('NO_PROFILE', 'Save a creator profile first.');
+    await enforceRateLimit(ctx, 'challengeCreate', me.deviceToken);
     return insertDraft(ctx, me.deviceToken, (patch ?? {}) as Partial<ChallengeConfig>, false);
   },
 });
@@ -486,6 +489,7 @@ export const updateChallengeDraft = mutation({
   args: { deviceToken: v.string(), challengeId: v.string(), patch: configPatch },
   handler: async (ctx, { deviceToken, challengeId, patch }) => {
     const c = await requireOwned(ctx, deviceToken, challengeId);
+    await enforceRateLimit(ctx, 'hostAction', `${c._id}:${deviceToken}`);
     if (c.status !== 'draft') fail('CHALLENGE_CLOSED', 'A published challenge is frozen. Clone it to change the config.');
     const config = normalize({ ...c.config, ...(patch as Partial<ChallengeConfig>) });
     await ctx.db.patch(c._id, { config });
@@ -497,6 +501,7 @@ export const publishChallenge = mutation({
   args: { deviceToken: v.string(), challengeId: v.string() },
   handler: async (ctx, { deviceToken, challengeId }) => {
     const c = await requireOwned(ctx, deviceToken, challengeId);
+    await enforceRateLimit(ctx, 'hostAction', `${c._id}:${deviceToken}`);
     if (c.status !== 'draft') fail('CHALLENGE_CLOSED', 'Already published.');
     const now = Date.now();
     if (c.config.eligibility.kind === 'whop_members' && !whopOAuthConfigured()) {
@@ -535,6 +540,7 @@ export const cloneChallenge = mutation({
   args: { deviceToken: v.string(), challengeId: v.string() },
   handler: async (ctx, { deviceToken, challengeId }) => {
     const c = await requireOwned(ctx, deviceToken, challengeId);
+    await enforceRateLimit(ctx, 'challengeCreate', c.creatorToken);
     return insertDraft(ctx, c.creatorToken, { ...c.config, payoutAdapter: c.serverCreated ? c.config.payoutAdapter : 'concept' }, c.serverCreated);
   },
 });
@@ -597,6 +603,8 @@ export const myChallenge = query({
 export const joinChallenge = action({
   args: { deviceToken: v.string(), code: v.string(), name: v.string() },
   handler: async (ctx, args): Promise<{ challengeId: string }> => {
+    await enforceRateLimit(ctx, 'challengeJoinDevice', args.deviceToken);
+    await enforceRateLimit(ctx, 'challengeJoin', args.code.trim().toUpperCase());
     const gate = await ctx.runQuery(internal.challenges.joinGate, { deviceToken: args.deviceToken, code: args.code });
     if (gate && whopOAuthConfigured()) {
       if (!gate.whopUserId) fail('WHOP_SIGN_IN_REQUIRED', 'Sign in with Whop to join this challenge.');
@@ -632,6 +640,7 @@ export const enterChallenge = internalMutation({
     if (c.config.requireWhopToJoin && !me.whopUserId) fail('WHOP_SIGN_IN_REQUIRED', 'Sign in with Whop to join this challenge.');
     const clean = name.trim().slice(0, 24);
     if (!clean) fail('INVALID_CONFIG', 'Add your name.');
+    await takeChallengeSeat(ctx, c._id, deviceToken);
     await ctx.db.insert('challengeEntries', {
       challengeId: c._id,
       deviceToken,
@@ -653,6 +662,7 @@ export const leaveChallenge = mutation({
     if (!mine) fail('NOT_ENTERED', 'You are not in this challenge.');
     if (mine.teamId) fail('CHALLENGE_CLOSED', 'Your team is already dealt.');
     await ctx.db.delete(mine._id);
+    await releaseChallengeSeat(ctx, mine.challengeId, deviceToken);
   },
 });
 
@@ -721,6 +731,7 @@ export const dealTeams = mutation({
   args: { deviceToken: v.string(), challengeId: v.string() },
   handler: async (ctx, { deviceToken, challengeId }) => {
     const c = await requireOwned(ctx, deviceToken, challengeId);
+    await enforceRateLimit(ctx, 'hostAction', `${c._id}:${deviceToken}`);
     if (c.status !== 'published' || c.config.startMode !== 'live' || c.config.teamFormation !== 'dealt') {
       fail('CHALLENGE_CLOSED', 'Only an open live-mode challenge with dealt teams can be dealt.');
     }
@@ -735,6 +746,7 @@ export const endChallenge = mutation({
   args: { deviceToken: v.string(), challengeId: v.string() },
   handler: async (ctx, { deviceToken, challengeId }) => {
     const c = await requireOwned(ctx, deviceToken, challengeId);
+    await enforceRateLimit(ctx, 'hostAction', `${c._id}:${deviceToken}`);
     if (c.status !== 'published' && c.status !== 'live') fail('CHALLENGE_CLOSED', 'This challenge is not running.');
     await endNow(ctx, c);
   },
@@ -744,6 +756,7 @@ export const cancelChallenge = mutation({
   args: { deviceToken: v.string(), challengeId: v.string(), reason: v.string() },
   handler: async (ctx, { deviceToken, challengeId, reason }) => {
     const c = await requireOwned(ctx, deviceToken, challengeId);
+    await enforceRateLimit(ctx, 'hostAction', `${c._id}:${deviceToken}`);
     if (c.status !== 'published' && c.status !== 'live') fail('CHALLENGE_CLOSED', 'Only an open or running challenge can be cancelled.');
     const why = reason.trim().slice(0, 200);
     if (!why) fail('INVALID_CONFIG', 'Say why you are cancelling; entrants will see it.');
@@ -770,6 +783,7 @@ export const approvePayouts = mutation({
   args: { deviceToken: v.string(), challengeId: v.string() },
   handler: async (ctx, { deviceToken, challengeId }) => {
     const c = await requireOwned(ctx, deviceToken, challengeId);
+    await enforceRateLimit(ctx, 'hostAction', `${c._id}:${deviceToken}`);
     if (c.status !== 'ended') fail('CHALLENGE_CLOSED', 'Payouts are approved once the challenge has ended.');
     const { preview, finishers, rows } = await previewFor(ctx, c);
     if (rows.length) return { approved: 0, alreadyApproved: rows.length };
@@ -1064,6 +1078,7 @@ export const linkPlayer = mutation({
   args: { deviceToken: v.string(), challengeId: v.string(), playerCode: v.string() },
   handler: async (ctx, { deviceToken, challengeId, playerCode }): Promise<MixerTeamView> => {
     const { c, me } = await requireMixerEntry(ctx, deviceToken, challengeId);
+    await enforceRateLimit(ctx, 'playerAction', `${challengeId}:${deviceToken}`);
     const code = playerCode.trim().toUpperCase();
     const other = (await entriesOf(ctx, c._id)).find((e) => e.playerCode === code);
     if (!other || other._id === me._id) fail('PLAYER_NOT_FOUND', other ? 'That is your own code.' : 'No player with that code here.');
@@ -1097,6 +1112,7 @@ export const leaveMixerTeam = mutation({
   args: { deviceToken: v.string(), challengeId: v.string() },
   handler: async (ctx, { deviceToken, challengeId }) => {
     const { me } = await requireMixerEntry(ctx, deviceToken, challengeId);
+    await enforceRateLimit(ctx, 'playerAction', `${challengeId}:${deviceToken}`);
     const team = me.mixerTeamId ? await ctx.db.get(me.mixerTeamId) : null;
     if (!team) fail('NOT_A_MEMBER', 'You are not in a team.');
     if (team.status !== 'forming') fail('TEAM_LOCKED', 'Your team is locked.');
@@ -1116,6 +1132,7 @@ export const confirmMixerTeam = mutation({
   args: { deviceToken: v.string(), challengeId: v.string() },
   handler: async (ctx, { deviceToken, challengeId }): Promise<MixerTeamView> => {
     const { c, me } = await requireMixerEntry(ctx, deviceToken, challengeId);
+    await enforceRateLimit(ctx, 'playerAction', `${challengeId}:${deviceToken}`);
     const team = me.mixerTeamId ? await ctx.db.get(me.mixerTeamId) : null;
     if (!team) fail('NOT_A_MEMBER', 'You are not in a team.');
     if (team.status === 'forming') {
@@ -1137,6 +1154,7 @@ export const submitMixerAnswer = mutation({
   args: { deviceToken: v.string(), challengeId: v.string(), answer: v.string() },
   handler: async (ctx, { deviceToken, challengeId, answer }): Promise<MixerSubmitResult> => {
     const { c, me } = await requireMixerEntry(ctx, deviceToken, challengeId);
+    await enforceRateLimit(ctx, 'playerAction', `${challengeId}:${deviceToken}`);
     const team = me.mixerTeamId ? await ctx.db.get(me.mixerTeamId) : null;
     if (!team || team.status === 'forming') fail('TEAM_NOT_LOCKED', 'Lock your team first.');
     if (team.status === 'solved') return { outcome: 'correct', place: team.place! };

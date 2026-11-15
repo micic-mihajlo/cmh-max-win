@@ -292,4 +292,18 @@ export default defineSchema({
     refreshToken: v.optional(v.string()),
     expiresAt: v.number(),
   }).index('by_whop_user', ['whopUserId']),
+  // ---------- Platform hardening (CAP-44): convex/hardening.ts ----------
+  // One numbered seat per entrant in a scope ('challenge:<id>'), so capacity holds without counting entries.
+  capacitySeats: defineTable({
+    scope: v.string(),
+    seat: v.number(),
+    deviceToken: v.string(),
+  })
+    .index('by_scope_seat', ['scope', 'seat'])
+    .index('by_scope_token', ['scope', 'deviceToken']),
+  // A creator-set capacity below CHALLENGE_CAPACITY_MAX, set while the challenge is a draft.
+  challengeLimits: defineTable({
+    challengeId: v.id('challenges'),
+    capacity: v.number(),
+  }).index('by_challenge', ['challengeId']),
 });

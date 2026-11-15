@@ -12,6 +12,9 @@ function requireDemoControls() {
   }
 }
 
+// Public, so the bounty is capped at the video's $300: no client can open a bigger sandbox payout.
+const DEMO_MAX_CENTS = 30_000;
+
 // Creates a fresh drop whose squads are all exactly squadSize (leftover entrants are unmatched).
 export const openDrop = mutation({
   args: {
@@ -31,7 +34,7 @@ export const openDrop = mutation({
       squadSize: args.squadSize,
       strictSquadSize: true,
       startsAt: Date.now() + Math.max(0, args.startInSeconds ?? 120) * 1000,
-      bounty: { totalCents: args.totalCents ?? 30_000, winnerSlots: args.winnerSlots ?? 3 },
+      bounty: { totalCents: Math.min(args.totalCents ?? DEMO_MAX_CENTS, DEMO_MAX_CENTS), winnerSlots: args.winnerSlots ?? 3 },
     });
   },
 });
