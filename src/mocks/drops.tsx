@@ -1,6 +1,6 @@
-import { BountyResultScreen, type CreditedMember } from '@/components/drops/bounty-result';
+import { BountyResultScreen } from '@/components/drops/bounty-result';
 import { RACE_REVEAL_MS, type DossierView, type DropView, type LeaderboardRow, type LeaderboardView, type SquadAwardView } from '@/lib/contract';
-import { CreatorSetupScreen, type CreatorDraft } from '@/components/drops/creator-setup';
+import { CreatorSetupScreen } from '@/components/drops/creator-setup';
 import { DropEntryScreen } from '@/components/drops/drop-entry';
 import { LeaderboardScreen } from '@/components/drops/leaderboard';
 import { SquadRevealScreen, type SquadMemberView } from '@/components/drops/squad-reveal';
@@ -81,17 +81,6 @@ const moneyBoard = board(
   ],
   110_000,
 );
-const missedBoard = board(
-  [
-    row(1, 7, 'winner', 41_000),
-    row(2, 22, 'winner', 58_000),
-    row(3, 3, 'winner', 86_000),
-    ...[4, 5, 6, 7, 8].map((rank) => row(rank, 40 + rank, 'solved', 90_000 + rank * 4_000)),
-    row(9, 14, 'solved', 123_000, 1, true),
-    ...solving(60, 40),
-  ],
-  130_000,
-);
 
 const award = (over: Partial<SquadAwardView> = {}): SquadAwardView => ({
   place: 3,
@@ -114,29 +103,18 @@ const realAward = award({
   label: 'Squad 14 · 3rd place',
 });
 
-const credits: CreditedMember[] = [
-  { name: 'Ravi', isMe: true, roles: ['hacker'] },
-  { name: 'Ivy', isMe: false, roles: ['witness'] },
-  { name: 'Jo', isMe: false, roles: ['detective'] },
-];
-const duoCredits: CreditedMember[] = [
-  { name: 'Ravi', isMe: true, roles: ['hacker', 'witness'] },
-  { name: 'Lou', isMe: false, roles: ['detective'] },
-];
 const bounty = drop().bounty;
-
-const draft: CreatorDraft = { title: 'The Aurora Seed', squadSize: 3, totalCents: 30000, winnerSlots: 3, startsIn: '5' };
+const nova = { title: 'The Aurora Seed', totalCents: 30000, winnerSlots: 3 };
 
 export const DropStates: MockState[] = [
-  { id: '10-creator-setup', ref: 'D1', section: 'Drops', title: 'Creator · set up a drop (trios)', render: () => <CreatorSetupScreen draft={draft} /> },
+  { id: '10-creator-card', ref: 'beat 2', section: 'Drops', title: 'Creator · prefilled drop card', render: () => <CreatorSetupScreen drop={nova} /> },
   {
-    id: '10-creator-duos',
-    ref: 'D1',
+    id: '10-creator-live',
+    ref: 'beat 2',
     section: 'Drops',
-    title: 'Creator · duos, start now',
-    render: () => <CreatorSetupScreen draft={{ ...draft, squadSize: 2, startsIn: 'now' }} />,
+    title: 'Creator · live drop card (live count in the app)',
+    render: () => <CreatorSetupScreen drop={nova} live={{ entrantCount: 212, shareUrl: 'cmhmaxwin://drop/aurora-demo' }} />,
   },
-  { id: '10-creator-opening', ref: 'D1', section: 'Drops', title: 'Creator · opening the drop', render: () => <CreatorSetupScreen draft={draft} opening /> },
   {
     id: '11-entry',
     ref: 'D2',
@@ -151,7 +129,7 @@ export const DropStates: MockState[] = [
     title: 'Follower · DROP_CLOSED (late)',
     render: () => <DropEntryScreen offset={0} drop={drop({ status: 'live', startsAt: startedAgo(30_000) }, { entered: false })} error="DROP_CLOSED" />,
   },
-  { id: '12-waiting', ref: 'D3', section: 'Drops', title: 'Waiting room · countdown', render: () => <WaitingRoomScreen offset={0} drop={drop()} /> },
+  { id: '12-waiting', ref: 'beat 3', section: 'Drops', title: 'Waiting room · countdown', render: () => <WaitingRoomScreen offset={0} drop={drop()} /> },
   {
     id: '12-waiting-unmatched',
     ref: 'D3',
@@ -166,9 +144,9 @@ export const DropStates: MockState[] = [
   },
   {
     id: '13-squad-trio',
-    ref: 'D4',
+    ref: 'beat 4',
     section: 'Drops',
-    title: 'Squad reveal · squad of 3 (2.4 s hold)',
+    title: 'Squad reveal · squad of 3',
     render: () => <SquadRevealScreen drop={live(3)} members={trio} pieces={[camera]} />,
   },
   {
@@ -188,45 +166,29 @@ export const DropStates: MockState[] = [
         offset={0}
         drop={live(3)}
         board={racingBoard}
-        racing={{ pick: 'Ines Vale', locked: 2, size: 3, nudge: 'Not Ines. Ask Jo to read the Scene Notes.', cooldownUntil: loadedAt + 8_000 }}
+        racing={{ pick: 'Ines Vale', locked: 2, size: 3, nudge: 'Not Ines. Ask Ana to read the Scene Notes.', cooldownUntil: loadedAt + 20_000 }}
       />
     ),
   },
   {
     id: '14-race-money',
-    ref: 'D5',
+    ref: 'beat 7',
     section: 'Drops',
-    title: 'Race · solved, in the money (#3)',
+    title: 'Race · landing at #3',
     render: () => <LeaderboardScreen offset={0} drop={live(3)} board={moneyBoard} roles={['hacker', 'witness', 'detective']} />,
   },
   {
-    id: '14-race-missed',
-    ref: 'D5',
-    section: 'Drops',
-    title: 'Race · solved #9, no bounty this time',
-    render: () => <LeaderboardScreen offset={0} drop={live(3)} board={missedBoard} />,
-  },
-  {
     id: '15-win-concept',
-    ref: 'D6',
+    ref: 'beat 8',
     section: 'Drops',
-    title: 'Win · CONCEPT payout (demo path)',
-    render: () => <BountyResultScreen award={award()} bounty={bounty} squadLabel="Squad 14" members={credits} offset={0} />,
-  },
-  {
-    id: '15-win-concept-duo',
-    ref: 'D6',
-    section: 'Drops',
-    title: 'Win · CONCEPT payout, duo',
-    render: () => (
-      <BountyResultScreen award={award({ perPlayerCents: 5000, redeemableCount: 2 })} bounty={bounty} squadLabel="Squad 15" members={duoCredits} offset={0} />
-    ),
+    title: 'Payout · static CONCEPT card',
+    render: () => <BountyResultScreen award={award()} bounty={bounty} squadLabel="Squad 14" offset={0} />,
   },
   {
     id: '16-win-real-not-demo',
     ref: 'D6',
     section: 'Drops',
     title: 'Not in demo · verified claim link (needs Whop KYC)',
-    render: () => <BountyResultScreen award={realAward} bounty={bounty} squadLabel="Squad 14" members={credits} offset={0} />,
+    render: () => <BountyResultScreen award={realAward} bounty={bounty} squadLabel="Squad 14" offset={0} />,
   },
 ];

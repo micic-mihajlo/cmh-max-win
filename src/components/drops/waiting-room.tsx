@@ -8,7 +8,7 @@ import { Enter } from '@/motion';
 
 import { useServerClock } from './clock';
 import type { DropView } from '@/lib/contract';
-import { clock, money, Tagline } from './ui';
+import { clock, Tagline } from './ui';
 
 const avatarColors = [Palette.ember, RoleColors.witness, RoleColors.hacker, RoleColors.detective];
 
@@ -18,7 +18,6 @@ export function WaitingRoomScreen({ drop, offset, onBack }: { drop: DropView; of
   const unmatched = drop.me.unmatched;
   const creator = drop.creatorName.replace('@', '');
   const display = creator.charAt(0).toUpperCase() + creator.slice(1);
-  const size = drop.me.squad?.size ?? 3;
   return (
     <Screen
       footer={
@@ -88,45 +87,10 @@ export function WaitingRoomScreen({ drop, offset, onBack }: { drop: DropView; of
         </View>
       )}
 
-      <Enter delay={60}>
-        <View style={[styles.card, styles.stats]}>
-          <Stat value={money(drop.bounty.totalCents)} label="Bounty" />
-          <Stat value={`First ${drop.bounty.winnerSlots}`} label="Squads win" />
-          <Stat value={String(size)} label="Per squad" />
-        </View>
-      </Enter>
-
-      <View style={[styles.card, styles.how]}>
-        <Rule n="1" strong="You’ll be split into a squad" rest=" when the room opens." />
-        <Rule n="2" strong="Each phone gets a piece." rest=" Read yours out loud." />
-        <Rule n="3" strong="Agree on one name" rest=" and lock it in together." />
-      </View>
+      <Txt variant="bodyStrong" style={styles.center}>
+        {`You’ll be matched into a squad of ${drop.squadSize}.`}
+      </Txt>
     </Screen>
-  );
-}
-
-function Stat({ value, label }: { value: string; label: string }) {
-  return (
-    <View style={styles.stat}>
-      <Txt variant="name">{value}</Txt>
-      <Txt variant="small" color={Palette.paperMuted}>
-        {label}
-      </Txt>
-    </View>
-  );
-}
-
-function Rule({ n, strong, rest }: { n: string; strong: string; rest: string }) {
-  return (
-    <View style={styles.rule}>
-      <Txt variant="smallStrong" color={Palette.ember} style={styles.ruleN}>
-        {n}
-      </Txt>
-      <Txt variant="body" color={Palette.paperMuted} style={styles.flex}>
-        <Txt variant="bodyStrong">{strong}</Txt>
-        {rest}
-      </Txt>
-    </View>
   );
 }
 

@@ -11,7 +11,7 @@ import { Atmosphere } from '@/components/signal/backdrop';
 import { Palette } from '@/constants/signal';
 import { useDrop, useEnterDrop, useServerOffset } from '@/hooks/use-drops';
 import { usePlayerName } from '@/hooks/use-player-name';
-import { useMyEvidence, useRoom } from '@/hooks/use-signal';
+import { useMyEvidence, useRoom, useSetPresence } from '@/hooks/use-signal';
 import type { DropView } from '@/lib/contract';
 import { toSignalError } from '@/lib/signal-error';
 
@@ -55,6 +55,7 @@ export default function DropRoute() {
 function Squad({ drop, code }: { drop: DropView; code: string }) {
   const room = useRoom(code);
   const pieces = useMyEvidence(code);
+  const setPresence = useSetPresence(code);
   if (room === undefined) return <Loading />;
   if (room === null) return <Redirect href={{ pathname: '/drop/[id]/race', params: { id: drop.dropId } }} />;
   return (
@@ -62,7 +63,10 @@ function Squad({ drop, code }: { drop: DropView; code: string }) {
       drop={drop}
       members={room.members}
       pieces={pieces ?? undefined}
-      onOpen={() => router.replace({ pathname: '/room/[code]', params: { code } })}
+      onOpen={() => {
+        setPresence('ready').catch(() => {});
+        router.replace({ pathname: '/room/[code]', params: { code } });
+      }}
     />
   );
 }
