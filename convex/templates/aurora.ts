@@ -113,6 +113,7 @@ export const auroraTemplate: ChallengeTemplate<AuroraConfig, AuroraState, Aurora
   },
   minSquadSize: 2,
   maxSquadSize: 3,
+  formations: ['dealt'],
 
   deal(team, seed) {
     const dealt = hands(seed, team.length);

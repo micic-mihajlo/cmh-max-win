@@ -13,8 +13,15 @@ import {
   actionArgs,
   checkNecessity,
   checkSession,
+  checkMixerNecessity,
+  colorForJoin,
   compareLive,
   compareOutcomes,
+  dealMixerFragment,
+  mixerClue,
+  mixerColors,
+  requireFormation,
+  verifyMixerTeam,
   progressOf,
   squadSizes,
   startSession,
@@ -23,7 +30,17 @@ import {
 } from './engine';
 import { findTemplate, listTemplates, TEMPLATES } from './registry';
 import { splitCodeTemplate, type SplitCodeState } from './splitCode';
-import { MAX_SQUAD_SIZE, MIN_SQUAD_SIZE, type AnyTemplate, type Outcome, type Progress, type Team } from './types';
+import {
+  MAX_SQUAD_SIZE,
+  MIN_SQUAD_SIZE,
+  MIXER_COLORS,
+  type AnyTemplate,
+  type MixerColor,
+  type MixerFragment,
+  type Outcome,
+  type Progress,
+  type Team,
+} from './types';
 
 const modules = import.meta.glob('../**/*.ts');
 const SEEDS = Array.from({ length: 40 }, (_, i) => `drop-${i}:${i % 5}`);
@@ -364,6 +381,83 @@ describe('progress for live standings', () => {
       { id: 'started', progress: p(0.2), outcome: o({ correct: false }) },
     ];
     expect([...rows].sort((a, b) => compareLive('split-code', a, b)).map((r) => r.id)).toEqual(['fast-solve', 'slow-solve', 'almost', 'started']);
+  });
+});
+
+describe('mixer formation', () => {
+  const RGB: MixerColor[] = ['red', 'blue', 'green'];
+  // What an honest team does after reading the clue: say its words in red, blue, green, yellow order.
+  const honest = (fragments: readonly MixerFragment[]) =>
+    MIXER_COLORS.flatMap((c) => fragments.filter((f) => f.color === c).map((f) => f.text)).join(' ');
+  const player = (color: MixerColor, id: string, colors = RGB) => dealMixerFragment('split-code', colors, color, `drop-1:${id}`);
+
+  test('templates declare their formations; aurora is dealt-only', async () => {
+    expect(listTemplates().map((t) => [t.id, t.formations])).toEqual([
+      ['aurora', ['dealt']],
+      ['split-code', ['dealt', 'mixer']],
+    ]);
+    expect(await errorCode(() => requireFormation('aurora', 'mixer'))).toBe('FORMATION_UNSUPPORTED');
+    expect(await errorCode(() => mixerColors('aurora', ['red', 'blue']))).toBe('FORMATION_UNSUPPORTED');
+    expect(requireFormation('aurora', 'dealt')).toBe(auroraTemplate);
+  });
+
+  test('creators pick 2–4 distinct colors, and joins are balanced round-robin', async () => {
+    expect(mixerColors('split-code', ['blue', 'red'])).toEqual(['blue', 'red']);
+    for (const bad of [['red'], ['red', 'red'], ['red', 'pink'], []]) expect(await errorCode(() => mixerColors('split-code', bad))).toBe('BAD_CONFIG');
+    const joins = Array.from({ length: 10 }, (_, i) => colorForJoin(RGB, i));
+    expect(joins.slice(0, 6)).toEqual(['red', 'blue', 'green', 'red', 'blue', 'green']);
+    expect(RGB.map((c) => joins.filter((j) => j === c).length)).toEqual([4, 3, 3]);
+    expect(mixerClue('split-code', ['green', 'red'])).toBe("Your team's passphrase is your words in color order: red, green.");
+  });
+
+  test('each player gets their own word with a hint, and every team gets a different passphrase', () => {
+    const words = new Set(Array.from({ length: 40 }, (_, i) => player(RGB[i % 3], `p${i}`).text));
+    expect(words.size).toBe(40);
+    expect(player('red', 'p1').text).toMatch(/^[a-z]+-\d{2}$/);
+    expect(player('blue', 'p1')).toEqual(player('blue', 'p1'));
+    expect(player('blue', 'p1').hint).toBe('Blue goes second.');
+    const teamA = RGB.map((c) => player(c, `a-${c}`));
+    const teamB = RGB.map((c) => player(c, `b-${c}`));
+    expect(honest(teamA)).not.toBe(honest(teamB));
+  });
+
+  test('verify checks the answer against exactly these members, in any member order', async () => {
+    const team = RGB.map((c) => player(c, `a-${c}`));
+    const answer = honest(team);
+    expect(verifyMixerTeam('split-code', RGB, answer, [...team].reverse())).toEqual({ correct: true });
+    expect(verifyMixerTeam('split-code', RGB, `  ${answer.toUpperCase().replaceAll('-', ' ')}! `, team)).toEqual({ correct: true });
+    const backwards = verifyMixerTeam('split-code', RGB, team.map((f) => f.text).reverse().join(' '), team);
+    expect(backwards.correct).toBe(false);
+    for (const f of team) expect(backwards.nudge).not.toContain(f.text);
+    expect(await errorCode(() => verifyMixerTeam('split-code', RGB, answer, team.slice(0, 2)))).toBe('TEAM_INCOMPLETE');
+    expect(await errorCode(() => verifyMixerTeam('split-code', RGB, answer, [team[0], team[0], team[2]]))).toBe('TEAM_INCOMPLETE');
+  });
+
+  test('a passphrase posted in chat is useless to a team without those exact members', () => {
+    for (let i = 0; i < 40; i++) {
+      const team = RGB.map((c) => player(c, `t${i}-${c}`));
+      const leaked = honest(team);
+      const rivals = RGB.map((c) => player(c, `r${i}-${c}`));
+      const halfMatch = [team[0], team[1], rivals[2]];
+      expect(verifyMixerTeam('split-code', RGB, leaked, rivals).correct).toBe(false);
+      if (halfMatch[2].text !== team[2].text) expect(verifyMixerTeam('split-code', RGB, leaked, halfMatch).correct).toBe(false);
+    }
+  });
+
+  test('mixer necessity holds at 2, 3 and 4 colors and fails for a verifier that ignores a member', () => {
+    expect(checkMixerNecessity(splitCodeTemplate, honest, SEEDS)).toEqual({ ok: true, violations: [] });
+    const lazy: AnyTemplate = {
+      ...splitCodeTemplate,
+      id: 'lazy-mixer',
+      mixer: {
+        ...splitCodeTemplate.mixer!,
+        verify: (answer, fragments) => ({ correct: answer.split(' ')[0] === fragments.find((f) => f.color === 'red')?.text }),
+      },
+    };
+    const { ok, violations } = checkMixerNecessity(lazy, honest, SEEDS.slice(0, 2));
+    expect(ok).toBe(false);
+    expect(violations).toContain('2 colors seed drop-0:0: the answer still works without the blue member');
+    expect(checkMixerNecessity(auroraTemplate, honest, SEEDS)).toEqual({ ok: false, violations: ['no mixer support'] });
   });
 });
 

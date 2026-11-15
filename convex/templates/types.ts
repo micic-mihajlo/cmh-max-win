@@ -29,6 +29,29 @@ export type Progress = { value: number; stage: string; stageIndex: number; stage
 
 export type TemplateError = { code: string; message: string };
 
+// How squads form. dealt: the platform deals squads of minSquadSize–maxSquadSize (today's dealSquads), and the
+// template runs the session below. mixer: every player gets a color (2–4 colors, round-robin) and a fragment that
+// is unique to them, a team is exactly one player of each color linked by player codes, and the server checks the
+// team's answer against those members' fragments with mixer.verify.
+export type Formation = 'dealt' | 'mixer';
+export const MIXER_COLORS = ['red', 'blue', 'green', 'yellow'] as const;
+export type MixerColor = (typeof MIXER_COLORS)[number];
+export const MIN_MIXER_COLORS = 2;
+export const MAX_MIXER_COLORS = 4;
+
+// What one mixer player privately holds. text is the fragment itself; hint is extra clue text on the fragment.
+export type MixerFragment = { color: MixerColor; text: string; hint: string | null };
+export type VerifyResult = { correct: boolean; nudge?: string };
+
+export type MixerSupport = {
+  // The clue every player sees, explaining how a team's fragments combine into its answer.
+  clue(colors: readonly MixerColor[]): string;
+  // One fresh fragment per color. Call it with a per-player seed and keep the joining player's color.
+  dealFragments(colors: readonly MixerColor[], seed: string): Record<MixerColor, MixerFragment>;
+  // Server-side: is answer right for exactly these members' fragments (one per color, any order)?
+  verify(answer: string, memberFragments: readonly MixerFragment[]): VerifyResult;
+};
+
 export type BaseAction = { type: string };
 
 export type ActionSpec<State, A> = {
@@ -48,6 +71,9 @@ export interface ChallengeTemplate<Config, State, Action extends BaseAction, Pri
   config: { schema: GenericValidator; parse(raw: unknown): Config };
   minSquadSize: number;
   maxSquadSize: number;
+  formations: readonly Formation[];
+  // Required when formations includes 'mixer'.
+  mixer?: MixerSupport;
   // Seats the team and returns the initial state plus each player's private view, keyed by playerId.
   deal(team: Team, seed: string, config: Config): { state: State; views: Record<string, PrivateView> };
   // What only this player may see. Must never contain another player's private content.

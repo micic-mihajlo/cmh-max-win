@@ -3,7 +3,105 @@
 import { ConvexError, v } from 'convex/values';
 
 import { findTemplate } from './registry';
-import { MAX_SQUAD_SIZE, MIN_SQUAD_SIZE, type AnyTemplate, type CheckResult, type Outcome, type Player, type Progress, type Team } from './types';
+import {
+  MAX_MIXER_COLORS,
+  MAX_SQUAD_SIZE,
+  MIN_MIXER_COLORS,
+  MIN_SQUAD_SIZE,
+  MIXER_COLORS,
+  type AnyTemplate,
+  type CheckResult,
+  type Formation,
+  type MixerColor,
+  type MixerFragment,
+  type MixerSupport,
+  type Outcome,
+  type Player,
+  type Progress,
+  type Team,
+  type VerifyResult,
+} from './types';
+
+export const DEFAULT_FORMATION: Formation = 'dealt';
+export const formationValidator = v.union(v.literal('dealt'), v.literal('mixer'));
+export const mixerColorValidator = v.union(...MIXER_COLORS.map((c) => v.literal(c)));
+
+export function requireFormation(templateId: string, formation: Formation) {
+  const template = requireTemplate(templateId);
+  if (!template.formations.includes(formation)) {
+    fail('FORMATION_UNSUPPORTED', `${template.name} supports ${template.formations.join(' and ')} teams.`);
+  }
+  return template;
+}
+
+function requireMixer(templateId: string): MixerSupport {
+  const template = requireFormation(templateId, 'mixer');
+  return template.mixer ?? fail('FORMATION_UNSUPPORTED', `${template.name} has no mixer support.`);
+}
+
+// Validates the creator's color pick: 2–4 distinct colors, within the template's squad sizes.
+export function mixerColors(templateId: string, colors: readonly string[]): MixerColor[] {
+  const template = requireFormation(templateId, 'mixer');
+  const picked = colors.filter((c): c is MixerColor => (MIXER_COLORS as readonly string[]).includes(c));
+  const min = Math.max(MIN_MIXER_COLORS, template.minSquadSize);
+  const max = Math.min(MAX_MIXER_COLORS, template.maxSquadSize);
+  if (picked.length !== colors.length || new Set(picked).size !== picked.length || picked.length < min || picked.length > max) {
+    fail('BAD_CONFIG', `Pick ${min}–${max} different colors from ${MIXER_COLORS.join(', ')}.`);
+  }
+  return picked;
+}
+
+// Round-robin color for the n-th player to join (0-based), so colors stay balanced.
+export function colorForJoin(colors: readonly MixerColor[], joinIndex: number) {
+  return colors[joinIndex % colors.length];
+}
+
+export function mixerClue(templateId: string, colors: readonly MixerColor[]) {
+  return requireMixer(templateId).clue(colors);
+}
+
+// The joining player's private fragment. Seed it per player (`<dropId>:<playerId>`) so it is unique to them.
+export function dealMixerFragment(templateId: string, colors: readonly MixerColor[], color: MixerColor, seed: string): MixerFragment {
+  if (!colors.includes(color)) fail('BAD_CONFIG', `${color} is not a color in this challenge.`);
+  return requireMixer(templateId).dealFragments(colors, seed)[color];
+}
+
+// Called from the link-and-lock flow. Refuses a team that isn't exactly one member per color, then asks the
+// template whether the answer matches these members' fragments.
+export function verifyMixerTeam(templateId: string, colors: readonly MixerColor[], answer: string, memberFragments: readonly MixerFragment[]): VerifyResult {
+  const mixer = requireMixer(templateId);
+  const have = memberFragments.map((f) => f.color);
+  if (have.length !== colors.length || colors.some((c) => !have.includes(c))) {
+    fail('TEAM_INCOMPLETE', `A team needs exactly one player of each color: ${colors.join(', ')}.`);
+  }
+  return mixer.verify(answer, memberFragments);
+}
+
+// Mixer necessity: for every color count and seed, the team's own answer passes, and replacing any one member
+// with another player of the same color makes that answer fail. So no subset can solve without each real member,
+// and a fragment borrowed from outside the team is useless.
+export function checkMixerNecessity(template: AnyTemplate, answerFor: (fragments: MixerFragment[]) => string, seeds: readonly string[]) {
+  const violations: string[] = [];
+  const mixer = template.mixer;
+  if (!template.formations.includes('mixer') || !mixer) return { ok: false, violations: ['no mixer support'] };
+  const min = Math.max(MIN_MIXER_COLORS, template.minSquadSize);
+  const max = Math.min(MAX_MIXER_COLORS, template.maxSquadSize);
+  for (let n = min; n <= max; n++) {
+    const colors = MIXER_COLORS.slice(0, n);
+    for (const seed of seeds) {
+      const team = colors.map((c, i) => mixer.dealFragments(colors, `${seed}:a${i}`)[c]);
+      const answer = answerFor(team);
+      if (!mixer.verify(answer, team).correct) violations.push(`${n} colors seed ${seed}: the team's own answer fails`);
+      colors.forEach((c, i) => {
+        const swapped = team.map((f, j) => (j === i ? mixer.dealFragments(colors, `${seed}:b${i}`)[c] : f));
+        if (swapped[i].text !== team[i].text && mixer.verify(answer, swapped).correct) {
+          violations.push(`${n} colors seed ${seed}: the answer still works without the ${c} member`);
+        }
+      });
+    }
+  }
+  return { ok: violations.length === 0, violations };
+}
 
 export function squadSizes(template: AnyTemplate) {
   const min = Math.max(MIN_SQUAD_SIZE, template.minSquadSize);

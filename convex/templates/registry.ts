@@ -21,5 +21,6 @@ export function listTemplates() {
     mode: t.mode,
     minSquadSize: t.minSquadSize,
     maxSquadSize: t.maxSquadSize,
+    formations: [...t.formations],
   }));
 }

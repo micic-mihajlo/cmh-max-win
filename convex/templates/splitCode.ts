@@ -4,12 +4,31 @@
 import { ConvexError, v } from 'convex/values';
 
 import { rng, shuffle } from './random';
-import type { ChallengeTemplate, CheckResult, Progress, TemplateError } from './types';
+import { MIXER_COLORS, type ChallengeTemplate, type CheckResult, type MixerColor, type MixerFragment, type Progress, type TemplateError } from './types';
 
 const WORDS = [
   'amber', 'beacon', 'cobalt', 'drift', 'ember', 'falcon', 'glacier', 'harbor', 'ion', 'juniper', 'kestrel', 'lantern',
   'meridian', 'nebula', 'orbit', 'prism', 'quartz', 'raven', 'signal', 'tundra', 'umbra', 'vector', 'willow', 'zenith',
 ];
+
+// Mixer fragments are a word plus a two-digit tag ("ember-47"), about 4,300 combinations, so two players in a drop
+// almost never share one. A shared fragment would still be harmless: the server builds each team's answer from
+// its own members' fragments.
+const MIXER_WORDS = [
+  ...WORDS,
+  'aspen', 'basalt', 'cinder', 'delta', 'echo', 'fjord', 'garnet', 'halo', 'indigo', 'jasper', 'kelp', 'lumen',
+  'mica', 'nova', 'onyx', 'pulsar', 'quill', 'reef', 'sable', 'tidal', 'ultra', 'vapor', 'wren', 'yonder',
+];
+
+const ORDINALS = ['first', 'second', 'third', 'fourth'];
+
+function colorOrder(colors: readonly MixerColor[]) {
+  return MIXER_COLORS.filter((c) => colors.includes(c));
+}
+
+function normalize(answer: string) {
+  return answer.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean).join(' ');
+}
 
 export const SPLIT_CODE_MIN_WORDS = 2;
 export const SPLIT_CODE_MAX_WORDS = 8;
@@ -93,6 +112,28 @@ export const splitCodeTemplate: ChallengeTemplate<
   },
   minSquadSize: 1,
   maxSquadSize: 4,
+  formations: ['dealt', 'mixer'],
+
+  // Mixer showcase: each player holds one word, and a team's passphrase is its members' words in color order
+  // (red, blue, green, yellow). Every team's passphrase is different, and a word posted in chat is useless to
+  // anyone who doesn't have its owner on their team.
+  mixer: {
+    clue: (colors) => `Your team's passphrase is your words in color order: ${colorOrder(colors).join(', ')}.`,
+    dealFragments(colors, seed) {
+      const order = colorOrder(colors);
+      const next = rng(seed);
+      const words = shuffle(MIXER_WORDS, next);
+      return Object.fromEntries(
+        order.map((color, i) => [color, { color, text: `${words[i]}-${10 + Math.floor(next() * 90)}`, hint: `${color[0].toUpperCase()}${color.slice(1)} goes ${ORDINALS[i]}.` }]),
+      ) as Record<MixerColor, MixerFragment>;
+    },
+    verify(answer, memberFragments) {
+      const order = colorOrder(memberFragments.map((f) => f.color));
+      const expected = normalize(order.map((c) => memberFragments.find((f) => f.color === c)!.text).join(' '));
+      if (normalize(answer) === expected) return { correct: true };
+      return { correct: false, nudge: `Not your team's passphrase. Read your words aloud in order: ${order.join(', ')}.` };
+    },
+  },
 
   deal(team, seed, config) {
     if (config.wordCount < team.length) {
