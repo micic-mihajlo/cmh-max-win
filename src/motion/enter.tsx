@@ -3,7 +3,7 @@ import type { StyleProp, ViewStyle } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming } from 'react-native-reanimated';
 
 import { useReduced } from './reduced';
-import { Duration, Ease, Spring } from './tokens';
+import { Duration, Ease, Spring, type SpringToken } from './tokens';
 
 type EnterProps = {
   children: ReactNode;
@@ -13,11 +13,12 @@ type EnterProps = {
   stagger?: number;
   delay?: number;
   style?: StyleProp<ViewStyle>;
+  spring?: SpringToken;
 };
 
 // Rises a few points into place with a settle spring; opacity leads so it never reads as a slide.
 // Remount (change key) to replay. play=false renders in place with no motion (rejoin, first load).
-export function Enter({ children, index = 0, play = true, from = 16, stagger = Duration.stagger, delay = 0, style }: EnterProps) {
+export function Enter({ children, index = 0, play = true, from = 16, stagger = Duration.stagger, delay = 0, style, spring = Spring.flight }: EnterProps) {
   const reduced = useReduced();
   const progress = useSharedValue(play ? 0 : 1);
 
@@ -27,10 +28,10 @@ export function Enter({ children, index = 0, play = true, from = 16, stagger = D
       return;
     }
     const wait = delay + index * stagger;
-    const to = reduced ? withTiming(1, { duration: Duration.fade, easing: Ease.out }) : withSpring(1, Spring.enter);
+    const to = reduced ? withTiming(1, { duration: Duration.fade, easing: Ease.out }) : withSpring(1, spring);
     progress.set(0);
     progress.set(withDelay(wait, to));
-  }, [play, reduced, delay, index, stagger, progress]);
+  }, [play, reduced, delay, index, stagger, spring, progress]);
 
   const animated = useAnimatedStyle(() => {
     const p = progress.get();

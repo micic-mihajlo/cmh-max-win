@@ -13,7 +13,7 @@ import { scheduleOnRN } from 'react-native-worklets';
 import { Fonts } from '@/constants/theme';
 
 import { Haptic } from './haptics';
-import { Palette } from './palette';
+import { useMotionColors } from './palette';
 import { useReduced } from './reduced';
 import { Duration, Ease, Spring } from './tokens';
 
@@ -26,16 +26,17 @@ type Props = {
   size?: number;
   // Away / stepped-away holder: the seal dims, its lock-in stays valid.
   dimmed?: boolean;
-  // Only for this phone's own lock-in. Other players' stamps stay silent.
+  // Only for this phone's own claim / lock-in (medium impact). Other players' stamps stay silent.
   haptic?: boolean;
   onDone?: (locked: boolean) => void;
   accessibilityLabel?: string;
 };
 
-// Stateless seal stamp (RESEARCH §4.4): 1.35x and -8deg down to rest on a stiff spring with a little
-// bounce, then a 1pt ink-bleed ring. Clearing is a 200ms fade with no shake; edits aren't punitive.
+// Stateless seal stamp: 1.25x and -6deg down to rest on a quick spring with one small settle,
+// then an ink-bleed ring. Clearing is a 200ms fade with no shake; edits aren't punitive.
 export function Seal({ locked, color, initial, play = true, size = 56, dimmed = false, haptic = false, onDone, accessibilityLabel }: Props) {
   const reduced = useReduced();
+  const colors = useMotionColors();
   const fill = useSharedValue(locked ? 1 : 0);
   const scale = useSharedValue(1);
   const rotate = useSharedValue(0);
@@ -61,14 +62,14 @@ export function Seal({ locked, color, initial, play = true, size = 56, dimmed = 
       return;
     }
     if (reduced) {
-      if (haptic) Haptic.tap();
+      if (haptic) Haptic.thud();
       fill.set(withTiming(1, { duration: Duration.fade, easing: Ease.out }, finish));
       return;
     }
     stamping.set(true);
-    fill.set(withSequence(withTiming(0, { duration: 0 }), withTiming(1, { duration: 90, easing: Ease.out })));
-    rotate.set(withSequence(withTiming(-8, { duration: 0 }), withSpring(0, Spring.stamp)));
-    scale.set(withSequence(withTiming(1.35, { duration: 0 }), withSpring(1, Spring.stamp, finish)));
+    fill.set(withSequence(withTiming(0, { duration: 0 }), withTiming(1, { duration: 80, easing: Ease.out })));
+    rotate.set(withSequence(withTiming(-6, { duration: 0 }), withSpring(0, Spring.stamp)));
+    scale.set(withSequence(withTiming(1.25, { duration: 0 }), withSpring(1, Spring.stamp, finish)));
   }, [locked, play, reduced, haptic, onDone, fill, scale, rotate, stamping]);
 
   // The stamp "lands" the first frame it reaches rest size: the bleed ring and the haptic start there.
@@ -78,7 +79,7 @@ export function Seal({ locked, color, initial, play = true, size = 56, dimmed = 
       if (!landed || before !== false || !stamping.get()) return;
       stamping.set(false);
       bleed.set(withSequence(withTiming(0, { duration: 0 }), withTiming(1, { duration: Duration.bleed, easing: Ease.out })));
-      if (haptic) scheduleOnRN(Haptic.tap);
+      if (haptic) scheduleOnRN(Haptic.thud);
     },
   );
 
@@ -88,7 +89,7 @@ export function Seal({ locked, color, initial, play = true, size = 56, dimmed = 
   }));
   const bleedStyle = useAnimatedStyle(() => ({
     opacity: (1 - bleed.get()) * 0.7,
-    transform: [{ scale: 1 + bleed.get() * 0.45 }],
+    transform: [{ scale: 1 + bleed.get() * 0.7 }],
   }));
 
   const ring = { width: size, height: size, borderRadius: size / 2 };
@@ -104,7 +105,7 @@ export function Seal({ locked, color, initial, play = true, size = 56, dimmed = 
       <View style={[StyleSheet.absoluteFill, ring, styles.empty, { borderColor: color }]} />
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, ring, styles.bleed, { borderColor: color }, bleedStyle]} />
       <Animated.View style={[StyleSheet.absoluteFill, ring, styles.disc, { backgroundColor: color }, discStyle]}>
-        <Text allowFontScaling={false} style={[styles.initial, { fontSize: size * 0.42 }]}>
+        <Text allowFontScaling={false} style={[styles.initial, { fontSize: size * 0.42, color: colors.onRole }]}>
           {initial}
         </Text>
       </Animated.View>
@@ -114,7 +115,7 @@ export function Seal({ locked, color, initial, play = true, size = 56, dimmed = 
 
 const styles = StyleSheet.create({
   empty: { borderWidth: 1.5, borderStyle: 'dashed' },
-  bleed: { borderWidth: 1 },
+  bleed: { borderWidth: 1.5 },
   disc: { alignItems: 'center', justifyContent: 'center' },
-  initial: { fontFamily: Fonts.serif, fontWeight: '600', color: Palette.ink },
+  initial: { fontFamily: Fonts.serif, fontWeight: '700' },
 });

@@ -3,18 +3,24 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Fonts } from '@/constants/theme';
 
 import { Enter } from './enter';
-import { Palette } from './palette';
+import { useMotionColors } from './palette';
 
-type Props = { code: string; play?: boolean; size?: number };
+type Props = { code: string; play?: boolean; size?: number; tileColor?: string; borderColor?: string; letterColor?: string };
 
-// The four letters deal in left to right, 50ms apart, so the eye reads the code in order.
-export function InviteCode({ code, play = true, size = 64 }: Props) {
+// Wordle-style tiles: one big letter each, thin border. They deal in left to right, 45ms apart,
+// so the eye reads the code in order.
+export function InviteCode({ code, play = true, size = 64, tileColor, borderColor, letterColor }: Props) {
+  const colors = useMotionColors();
   return (
     <View style={styles.row} accessible accessibilityLabel={`Room code ${code.split('').join(' ')}`}>
       {code.split('').map((ch, i) => (
-        <Enter key={`${i}${ch}`} index={i} play={play} from={10} stagger={50}>
-          <View style={[styles.tile, { width: size, height: size * 1.15 }]}>
-            <Text allowFontScaling={false} style={[styles.letter, { fontSize: size * 0.55 }]}>
+        <Enter key={`${i}${ch}`} index={i} play={play} from={8} stagger={45}>
+          <View
+            style={[
+              styles.tile,
+              { width: size, height: size, backgroundColor: tileColor ?? colors.card, borderColor: borderColor ?? colors.hairline },
+            ]}>
+            <Text allowFontScaling={false} style={[styles.letter, { fontSize: size * 0.56, color: letterColor ?? colors.ink }]}>
               {ch}
             </Text>
           </View>
@@ -25,14 +31,7 @@ export function InviteCode({ code, play = true, size = 64 }: Props) {
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', gap: 10, justifyContent: 'center' },
-  tile: {
-    borderRadius: 12,
-    backgroundColor: Palette.panel,
-    borderWidth: 1,
-    borderColor: Palette.hairline,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  letter: { fontFamily: Fonts.serif, fontWeight: '600', color: Palette.paper, fontVariant: ['tabular-nums'] },
+  row: { flexDirection: 'row', gap: 8, justifyContent: 'center' },
+  tile: { borderRadius: 10, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  letter: { fontFamily: Fonts.serif, fontWeight: '700', fontVariant: ['tabular-nums'] },
 });
