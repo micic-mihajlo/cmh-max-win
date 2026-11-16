@@ -8,17 +8,24 @@ import { useDiscoveryHome, useRemindChallenge, useUpcomingReminders } from '@/ho
 import type { ChallengeCardView } from '@/lib/contract';
 import { PressScale } from '@/motion';
 
-// What's on now and next, followed creators first. Both lists come from one discovery query.
-export function OnNow() {
+const SHOWN = 3;
+
+// creator arrives with CMHM-76; until then the line falls back to the count or time alone.
+type Card = ChallengeCardView & { creator?: { displayName: string } };
+
+// What's on now and next, followed creators first. Both lists come from one discovery query. Home shows three of
+// each; `all` (the See all page) shows every row. A game needs two players to count as on.
+export function OnNow({ all }: { all?: boolean }) {
   const home = useDiscoveryHome();
-  if (!home?.onNow.length) return null;
+  const on = (home?.onNow ?? []).filter((c) => c.entrantCount >= 2);
+  if (!on.length) return null;
   return (
-    <Section title="On now">
-      {home.onNow.map((c) => (
+    <Section title="On now" more={!all && on.length > SHOWN}>
+      {(all ? on : on.slice(0, SHOWN)).map((c: Card) => (
         <Row
           key={c.challengeId}
           title={c.title}
-          line={c.entrantCount ? c.entrantCount + ' in' : 'Open now'}
+          line={byline(c, c.entrantCount + ' in')}
           action="Join"
           onPress={() => router.push(('/c/' + (c.joinCode ?? c.slug)) as Href)}
         />
@@ -27,39 +34,47 @@ export function OnNow() {
   );
 }
 
-export function ComingUp() {
+export function ComingUp({ all }: { all?: boolean }) {
   const home = useDiscoveryHome();
   const reminders = useUpcomingReminders();
-  if (!home?.comingUp.length) return null;
+  const next = home?.comingUp ?? [];
+  if (!next.length) return null;
   const reminded = new Set((reminders ?? []).map((r) => r.challengeId));
   return (
-    <Section title="Coming up">
-      {home.comingUp.map((c) => (
+    <Section title="Coming up" more={!all && next.length > SHOWN}>
+      {(all ? next : next.slice(0, SHOWN)).map((c) => (
         <NextRow key={c.challengeId} challenge={c} reminded={reminded.has(c.challengeId)} />
       ))}
     </Section>
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({ title, more, children }: { title: string; more: boolean; children: ReactNode }) {
   return (
     <View style={styles.section}>
-      <Txt variant="label" color={Palette.paperMuted}>
-        {title}
-      </Txt>
+      <View style={styles.head}>
+        <Txt variant="label" color={Palette.paperMuted} style={styles.flex}>
+          {title}
+        </Txt>
+        {more ? (
+          <PressScale accessibilityRole="link" haptic="tap" hitSlop={12} onPress={() => router.push('/discover' as Href)}>
+            <Txt variant="label">See all</Txt>
+          </PressScale>
+        ) : null}
+      </View>
       {children}
     </View>
   );
 }
 
-function NextRow({ challenge, reminded }: { challenge: ChallengeCardView; reminded: boolean }) {
+function NextRow({ challenge, reminded }: { challenge: Card; reminded: boolean }) {
   const { remind, cancel } = useRemindChallenge(challenge.challengeId);
   const [local, setLocal] = useState<boolean | null>(null);
   const on = local ?? reminded;
   return (
     <Row
       title={challenge.title}
-      line={challenge.startsAt ? when(challenge.startsAt) : 'Starts on stream'}
+      line={byline(challenge, challenge.startsAt ? when(challenge.startsAt) : 'Starts on stream')}
       action={on ? 'Reminded' : 'Remind me'}
       quiet={on}
       onPress={async () => {
@@ -98,12 +113,22 @@ function Row({ title, line, action, quiet, onPress }: { title: string; line: str
   );
 }
 
+function byline(c: Card, detail: string) {
+  return c.creator ? c.creator.displayName + ' · ' + detail : detail;
+}
+
+// 'Fri 9 pm', or 'Fri 9:30 pm' off the hour.
 function when(at: number) {
-  return new Date(at).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+  const d = new Date(at);
+  const day = d.toLocaleDateString('en-US', { weekday: 'short' });
+  const h = d.getHours() % 12 || 12;
+  const m = d.getMinutes() ? ':' + String(d.getMinutes()).padStart(2, '0') : '';
+  return day + ' ' + h + m + (d.getHours() < 12 ? ' am' : ' pm');
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   section: { gap: Space.xs, paddingTop: Space.m },
+  head: { flexDirection: 'row', alignItems: 'center' },
   row: { flexDirection: 'row', alignItems: 'center', gap: Space.m, minHeight: 56, paddingVertical: Space.s },
 });
