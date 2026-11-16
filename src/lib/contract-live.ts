@@ -55,7 +55,8 @@ export type TeamSessionView = {
 
 export type UseLiveView = (code: string | null) => LiveView | null | undefined; // null = no such challenge
 export type UseLockEntries = (challengeId: string) => () => Promise<void>; // host only
-export type UseStartLive = (challengeId: string) => () => Promise<void>; // host only; NOT_ENOUGH_PLAYERS
+// host only; NOT_ENOUGH_PLAYERS. openFirst: quick-quiz opens question 1 in the same press.
+export type UseStartLive = (challengeId: string) => (options?: { openFirst?: boolean }) => Promise<void>;
 export type UseRunHostAction = (challengeId: string) => (action: string, payload?: unknown) => Promise<{ view: unknown }>; // host only
 export type UseTeamSessionView = (challengeId: string | null) => TeamSessionView | null | undefined; // null = not on a dealt team
 export type UsePlayerAction = (challengeId: string) => (action: { type: string; [key: string]: unknown }) => Promise<void>; // the template's refusal codes

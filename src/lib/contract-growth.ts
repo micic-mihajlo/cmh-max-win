@@ -14,8 +14,9 @@ export type ChallengeGrowthView = {
   winners: number; // players in paid places; 0 when cancelled
   paidCents: number; // payout rows sent or sent_concept; 0 before approval. A concept challenge moves no real money
   payoutAdapter: PayoutAdapterId;
-  newWhopMembers: number; // distinct Whop accounts from claims plus members-only joins
-  playerNames?: string[]; // challengeGrowth only: entrants' first names in join order, at most 50, never tokens
+  newWhopMembers: number | null; // whop_members challenges only: distinct Whop accounts from claims plus joins; null otherwise
+  playerNames?: string[]; // challengeGrowth only: entrants' first names in join order, at most 50, never tokens. A shared
+  // first name takes the last initial, else a number: "Chris", "Chris B.", "Chris 2"
 };
 
 export type CreatorStatsView = {
