@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { CHALLENGES } from '@/components/drops/creator-setup';
+import { HOST_UNLOCKED_KEY, HostPinGate } from '@/components/drops/host-pin-gate';
 import { MIN_PLAYERS, prizeProblem, RunGameScreen, type RunGameState } from '@/components/drops/run-game';
 import { NameEntryScreen } from '@/components/screens/name-entry';
 import { Arrive, Pending } from '@/components/signal/backdrop';
@@ -10,6 +11,7 @@ import { useMyHostedDrops, useSignInToHost } from '@/hooks/use-host-account';
 import { usePlayerName } from '@/hooks/use-player-name';
 import { useSignOutWhop, useWhopAccount } from '@/hooks/use-whop-account';
 import type { WhopSignInResult } from '@/lib/contract';
+import { readStored, writeStored } from '@/lib/device';
 import { toSignalError } from '@/lib/signal-error';
 
 const SIGN_IN_FAILED: Partial<Record<WhopSignInResult, string>> = {
@@ -37,7 +39,20 @@ export default function HostNewRoute() {
   const [signingIn, setSigningIn] = useState(false);
   const [signInError, setSignInError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  if (name === undefined) return <Pending />;
+  const [unlocked, setUnlocked] = useState<boolean>();
+  useEffect(() => {
+    readStored(HOST_UNLOCKED_KEY).then(({ value }) => setUnlocked(value === '1'));
+  }, []);
+  if (unlocked === undefined || name === undefined) return <Pending />;
+  if (!unlocked)
+    return (
+      <HostPinGate
+        onUnlock={() => {
+          writeStored(HOST_UNLOCKED_KEY, '1');
+          setUnlocked(true);
+        }}
+      />
+    );
   if (name === null) return <NameEntryScreen name={draft} onChangeName={setDraft} onContinue={() => save(draft.trim())} />;
   const mode = real && !real.enabled ? 'fun' : state.mode;
   const hostName = (whop?.available ? whop.account?.name : undefined) || name;

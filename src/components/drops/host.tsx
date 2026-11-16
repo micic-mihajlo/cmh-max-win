@@ -50,7 +50,7 @@ export function HostScreen({
           <Pot view={view} style={wide && styles.flex} />
           <PressScale disabled={!canDeal} onPress={onDeal} haptic="tap" style={[styles.deal, !canDeal && styles.dealOff]}>
             <Txt variant="button" color={canDeal ? Palette.onAccent : Palette.paperMuted}>
-              {dealing ? 'Dealing…' : need ? `Need ${need} more player${need === 1 ? '' : 's'} to deal` : 'Deal squads'}
+              {dealing ? 'Starting…' : need ? `Need ${need} more player${need === 1 ? '' : 's'}` : 'Start game'}
             </Txt>
           </PressScale>
         </View>
@@ -321,6 +321,6 @@ const styles = StyleSheet.create({
   chip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: Radius.pill, backgroundColor: Palette.paperShade },
   footer: { flexDirection: 'row', alignItems: 'center', gap: Space.l },
   footerStack: { flexDirection: 'column', alignItems: 'stretch', gap: Space.m },
-  deal: { height: 52, paddingHorizontal: Space.xl, borderRadius: 16, backgroundColor: Palette.paper, alignItems: 'center', justifyContent: 'center' },
+  deal: { height: 56, paddingHorizontal: Space.xxl, borderRadius: 16, backgroundColor: Palette.ember, alignItems: 'center', justifyContent: 'center' },
   dealOff: { backgroundColor: Palette.inkDeep },
 });
