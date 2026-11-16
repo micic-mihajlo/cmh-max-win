@@ -10,7 +10,9 @@ import { Screen } from '@/components/signal/backdrop';
 import { Txt } from '@/components/signal/txt';
 import { Wordmark } from '@/components/wordmark';
 import { FontFamily, Palette, Radius, Space } from '@/constants/signal';
-import { useChallengeByCode } from '@/hooks/use-challenges';
+import { useActiveDrop } from '@/hooks/use-active-drop';
+import { useResolveCode } from '@/hooks/use-discovery';
+import { useActiveRoom } from '@/hooks/use-signal';
 import { Haptic, PressScale } from '@/motion';
 
 const ALPHABET = /[^ABCDEFGHJKLMNPQRSTUVWXYZ23456789]/g;
@@ -21,14 +23,22 @@ export function HomeScreen() {
   const [code, setCode] = useState('');
   const input = useRef<ComponentRef<typeof TextInput>>(null);
   const ready = code.length === 4;
-  const challenge = useChallengeByCode(ready ? code : null);
+  const resolved = useResolveCode(ready ? code : null);
+  const unknown = ready && resolved === null;
+  const active = useActiveRoom();
+  const activeDrop = useActiveDrop(active?.code ?? null);
   const { width } = useWindowDimensions();
   const desktop = Platform.OS === 'web' && width >= 768;
 
   const join = () => {
-    if (!ready) return input.current?.focus();
-    router.push(((challenge === null ? '/join/' : '/c/') + code) as Href);
+    if (!ready || unknown) return input.current?.focus();
+    if (resolved) router.push(resolved.path as Href);
   };
+
+  const resume = () =>
+    activeDrop
+      ? router.push({ pathname: '/drop/[id]', params: { id: activeDrop.dropId } })
+      : active && router.push({ pathname: '/room/[code]', params: { code: active.code } });
 
   return (
     <Screen>
@@ -75,20 +85,31 @@ export function HomeScreen() {
           style={styles.hidden}
         />
         <View style={styles.under}>
-          <PressScale accessibilityRole="link" haptic="tap" hitSlop={12} onPress={() => router.push('/scan' as Href)}>
-            <Txt variant="label">Scan</Txt>
-          </PressScale>
+          {unknown ? (
+            <Txt variant="label" color={Palette.paperMuted}>
+              No game with that code
+            </Txt>
+          ) : (
+            <PressScale accessibilityRole="link" haptic="tap" hitSlop={12} onPress={() => router.push('/scan' as Href)}>
+              <Txt variant="label">Scan</Txt>
+            </PressScale>
+          )}
         </View>
         <PressScale
           accessibilityRole="button"
-          accessibilityState={{ disabled: !ready }}
+          accessibilityState={{ disabled: !resolved }}
           haptic="tap"
           onPress={join}
-          style={[styles.primary, !ready && styles.primaryOff]}>
-          <Txt variant="button" color={ready ? Palette.ink : Palette.disabledText}>
+          style={[styles.primary, !resolved && styles.primaryOff]}>
+          <Txt variant="button" color={resolved ? Palette.ink : Palette.disabledText}>
             Join
           </Txt>
         </PressScale>
+        {active ? (
+          <PressScale accessibilityRole="link" haptic="tap" onPress={resume} style={styles.host}>
+            <Txt variant="label">Back to your squad</Txt>
+          </PressScale>
+        ) : null}
         <PressScale accessibilityRole="link" haptic="tap" onPress={() => router.push('/studio/new' as Href)} style={styles.host}>
           <Txt variant="label">Host a game</Txt>
         </PressScale>

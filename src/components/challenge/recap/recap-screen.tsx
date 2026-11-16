@@ -33,7 +33,7 @@ export function RecapScreen({ recap, growth }: { recap: ChallengeRecapView | nul
   const stats = [
     { value: recap.entrantCount, label: recap.entrantCount === 1 ? 'player' : 'players' },
     { value: recap.teamCount, label: recap.teamCount === 1 ? 'team' : 'teams' },
-    ...(growth ? [{ value: growth.newWhopMembers, label: growth.newWhopMembers === 1 ? 'new Whop member' : 'new Whop members' }] : []),
+    ...(growth?.newWhopMembers ? [{ value: growth.newWhopMembers, label: growth.newWhopMembers === 1 ? 'new Whop member' : 'new Whop members' }] : []),
   ];
   const share = () =>
     void Share.share({

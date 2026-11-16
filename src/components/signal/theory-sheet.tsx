@@ -168,7 +168,16 @@ export function TheorySheet({
             <View style={styles.seals}>
               {seals(room).map(({ role, member }) => (
                 <View key={member.memberId} style={styles.sealCol}>
-                  <Seal role={role} filled={locked.has(member.memberId)} haptic={member.isMe} size={46} initial={member.name.charAt(0).toUpperCase()} />
+                  <View style={styles.seal}>
+                    <Seal role={role} filled={locked.has(member.memberId)} haptic={member.isMe} size={46} initial={member.name.charAt(0).toUpperCase()} />
+                    {locked.has(member.memberId) ? null : (
+                      <View pointerEvents="none" style={styles.sealPending}>
+                        <Txt variant="bodyStrong" color={Palette.paperMuted}>
+                          {member.name.charAt(0).toUpperCase()}
+                        </Txt>
+                      </View>
+                    )}
+                  </View>
                   <Txt variant="small" color={Palette.paperMuted} numberOfLines={1}>
                     {member.isMe ? 'You' : member.name}
                   </Txt>
@@ -185,7 +194,7 @@ export function TheorySheet({
             ) : meLocked ? (
               <Button title="Locked in ✓" variant="secondary" />
             ) : (
-              <Button title={`Lock in ${culprit.first}`} haptic={false} onPress={onLockIn} />
+              <Button title={`Lock in ${culprit.first}`} variant="accent" haptic={false} onPress={onLockIn} />
             )}
           </ScrollView>
         ) : null}
@@ -197,7 +206,7 @@ export function TheorySheet({
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   center: { textAlign: 'center' },
-  scrim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(26,25,22,0.25)' },
+  scrim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(33,32,28,0.25)' },
   sheetHead: { gap: 4, paddingTop: Space.s },
   dots: { flexDirection: 'row', gap: 6 },
   dot: { width: 10, height: 10, borderRadius: 5, borderWidth: 1.5, borderColor: Palette.paperMuted },
@@ -213,7 +222,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderColor: Palette.hairline,
     paddingHorizontal: Space.xl,
-    boxShadow: '0 -8px 32px rgba(26,25,22,0.10)',
+    boxShadow: '0 0 0 1px #0000000F, 0 -12px 60px rgba(0,0,0,0.15), 0 -16px 36px -20px #00000031',
   },
   summary: { paddingTop: Space.s, paddingBottom: Space.s, gap: 4 },
   handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: Palette.hairline, marginBottom: Space.s },
@@ -221,4 +230,16 @@ const styles = StyleSheet.create({
   expanded: { gap: Space.m, paddingTop: Space.s, paddingBottom: Space.xs },
   seals: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', rowGap: Space.s },
   sealCol: { alignItems: 'center', gap: 6, width: 80 },
+  seal: { width: 46, height: 46 },
+  sealPending: {
+    position: 'absolute',
+    top: -1,
+    left: -1,
+    right: -1,
+    bottom: -1,
+    borderRadius: 24,
+    backgroundColor: Palette.paperShade,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

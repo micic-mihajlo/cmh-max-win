@@ -4,32 +4,38 @@ import { StyleSheet, View } from 'react-native';
 
 import { Txt } from '@/components/signal/txt';
 import { Palette, Space } from '@/constants/signal';
-import { useRemindMe, useStreamerPage, useStreamers } from '@/hooks/use-feed';
-import type { StreamerCardView } from '@/lib/contract';
+import { useDiscoveryHome, useRemindChallenge, useUpcomingReminders } from '@/hooks/use-discovery';
+import type { ChallengeCardView } from '@/lib/contract';
 import { PressScale } from '@/motion';
 
-// What's happening now and next from the streamers on Signal. Each streamer's page is its own query, so a row
-// appears as soon as its streamer has something on.
+// What's on now and next, followed creators first. Both lists come from one discovery query.
 export function OnNow() {
-  const streamers = useStreamers();
-  const live = (streamers ?? []).filter((s) => s.live);
-  if (!live.length) return null;
+  const home = useDiscoveryHome();
+  if (!home?.onNow.length) return null;
   return (
     <Section title="On now">
-      {live.map((s) => (
-        <LiveRow key={s.streamerId} streamer={s} />
+      {home.onNow.map((c) => (
+        <Row
+          key={c.challengeId}
+          title={c.title}
+          line={c.entrantCount ? c.entrantCount + ' in' : 'Open now'}
+          action="Join"
+          onPress={() => router.push(('/c/' + (c.joinCode ?? c.slug)) as Href)}
+        />
       ))}
     </Section>
   );
 }
 
 export function ComingUp() {
-  const streamers = useStreamers();
-  if (!streamers?.length) return null;
+  const home = useDiscoveryHome();
+  const reminders = useUpcomingReminders();
+  if (!home?.comingUp.length) return null;
+  const reminded = new Set((reminders ?? []).map((r) => r.challengeId));
   return (
     <Section title="Coming up">
-      {streamers.map((s) => (
-        <NextRow key={s.streamerId} streamer={s} />
+      {home.comingUp.map((c) => (
+        <NextRow key={c.challengeId} challenge={c} reminded={reminded.has(c.challengeId)} />
       ))}
     </Section>
   );
@@ -46,39 +52,22 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function LiveRow({ streamer }: { streamer: StreamerCardView }) {
-  const page = useStreamerPage(streamer.streamerId);
-  const drop = page?.liveDrop;
-  if (!drop) return null;
+function NextRow({ challenge, reminded }: { challenge: ChallengeCardView; reminded: boolean }) {
+  const { remind, cancel } = useRemindChallenge(challenge.challengeId);
+  const [local, setLocal] = useState<boolean | null>(null);
+  const on = local ?? reminded;
   return (
     <Row
-      title={drop.title}
-      line={drop.entrantCount ? streamer.name + ' · ' + drop.entrantCount + ' in' : streamer.name}
-      action="Join"
-      onPress={() => router.push(('/join/' + drop.joinCode) as Href)}
-    />
-  );
-}
-
-function NextRow({ streamer }: { streamer: StreamerCardView }) {
-  const page = useStreamerPage(streamer.streamerId);
-  const drop = page?.nextDrop;
-  const { remind, cancel } = useRemindMe(drop?.dropId ?? '');
-  const [reminded, setReminded] = useState<boolean | null>(null);
-  if (!drop) return null;
-  const on = reminded ?? drop.reminded;
-  return (
-    <Row
-      title={drop.title}
-      line={streamer.name + ' · ' + when(drop.startsAt)}
+      title={challenge.title}
+      line={challenge.startsAt ? when(challenge.startsAt) : 'Starts on stream'}
       action={on ? 'Reminded' : 'Remind me'}
       quiet={on}
       onPress={async () => {
-        setReminded(!on);
+        setLocal(!on);
         try {
           await (on ? cancel() : remind());
         } catch {
-          setReminded(on);
+          setLocal(on);
         }
       }}
     />

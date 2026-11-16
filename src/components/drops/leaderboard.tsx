@@ -16,11 +16,11 @@ export type RacingSquad = { pick: string | null; locked: number; size: number; n
 
 const squadNames = (names: string[]) => (names.length > 1 ? `${names.slice(0, -1).join(', ')} & ${names[names.length - 1]}` : names.join(''));
 
-// Only our row carries a time; other squads are dimmed labels.
+// Solved squads carry their time; other squads are dimmed labels.
 function Row({ row }: { row: LeaderboardRow }) {
   return (
     <View style={styles.row}>
-      <Txt variant="bodyStrong" color={row.isMine ? Palette.paper : Palette.paperMuted} style={styles.rank}>
+      <Txt variant="bodyStrong" color={row.isMine ? Palette.ember : Palette.paperMuted} style={styles.rank}>
         {row.rank ?? ''}
       </Txt>
       {row.isMine && row.memberNames.length ? (
@@ -36,7 +36,13 @@ function Row({ row }: { row: LeaderboardRow }) {
           {row.isMine ? ' · you' : ''}
         </Txt>
       )}
-      {row.isMine ? <Txt variant="time">{row.status === 'solving' ? 'Racing' : short(row.solveMs ?? 0)}</Txt> : null}
+      {row.isMine ? (
+        <Txt variant="time">{row.status === 'solving' ? 'Racing' : short(row.solveMs ?? 0)}</Txt>
+      ) : row.solveMs !== null ? (
+        <Txt variant="time" color={Palette.paperMuted}>
+          {short(row.solveMs)}
+        </Txt>
+      ) : null}
     </View>
   );
 }
@@ -146,9 +152,9 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'flex-end', gap: Space.m },
   spots: { flexDirection: 'row', gap: 6 },
   spot: { flex: 1, height: 8, borderRadius: Radius.pill, backgroundColor: Palette.panelRaised },
-  spotTaken: { backgroundColor: Palette.ember },
+  spotTaken: { backgroundColor: Palette.paper },
   list: { backgroundColor: Palette.panel, borderRadius: 16, paddingHorizontal: Space.l },
-  row: { flexDirection: 'row', alignItems: 'center', gap: Space.m, height: 56 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: Space.m, height: 64 },
   rank: { minWidth: 28, fontVariant: ['tabular-nums'] },
   card: {
     gap: Space.s,

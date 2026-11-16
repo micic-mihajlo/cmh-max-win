@@ -2,7 +2,10 @@ import React, { useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 
+import { router } from 'expo-router';
+
 import { Screen } from '@/components/signal/backdrop';
+import { Button } from '@/components/signal/primitives';
 import { Txt } from '@/components/signal/txt';
 import { FontFamily, Palette, Radius, Space } from '@/constants/signal';
 import { Enter, Haptic, useReduced } from '@/motion';
@@ -20,6 +23,7 @@ export function JoinCodeScreen({
   onChange,
   onSubmit,
   onScan,
+  onBack,
 }: {
   code: string;
   phase: JoinPhase;
@@ -28,6 +32,7 @@ export function JoinCodeScreen({
   onChange?: (code: string) => void;
   onSubmit?: (code: string) => void;
   onScan?: () => void;
+  onBack?: () => void;
 }) {
   const reduced = useReduced();
   const input = useRef<React.ComponentRef<typeof TextInput>>(null);
@@ -73,14 +78,22 @@ export function JoinCodeScreen({
   };
 
   return (
-    <Screen contentStyle={styles.center}>
-      {onScan ? (
-        <Pressable accessibilityRole="button" onPress={onScan} style={styles.scan} hitSlop={12}>
-          <Txt variant="smallStrong" color={Palette.paperMuted}>
-            Scan
-          </Txt>
-        </Pressable>
-      ) : null}
+    <Screen
+      contentStyle={styles.center}
+      header={
+        <View style={styles.bar}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Back"
+            hitSlop={12}
+            style={styles.back}
+            onPress={onBack ?? (() => (router.canGoBack() ? router.back() : router.replace('/')))}>
+            <Txt variant="title" style={styles.chevron}>
+              ‹
+            </Txt>
+          </Pressable>
+        </View>
+      }>
       <Txt variant="title" style={styles.text}>
         Type the code on the screen
       </Txt>
@@ -106,6 +119,7 @@ export function JoinCodeScreen({
       <Txt variant="small" color={phase === 'error' ? Palette.danger : Palette.paperMuted} style={styles.text}>
         {phase === 'error' ? `That code isn’t live yet. ${hostName ? `Check ${hostName}’s chat.` : 'Check the code on the big screen.'}` : phase === 'checking' ? 'Checking…' : ' '}
       </Txt>
+      {onScan ? <Button title="Scan a code" variant="ghost" onPress={onScan} /> : null}
       <TextInput
         ref={input}
         value={code}
@@ -124,7 +138,9 @@ export function JoinCodeScreen({
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Space.xl },
   text: { textAlign: 'center' },
-  scan: { position: 'absolute', top: Space.l, right: Space.xl },
+  bar: { paddingHorizontal: Space.l, height: 44, justifyContent: 'center' },
+  back: { width: 32 },
+  chevron: { fontSize: 34, lineHeight: 40, marginTop: -4 },
   tiles: { flexDirection: 'row', gap: 10 },
   tile: {
     width: 64,
