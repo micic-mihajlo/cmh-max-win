@@ -286,5 +286,5 @@ const styles = StyleSheet.create({
   tip: { position: 'absolute', width: 240, alignItems: 'center' },
   tipText: { backgroundColor: Palette.card, borderRadius: 10, paddingHorizontal: Space.m, paddingVertical: Space.s, overflow: 'hidden', boxShadow: '0 4px 16px rgba(22,21,19,0.10)' },
   pinCap: { position: 'absolute', left: 0, textAlign: 'center' },
-  whisper: { height: 17 },
+  whisper: { height: 17, marginTop: Space.s },
 });
