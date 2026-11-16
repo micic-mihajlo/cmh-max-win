@@ -1,13 +1,14 @@
 // Team names and their muted paper tints (Razeen, Nov 16). Deterministic: the same team gets the same name and tint
 // on every screen and phone. Tints mark team clusters and markers only, never buttons or backgrounds.
-// Sixty distinct names; past sixty they cycle with " 2", " 3"... Tints cycle over eight, so neighbours never share one.
+// Sixty distinct names, with no colour words past the first eight (a tint would contradict them) and no first names
+// (they sit beside member names); past sixty they cycle with " 2", " 3"... Tints cycle over eight, so neighbours never share one.
 const NAMES = [
   'Coral', 'Sage', 'Sky', 'Sand', 'Lilac', 'Moss', 'Clay', 'Slate', 'Fern', 'Pine',
-  'Rust', 'Plum', 'Dune', 'Cove', 'Reef', 'Birch', 'Cedar', 'Flint', 'Heath', 'Juniper',
-  'Kelp', 'Linen', 'Maple', 'Oat', 'Pebble', 'Quartz', 'Reed', 'Saffron', 'Tide', 'Umber',
-  'Willow', 'Elm', 'Aspen', 'Basalt', 'Brook', 'Cliff', 'Dew', 'Fjord', 'Frost', 'Glade',
-  'Grove', 'Hazel', 'Ivy', 'Lagoon', 'Larch', 'Marsh', 'Meadow', 'Mist', 'Oak', 'Olive',
-  'Opal', 'Pearl', 'Prairie', 'Rain', 'River', 'Shale', 'Spruce', 'Thistle', 'Thyme', 'Wren',
+  'Dune', 'Cove', 'Reef', 'Birch', 'Cedar', 'Flint', 'Heath', 'Kelp', 'Maple', 'Pebble',
+  'Quartz', 'Reed', 'Tide', 'Elm', 'Basalt', 'Cliff', 'Dew', 'Fjord', 'Frost', 'Glade',
+  'Grove', 'Lagoon', 'Larch', 'Marsh', 'Meadow', 'Mist', 'Oak', 'Prairie', 'Rain', 'Shale',
+  'Spruce', 'Thistle', 'Thyme', 'Bay', 'Ridge', 'Fen', 'Moor', 'Delta', 'Mesa', 'Atoll',
+  'Canyon', 'Summit', 'Tundra', 'Gale', 'Thicket', 'Briar', 'Cairn', 'Knoll', 'Inlet', 'Crest',
 ] as const;
 
 const TINTS = [
