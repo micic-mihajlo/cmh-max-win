@@ -23,6 +23,17 @@ class AppDelegate: ExpoAppDelegate, ExpoReactNativeFactoryProvider {
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
+
+  // The clip target generates its Info.plist scene manifest, so name the scene delegate here.
+  @objc func application(
+    _ application: UIApplication,
+    configurationForConnecting connectingSceneSession: UISceneSession,
+    options: UIScene.ConnectionOptions
+  ) -> UISceneConfiguration {
+    let configuration = UISceneConfiguration(name: "Default Configuration", sessionRole: connectingSceneSession.role)
+    configuration.delegateClass = SceneDelegate.self
+    return configuration
+  }
 }
 
 class ReactNativeDelegate: ExpoReactNativeFactoryDelegate {
