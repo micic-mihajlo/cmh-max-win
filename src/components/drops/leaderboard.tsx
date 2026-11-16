@@ -20,16 +20,18 @@ const squadNames = (list: string[], me: string | null) => {
   return names(at < 0 ? list : list.map((n, i) => (i === at ? 'you' : n)));
 };
 
-// Solved squads carry their time; other squads are dimmed labels.
+// Every squad shows its first names; solved squads carry their time. Other squads are dimmed.
 function Row({ row, me }: { row: LeaderboardRow; me: string | null }) {
   return (
     <View style={styles.row}>
       <Txt variant="bodyStrong" color={row.isMine ? Palette.ember : Palette.paperMuted} style={styles.rank}>
         {row.rank ?? ''}
       </Txt>
-      {row.isMine && row.memberNames.length ? (
+      {row.memberNames.length ? (
         <View style={styles.flex}>
-          <Txt variant="bodyStrong">{squadNames(row.memberNames, me)}</Txt>
+          <Txt variant="bodyStrong" color={row.isMine ? Palette.paper : Palette.paperMuted} numberOfLines={1}>
+            {squadNames(row.memberNames, row.isMine ? me : null)}
+          </Txt>
           <Txt variant="caption" color={Palette.paperMuted}>
             {row.squadLabel}
           </Txt>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, StyleSheet, TextInput, View } from 'react-native';
 
 import { Screen } from '@/components/signal/backdrop';
 import { Button, Label } from '@/components/signal/primitives';
@@ -74,99 +74,102 @@ export function PassphraseScreen({
   );
 
   return (
-    <Screen footer={footer}>
-      <Enter from={8}>
-        <View style={styles.head}>
-          <Label>{`${piece.squadLabel} · ${names(slots.map((t) => (t.isMe ? 'you' : t.name)))}`}</Label>
-          <Txt variant="small" color={Palette.paperMuted}>
-            Your word
-          </Txt>
-          <Txt style={styles.word}>{piece.word}</Txt>
-          <Txt variant="bodyStrong">{placeLine(piece)}</Txt>
-        </View>
-      </Enter>
+    <KeyboardAvoidingView behavior={process.env.EXPO_OS === 'ios' ? 'padding' : undefined} style={styles.fill}>
+      <Screen footer={footer}>
+        <Enter from={8}>
+          <View style={styles.head}>
+            <Label>{`${piece.squadLabel} · ${names(slots.map((t) => (t.isMe ? 'you' : t.name)))}`}</Label>
+            <Txt variant="small" color={Palette.paperMuted}>
+              Your word
+            </Txt>
+            <Txt style={styles.word}>{piece.word}</Txt>
+            <Txt variant="bodyStrong">{placeLine(piece)}</Txt>
+          </View>
+        </Enter>
 
-      {cooling && squad.lastNudge ? (
-        <NudgeEntrance style={styles.nudge}>
-          <Txt variant="bodyStrong">Not quite.</Txt>
-          <Txt variant="body" color={Palette.paperMuted}>
-            {squad.lastNudge.holderName === me?.name ? 'Check your word.' : squad.lastNudge.holderName ? `Check ${squad.lastNudge.holderName}’s word.` : squad.lastNudge.text}
-          </Txt>
-        </NudgeEntrance>
-      ) : null}
+        {cooling && squad.lastNudge ? (
+          <NudgeEntrance style={styles.nudge}>
+            <Txt variant="bodyStrong">Not quite.</Txt>
+            <Txt variant="body" color={Palette.paperMuted}>
+              {squad.lastNudge.holderName === me?.name ? 'Check your word.' : squad.lastNudge.holderName ? `Check ${squad.lastNudge.holderName}’s word.` : squad.lastNudge.text}
+            </Txt>
+          </NudgeEntrance>
+        ) : null}
 
-      {reviewing ? (
-        <View style={styles.card}>
-          <Txt variant="small" color={Palette.paperMuted}>
-            {proposal.proposedBy === me?.name ? 'You proposed' : `${proposal.proposedBy} proposed`}
-          </Txt>
-          <View style={styles.slots}>
-            {proposal.words.map((w, i) => (
-              <View key={i} style={styles.slot}>
-                <View style={[styles.cell, styles.cellFilled]}>
-                  <Txt variant="bodyStrong" numberOfLines={1}>
-                    {w}
+        {reviewing ? (
+          <View style={styles.card}>
+            <Txt variant="small" color={Palette.paperMuted}>
+              {proposal.proposedBy === me?.name ? 'You proposed' : `${proposal.proposedBy} proposed`}
+            </Txt>
+            <View style={styles.slots}>
+              {proposal.words.map((w, i) => (
+                <View key={i} style={styles.slot}>
+                  <View style={[styles.cell, styles.cellFilled]}>
+                    <Txt variant="bodyStrong" numberOfLines={1}>
+                      {w}
+                    </Txt>
+                  </View>
+                  <Txt variant="caption" color={Palette.paperMuted} numberOfLines={1}>
+                    {slots[i]?.isMe ? 'You' : slots[i]?.name}
                   </Txt>
                 </View>
-                <Txt variant="caption" color={Palette.paperMuted} numberOfLines={1}>
-                  {slots[i]?.isMe ? 'You' : slots[i]?.name}
-                </Txt>
-              </View>
-            ))}
+              ))}
+            </View>
+            <View style={styles.seals}>
+              {slots.map((t) => {
+                const done = t.isMe ? proposal.confirmedByMe : proposal.confirmedBy.includes(t.name);
+                return (
+                  <View key={t.position} style={styles.sealCol}>
+                    {done ? (
+                      <ConfirmSeal initial={t.name.charAt(0).toUpperCase()} haptic={t.isMe} />
+                    ) : (
+                      <View style={styles.pending}>
+                        <Txt variant="smallStrong" color={Palette.paperMuted}>
+                          {t.name.charAt(0).toUpperCase()}
+                        </Txt>
+                      </View>
+                    )}
+                    <Txt variant="caption" color={Palette.paperMuted}>
+                      {t.isMe ? 'You' : t.name}
+                    </Txt>
+                  </View>
+                );
+              })}
+            </View>
           </View>
-          <View style={styles.seals}>
-            {slots.map((t) => {
-              const done = t.isMe ? proposal.confirmedByMe : proposal.confirmedBy.includes(t.name);
-              return (
-                <View key={t.position} style={styles.sealCol}>
-                  {done ? (
-                    <ConfirmSeal initial={t.name.charAt(0).toUpperCase()} haptic={t.isMe} />
-                  ) : (
-                    <View style={styles.pending}>
-                      <Txt variant="smallStrong" color={Palette.paperMuted}>
-                        {t.name.charAt(0).toUpperCase()}
-                      </Txt>
-                    </View>
-                  )}
-                  <Txt variant="caption" color={Palette.paperMuted}>
+        ) : (
+          <View style={styles.card}>
+            <Txt variant="small" color={Palette.paperMuted}>
+              {`Every word in order, 1 to ${piece.slotCount}`}
+            </Txt>
+            <View style={styles.slots}>
+              {slots.map((t, i) => (
+                <View key={t.position} style={styles.slot}>
+                  <TextInput
+                    value={draft[i]}
+                    editable={!cooling}
+                    onChangeText={(text) => setDraft((d) => d.map((w, j) => (j === i ? text : w)))}
+                    placeholder={String(i + 1)}
+                    placeholderTextColor={Palette.paperMuted}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    style={[styles.cell, styles.input, draft[i] ? styles.cellFilled : null]}
+                  />
+                  <Txt variant="caption" color={Palette.paperMuted} numberOfLines={1}>
                     {t.isMe ? 'You' : t.name}
                   </Txt>
                 </View>
-              );
-            })}
+              ))}
+            </View>
           </View>
-        </View>
-      ) : (
-        <View style={styles.card}>
-          <Txt variant="small" color={Palette.paperMuted}>
-            {`Every word in order, 1 to ${piece.slotCount}`}
-          </Txt>
-          <View style={styles.slots}>
-            {slots.map((t, i) => (
-              <View key={t.position} style={styles.slot}>
-                <TextInput
-                  value={draft[i]}
-                  editable={!cooling}
-                  onChangeText={(text) => setDraft((d) => d.map((w, j) => (j === i ? text : w)))}
-                  placeholder={String(i + 1)}
-                  placeholderTextColor={Palette.paperMuted}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  style={[styles.cell, styles.input, draft[i] ? styles.cellFilled : null]}
-                />
-                <Txt variant="caption" color={Palette.paperMuted} numberOfLines={1}>
-                  {t.isMe ? 'You' : t.name}
-                </Txt>
-              </View>
-            ))}
-          </View>
-        </View>
-      )}
-    </Screen>
+        )}
+      </Screen>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  fill: { flex: 1 },
   center: { textAlign: 'center' },
   head: { gap: Space.s },
   word: { fontFamily: FontFamily.displayBold, fontSize: 48, lineHeight: 56, letterSpacing: -1.2, color: Palette.paper },
