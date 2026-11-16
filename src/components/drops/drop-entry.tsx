@@ -3,8 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { Screen } from '@/components/signal/backdrop';
 import { Icon } from '@/components/signal/icon';
 import { Banner, Button } from '@/components/signal/primitives';
-import { Txt } from '@/components/signal/txt';
-import { Palette, Space } from '@/constants/signal';
+import { Space } from '@/constants/signal';
 
 import { useServerClock } from './clock';
 import type { DropView } from '@/lib/contract';
@@ -44,9 +43,6 @@ export function DropEntryScreen({
         <Stat label={closed ? 'Started' : 'Opens in'} value={closed ? 'In progress' : clock(drop.startsAt - now)} />
         <Stat label="Joined" value={String(drop.entrantCount)} />
       </View>
-      <Txt variant="small" color={Palette.paperMuted}>
-        Free to enter.
-      </Txt>
     </Screen>
   );
 }
