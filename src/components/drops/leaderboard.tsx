@@ -9,6 +9,7 @@ import { NudgeEntrance, Stagger } from '@/motion';
 import { RACE_REVEAL_MS, type DropView, type LeaderboardRow, type LeaderboardView, type Role } from '@/lib/contract';
 
 import { useServerClock } from './clock';
+import { HostFollow, type HostFollowProps } from './host-follow';
 import { names, short } from './ui';
 
 // RoomView-derived state for the bottom card while the squad is racing.
@@ -59,6 +60,7 @@ export function LeaderboardScreen({
   offset,
   racing,
   roles,
+  host,
   on,
 }: {
   drop: DropView;
@@ -66,6 +68,7 @@ export function LeaderboardScreen({
   offset: number | null;
   racing?: RacingSquad;
   roles?: Role[];
+  host?: HostFollowProps;
   on?: { onCase?: () => void; onShare?: () => void; onReveal?: () => void };
 }) {
   const now = useServerClock(offset);
@@ -143,6 +146,7 @@ export function LeaderboardScreen({
           ))}
         </Stagger>
       </View>
+      {missed && host ? <HostFollow {...host} /> : null}
       {racing && stillRacing > 1 ? (
         <Txt variant="small" color={Palette.paperMuted} style={styles.center}>
           {stillRacing - 1} squads still racing
