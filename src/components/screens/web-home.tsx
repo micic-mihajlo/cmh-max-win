@@ -10,14 +10,15 @@ import { Palette, Radius, Space } from '@/constants/signal';
 
 const EXPO_PAGE = 'https://signal-app-wine.vercel.app/expo';
 
-// Web landing: two actions, no name prompt. /expo is a static page outside the app bundle, so it needs a full page load.
-export function WebHomeScreen() {
+// Web landing: two actions, no name prompt, plus a way back in while this browser holds a squad seat. /expo is a static page outside the app bundle, so it needs a full page load.
+export function WebHomeScreen({ onResume }: { onResume?: () => void }) {
   const { width } = useWindowDimensions();
   return (
     <Screen
       footer={
         <>
-          <Button title="Start a game" onPress={() => router.push('/host')} />
+          {onResume ? <Button title="Back to your squad" onPress={onResume} /> : null}
+          <Button title="Start a game" variant={onResume ? 'secondary' : undefined} onPress={() => router.push('/host')} />
           <Button title="Open in Expo Go" variant="secondary" onPress={() => window.location.assign('/expo')} />
         </>
       }>
