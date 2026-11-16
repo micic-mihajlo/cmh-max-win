@@ -46,14 +46,17 @@ export function HostScreen({
   return (
     <Screen
       footer={
-        <View style={[styles.footer, !wide && styles.footerStack]}>
-          <Pot view={view} style={wide && styles.flex} />
-          <PressScale disabled={!canDeal} onPress={onDeal} haptic="tap" style={[styles.deal, !canDeal && styles.dealOff]}>
-            <Txt variant="button" color={canDeal ? Palette.onAccent : Palette.paperMuted}>
-              {dealing ? 'Starting…' : need ? `Need ${need} more player${need === 1 ? '' : 's'}` : 'Start game'}
-            </Txt>
-          </PressScale>
-        </View>
+        <>
+          <View style={[styles.footer, !wide && styles.footerStack]}>
+            <Pot view={view} style={wide && styles.flex} />
+            <PressScale disabled={!canDeal} onPress={onDeal} haptic="tap" style={[styles.deal, !canDeal && styles.dealOff]}>
+              <Txt variant="button" color={canDeal ? Palette.onAccent : Palette.paperMuted}>
+                {dealing ? 'Starting…' : need ? `Need ${need} more player${need === 1 ? '' : 's'}` : 'Start game'}
+              </Txt>
+            </PressScale>
+          </View>
+          {controls}
+        </>
       }>
       {wide ? <Wordmark style={styles.brand} /> : null}
       <Txt variant={wide ? 'display' : 'title'} style={styles.center}>
@@ -98,7 +101,6 @@ export function HostScreen({
           ) : null}
         </View>
       </View>
-      {controls}
     </Screen>
   );
 }
@@ -257,7 +259,11 @@ function PhoneBoard({ view, controls }: { view: HostView; controls?: ReactNode }
 function Pot({ view, style }: { view: HostView; style?: StyleProp<ViewStyle> }) {
   return (
     <View style={style}>
-      <Txt variant="bodyStrong">{`${money(view.bounty.totalCents)} · ${view.bounty.winnerSlots === 1 ? 'first squad' : `first ${view.bounty.winnerSlots} squads`}`}</Txt>
+      <Txt variant="bodyStrong">
+        {view.bounty.mode === 'concept'
+          ? `Just for fun · ${view.bounty.winnerSlots === 1 ? 'first squad wins' : `first ${view.bounty.winnerSlots} squads win`}`
+          : `${money(view.bounty.totalCents)} · ${view.bounty.winnerSlots === 1 ? 'first squad' : `first ${view.bounty.winnerSlots} squads`}`}
+      </Txt>
       <Txt variant="label" color={Brass}>
         {view.bounty.mode === 'concept' ? 'Concept · no real money moves' : 'Real · paid via Whop'}
       </Txt>

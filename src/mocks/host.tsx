@@ -133,7 +133,7 @@ export const HostStates: MockState[] = [
     ref: 'host.md',
     section: 'Host',
     title: 'Host · 14 here, ready to deal',
-    render: () => <HostScreen hostName="Danny" view={view(14)} />,
+    render: () => <HostScreen hostName="Danny" view={view(14)} controls={<HostControls view={view(14)} onEnd={async () => {}} onAward={async () => {}} />} />,
   },
   { id: '21-host-dealt', ref: 'host.md', section: 'Host', title: 'Host · squads dealt', render: () => <HostScreen hostName="Danny" view={dealt(0)} /> },
   {
