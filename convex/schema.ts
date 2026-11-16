@@ -344,6 +344,19 @@ export default defineSchema({
     returnUrl: v.string(),
     createdAt: v.number(),
   }).index('by_state', ['state']),
+  // The callback's one-time link code (whopAuth:completeSignIn): Whop tokens wait here until the starting device redeems it.
+  whopPendingLinks: defineTable({
+    linkCode: v.string(),
+    deviceToken: v.string(),
+    whopUserId: v.string(),
+    name: v.string(),
+    username: v.optional(v.string()),
+    avatarUrl: v.optional(v.string()),
+    accessToken: v.string(),
+    refreshToken: v.optional(v.string()),
+    expiresAt: v.number(),
+    createdAt: v.number(),
+  }).index('by_code', ['linkCode']),
   whopOAuthTokens: defineTable({
     whopUserId: v.string(),
     accessToken: v.string(),
