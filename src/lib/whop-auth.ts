@@ -8,6 +8,7 @@ export function whopReturnUrl(path = 'whop-auth'): string {
 }
 
 // complete redeems the one-time code the callback hands back (whopAuth:completeSignIn) for the device that started.
+// A backend from before link codes links in the callback and returns whop=linked with no code, so that is success too.
 export async function openWhopSignIn(
   authorizeUrl: string,
   returnUrl: string,
@@ -17,6 +18,7 @@ export async function openWhopSignIn(
   if (result.type !== 'success') return 'cancelled';
   const { whop: status, code } = Linking.parse(result.url).queryParams ?? {};
   if (status === 'cancelled') return 'cancelled';
+  if (status === 'linked') return 'linked';
   if (status !== 'link' || typeof code !== 'string') return 'error';
   return (await complete(code)) ? 'linked' : 'error';
 }
