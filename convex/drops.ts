@@ -1,7 +1,7 @@
 import { ConvexError, v } from 'convex/values';
 
 import { internal } from './_generated/api';
-import type { Doc } from './_generated/dataModel';
+import type { Doc, Id } from './_generated/dataModel';
 import { internalMutation, mutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
 import { CONCEPT_LABEL, MIN_TRANSFER_CENTS, awardModeWithBudget, realBudgetRemainingCents, realPayoutBudgetCents, realPayoutCapCents } from './bounty';
 import { ROLES, type Role } from './case01';
@@ -10,7 +10,7 @@ import { dealPassphrase } from './passphrase';
 import { presence as presenceComponent } from './presence';
 import { enforceRateLimit } from './rateLimits';
 import { squadSize } from './schema';
-import { CODE_ALPHABET, generateCode } from './signal';
+import { CODE_ALPHABET, generateCode, recordSolve } from './signal';
 import { linkedDeviceTokens, resolveIdentity } from './whopAuth';
 import type {
   BountyView,
@@ -735,6 +735,53 @@ export const dealSquads = mutation({
   },
 });
 
+// Host backup controls for a stuck race. Both are no-ops once the drop has ended.
+async function requireHostLiveDrop(ctx: MutationCtx, dropId: string, deviceToken: string) {
+  const drop = await requireDrop(ctx, dropId);
+  if (!(await isDropHost(ctx, drop, deviceToken))) fail('NOT_HOST', 'Only the host can end this drop.');
+  if (drop.status === 'ended') return null;
+  if (drop.status !== 'live') fail('DROP_NOT_LIVE', 'The race has not started yet.');
+  return drop;
+}
+
+// Ends the race now. Squads that already solved keep the awards they got at solve time; the rest stay unsolved.
+export const hostEndDrop = mutation({
+  args: { deviceToken: v.string(), dropId: v.string() },
+  handler: async (ctx, { deviceToken, dropId }) => {
+    const drop = await requireHostLiveDrop(ctx, dropId, deviceToken);
+    if (drop) await ctx.db.patch(drop._id, { status: 'ended' });
+  },
+});
+
+// Marks the given squads as winners in order, through the same solve and award path as a lock-in (so the $1 minimum,
+// the balance guard and concept mode apply), then ends the drop.
+export const hostAwardSquads = mutation({
+  args: { deviceToken: v.string(), dropId: v.string(), squadIds: v.array(v.string()) },
+  handler: async (ctx, { deviceToken, dropId, squadIds }) => {
+    const drop = await requireHostLiveDrop(ctx, dropId, deviceToken);
+    if (!drop) return;
+    const rooms: Doc<'rooms'>[] = [];
+    for (const squadId of squadIds) {
+      const id = ctx.db.normalizeId('rooms', squadId);
+      const room = id ? await ctx.db.get(id) : null;
+      if (!room || room.dropId !== dropId || room.status === 'resolved' || rooms.some((r) => r._id === room._id)) {
+        fail('UNKNOWN_SQUAD', 'That squad is not an unsolved squad in this drop.');
+      }
+      rooms.push(room);
+    }
+    if (drop.solvedCount + rooms.length > drop.bounty.winnerSlots) {
+      fail('TOO_MANY_WINNERS', `This drop has ${drop.bounty.winnerSlots - drop.solvedCount} winner slot(s) left.`);
+    }
+    const now = Date.now();
+    for (const room of rooms) {
+      await ctx.db.patch(room._id, { status: 'resolved' });
+      await recordSolve(ctx, (await ctx.db.get(room._id as Id<'rooms'>))!, now);
+    }
+    const after = (await requireDrop(ctx, dropId))!;
+    if (after.status !== 'ended') await ctx.db.patch(after._id, { status: 'ended' });
+  },
+});
+
 export const hostView = query({
   args: { deviceToken: v.string(), dropId: v.string() },
   handler: async (ctx, { deviceToken, dropId }): Promise<HostView | null> => {
@@ -760,6 +807,7 @@ export const hostView = query({
           .collect()
       ).map((m) => m.name);
       squads.push({
+        squadId: room._id,
         squadLabel: room.squadLabel ?? '',
         memberNames: names,
         status: !solve ? ('solving' as const) : solve.place <= drop.bounty.winnerSlots ? ('winner' as const) : ('solved' as const),
