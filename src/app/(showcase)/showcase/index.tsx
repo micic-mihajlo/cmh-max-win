@@ -14,7 +14,7 @@ const sections: { title: string; items: { href: Href; title: string; line: strin
       { href: '/showcase/streamers' as Href, title: 'Streamers', line: 'Find someone to follow', preview: true },
       { href: '/showcase/home' as Href, title: 'Following', line: 'Happening now and coming up', preview: true },
       { href: '/showcase/notifications' as Href, title: 'Notifications', line: 'Going live and room starting', preview: true },
-      { href: '/showcase/notification-settings' as Href, title: 'Notification settings', line: 'Per streamer', preview: true },
+      { href: '/showcase/notification-settings' as Href, title: 'Settings', line: 'Whop account and per-streamer pings', preview: true },
     ],
   },
   {
