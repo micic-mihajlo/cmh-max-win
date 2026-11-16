@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
   center: { textAlign: 'center' },
   head: { gap: Space.s },
   word: { fontFamily: FontFamily.displayBold, fontSize: 48, lineHeight: 56, letterSpacing: -1.2, color: Palette.paper },
-  nudge: { gap: 2, padding: Space.l, borderRadius: Radius.m, backgroundColor: Palette.accentSoft },
+  nudge: { gap: 2, padding: Space.l, borderRadius: Radius.m, backgroundColor: Palette.paperShade },
   card: { gap: Space.m, padding: Space.l, borderRadius: Radius.m, backgroundColor: Palette.card, borderWidth: StyleSheet.hairlineWidth, borderColor: Palette.hairline },
   slots: { flexDirection: 'row', gap: Space.s },
   slot: { flex: 1, gap: 4, alignItems: 'center' },
