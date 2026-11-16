@@ -357,6 +357,24 @@ describe('retitleDrop', () => {
   });
 });
 
+describe('renamePlayers', () => {
+  test('renames entrants in the named drops only, and is idempotent', async () => {
+    const t = newTest();
+    const { dropId } = await host(t, Date.now() + 30 * MIN);
+    const other = await t.mutation(api.drops.hostDrop, { deviceToken: 'other-host', creatorName: 'Kayla Brooks', title: 'Case 03' });
+    for (const [token, name] of [['a', 'Lou'], ['b', 'Ana'], ['c', 'Omar']]) {
+      await t.mutation(api.drops.enterDrop, { deviceToken: token, dropId, name });
+      await t.mutation(api.drops.enterDrop, { deviceToken: token, dropId: other.dropId, name });
+    }
+    const names = { Lou: 'Sarah', Ana: ' Jen ' };
+    expect(await t.mutation(internal.feed.renamePlayers, { names, dropIds: [dropId], challengeIds: [] })).toEqual({ renamed: 2 });
+    expect(await t.mutation(internal.feed.renamePlayers, { names, dropIds: [dropId], challengeIds: [] })).toEqual({ renamed: 0 });
+    const namesOf = (id: string) => t.run(async (ctx) => (await ctx.db.query('dropEntries').withIndex('by_drop', (q) => q.eq('dropId', id)).collect()).map((e) => e.name).sort());
+    expect(await namesOf(dropId)).toEqual(['Jen', 'Omar', 'Sarah']);
+    expect(await namesOf(other.dropId)).toEqual(['Ana', 'Lou', 'Omar']);
+  });
+});
+
 describe('showcase hygiene', () => {
   async function hostAs(t: T, deviceToken: string, creatorName: string, title = 'The Aurora Seed', startsAt?: number) {
     const hosted = await t.mutation(api.drops.hostDrop, { deviceToken, creatorName, title, ...(startsAt ? { startsAt } : {}) });

@@ -1,8 +1,8 @@
 // Seeds real-looking streamers for the showcase feed, through public functions only, the way phones do.
-//   Nova: "Case 02 · The Second Seed", scheduled for next Friday 9 pm Los Angeles, and two finished drops with winners.
-//   Juno Park, Milo Grant and Sable Quinn: one scheduled case each, later in the week.
-// tokenName keeps a renamed streamer on its original host token (Milo Grant was seeded as Theo Marsh, a Case 01
-// suspect's name), so a rerun never makes a second streamer. Rename an existing one with internal feed.renameStreamer.
+//   Danny Ortiz: "Case 02 · The Second Seed", scheduled for next Friday 9 pm Los Angeles, and two finished drops with winners.
+//   Kayla Brooks, Jess Tran and Marcus Webb: one scheduled case each, later in the week.
+// tokenName keeps a renamed streamer on its original host token (Danny Ortiz was seeded as Nova, Jess Tran as Theo
+// Marsh, a Case 01 suspect's name), so a rerun never makes a second streamer. Rename an existing one with internal feed.renameStreamer.
 // Titles are case names, never times: the feed already prints the start time beside the title.
 // No followers are made: follower counts come only from real devices following.
 //
@@ -23,17 +23,18 @@ const avatar = (seed) => 'https://api.dicebear.com/9.x/notionists/png?size=256&s
 
 const STREAMERS = [
   {
-    name: 'Nova',
-    avatarUrl: avatar('Nova'),
+    name: 'Danny Ortiz',
+    tokenName: 'Nova',
+    avatarUrl: avatar('Danny Ortiz'),
     upcoming: { title: 'Case 02 · The Second Seed', day: 5, hour: 21, totalCents: 30_000 },
     past: [
-      { title: 'The Aurora Seed', totalCents: 20_000, thinkMs: 48_000, players: ['Lou', 'Ana', 'Kit', 'Mara', 'Dev', 'Jo'] },
-      { title: 'The Silent Switchboard', totalCents: 25_000, thinkMs: 71_000, players: ['Rae', 'Omar', 'Lena', 'Sam', 'Priya', 'Cole'] },
+      { title: 'The Aurora Seed', totalCents: 20_000, thinkMs: 48_000, players: ['Sarah', 'Jen', 'Chris', 'Nicole', 'Matt', 'Josh'] },
+      { title: 'The Silent Switchboard', totalCents: 25_000, thinkMs: 71_000, players: ['Rachel', 'Mike', 'Emily', 'Steph', 'Megan', 'Brandon'] },
     ],
   },
-  { name: 'Juno Park', avatarUrl: avatar('Juno Park'), upcoming: { title: 'Case 03 · The Lantern Ledger', day: 6, hour: 20, totalCents: 15_000 }, past: [] },
-  { name: 'Milo Grant', tokenName: 'Theo Marsh', avatarUrl: avatar('Milo Grant'), upcoming: { title: 'Case 04 · Cold Harbor', day: 0, hour: 18, totalCents: 10_000 }, past: [] },
-  { name: 'Sable Quinn', avatarUrl: avatar('Sable Quinn'), upcoming: { title: 'Case 05 · Velvet Static', day: 3, hour: 19, totalCents: 12_000 }, past: [] },
+  { name: 'Kayla Brooks', tokenName: 'Juno Park', avatarUrl: avatar('Kayla Brooks'), upcoming: { title: 'Case 03 · The Lantern Ledger', day: 6, hour: 20, totalCents: 15_000 }, past: [] },
+  { name: 'Jess Tran', tokenName: 'Theo Marsh', avatarUrl: avatar('Jess Tran'), upcoming: { title: 'Case 04 · Cold Harbor', day: 0, hour: 18, totalCents: 10_000 }, past: [] },
+  { name: 'Marcus Webb', tokenName: 'Sable Quinn', avatarUrl: avatar('Marcus Webb'), upcoming: { title: 'Case 05 · Velvet Static', day: 3, hour: 19, totalCents: 12_000 }, past: [] },
 ];
 
 const argv = process.argv.slice(2);

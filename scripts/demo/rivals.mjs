@@ -1,4 +1,4 @@
-// Demo rival squads for the SIGNAL video. Enters 9 clearly labelled demo players ("Demo · Rio", ...) into a
+// Demo rival squads for the SIGNAL video. Enters 9 clearly labelled demo players ("Demo · Mike", ...) into a
 // hosted drop by its join code, the way phones do, through public functions only. The host's deal turns them
 // into Demo Squad A, B and C, and the script then plays them:
 //   Demo Squad A solves 25 s after the deal.
@@ -18,9 +18,9 @@ import { randomUUID } from 'node:crypto';
 const DEV_URL = 'https://compassionate-puffin-914.convex.cloud';
 const PREFIX = 'Demo · ';
 const SQUADS = [
-  ['Rio', 'Kai', 'Ash'],
-  ['Lux', 'Bo', 'Ivy'],
-  ['Zed', 'Mae', 'Oz'],
+  ['Mike', 'Chris', 'Ashley'],
+  ['Tyler', 'Matt', 'Megan'],
+  ['Ryan', 'Nicole', 'Steph'],
 ];
 const A_AT_MS = 25_000;
 const B_AFTER_MS = 4_000;

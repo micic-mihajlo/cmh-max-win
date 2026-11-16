@@ -57,7 +57,7 @@ export function prizePool(c: Challenge): PrizePoolView {
   };
 }
 
-// 'nova-friday-race-k7qm': the handle (no '-' in handles), title words, then the join code.
+// 'danny-friday-race-k7qm': the handle (no '-' in handles), title words, then the join code.
 export function slugOf(handle: string, title: string, code: string | null) {
   const words = title
     .normalize('NFKD')
@@ -231,7 +231,7 @@ export const creatorPage = query({
 
 // ---------- Share links ----------
 
-// A code, a slug ('nova-friday-race-k7qm' or 'nova/K7QM'), a URL ending in a code, a slug or '@nova/K7QM' (or with
+// A code, a slug ('danny-friday-race-k7qm' or 'danny/K7QM'), a URL ending in a code, a slug or '@danny/K7QM' (or with
 // ?code=), or a challenge id. A slug's handle must match the challenge's creator.
 export function parseShareRef(raw: string): { code: string | null; handle: string | null; id: string } {
   let ref = raw.trim();

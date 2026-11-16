@@ -479,6 +479,19 @@ export const createServerChallenge = internalMutation({
   handler: (ctx, { creatorToken, patch }) => insertDraft(ctx, creatorToken, (patch ?? {}) as Partial<ChallengeConfig>, true),
 });
 
+// Retitles a seeded challenge in any status (published configs are otherwise frozen). Idempotent.
+export const retitleChallenge = internalMutation({
+  args: { challengeId: v.id('challenges'), title: v.string(), blurb: v.optional(v.string()) },
+  handler: async (ctx, { challengeId, title, blurb }) => {
+    const c = await ctx.db.get(challengeId);
+    const next = title.trim().slice(0, 60);
+    if (!c || !next) fail('CHALLENGE_NOT_FOUND', 'No such challenge, or an empty title.');
+    const config = { ...c.config, title: next, ...(blurb !== undefined ? { blurb: blurb.trim().slice(0, 280) } : {}) };
+    if (config.title !== c.config.title || config.blurb !== c.config.blurb) await ctx.db.patch(c._id, { config });
+    return { challengeId: challengeId as string, title: next };
+  },
+});
+
 export const myChallenges = query({
   args: { deviceToken: v.string() },
   handler: async (ctx, { deviceToken }): Promise<ChallengeSummaryView[]> => {
