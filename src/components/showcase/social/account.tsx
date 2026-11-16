@@ -69,16 +69,14 @@ export function AccountSection({
 
 const sampleAccount: AccountView = { displayName: 'Chris Walker', username: 'chris', avatarUrl: null };
 
-export function Account({ bare }: { bare?: boolean }) {
-  return feedFixtures ? <SampleAccount bare={bare} /> : <LiveAccount bare={bare} />;
-}
+type AccountState = { account: AccountView | null; note?: string; onSignIn: () => void; onSignOut: () => void } | null;
 
-function SampleAccount({ bare }: { bare?: boolean }) {
+function useSampleAccount(): AccountState {
   const [account, setAccount] = useState<AccountView | null>(null);
-  return <AccountSection account={account} bare={bare} onSignIn={() => setAccount(sampleAccount)} onSignOut={() => setAccount(null)} />;
+  return { account, onSignIn: () => setAccount(sampleAccount), onSignOut: () => setAccount(null) };
 }
 
-function LiveAccount({ bare }: { bare?: boolean }) {
+function useLiveAccount(): AccountState {
   const state = useWhopAccount();
   const signIn = useSignInWithWhop(usePathname().replace(/^\//, ''));
   const signOut = useSignOutWhop();
@@ -90,15 +88,19 @@ function LiveAccount({ bare }: { bare?: boolean }) {
     const result = await signIn().catch(() => 'error' as const);
     setNote(result === 'linked' || result === 'cancelled' ? undefined : "Couldn't sign in. Try again.");
   };
-  return (
-    <AccountSection
-      account={a && { displayName: a.displayName, username: a.username, avatarUrl: a.avatarUrl }}
-      bare={bare}
-      note={note}
-      onSignIn={() => void start()}
-      onSignOut={() => void signOut()}
-    />
-  );
+  return {
+    account: a && { displayName: a.displayName, username: a.username, avatarUrl: a.avatarUrl },
+    note,
+    onSignIn: () => void start(),
+    onSignOut: () => void signOut(),
+  };
+}
+
+export const useAccount = feedFixtures ? useSampleAccount : useLiveAccount;
+
+export function Account() {
+  const state = useAccount();
+  return state ? <AccountSection {...state} /> : null;
 }
 
 const styles = StyleSheet.create({
