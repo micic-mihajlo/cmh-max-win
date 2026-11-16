@@ -12,9 +12,6 @@ import { convex } from '@/lib/convex';
 
 SplashScreen.preventAutoHideAsync();
 
-// The host screen is the projector, so on web it fills the window instead of the phone column.
-const PROJECTOR = /(^|\/)host$|^\/mocks\/\d+-host-/;
-
 const theme = {
   ...DefaultTheme,
   colors: { ...DefaultTheme.colors, background: Palette.ink, card: Palette.ink, text: Palette.paper, primary: Palette.ember },
@@ -27,7 +24,7 @@ export default function RootLayout() {
     if (ready) SplashScreen.hideAsync();
   }, [ready]);
   usePushTapRouting(ready);
-  const projector = PROJECTOR.test(usePathname());
+  const projected = /^\/drop\/[^/]+\/host$|^\/mocks\/2\d-host/.test(usePathname());
 
   if (!ready) return null;
 
@@ -37,7 +34,7 @@ export default function RootLayout() {
       <StatusBar style="dark" />
       {Platform.OS === 'web' ? (
         <View style={styles.page}>
-          <View style={[styles.column, projector && styles.projector]}>{stack}</View>
+          <View style={[styles.column, projected && styles.wide]}>{stack}</View>
         </View>
       ) : (
         stack
@@ -50,5 +47,5 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   page: { flex: 1, alignItems: 'center', backgroundColor: Palette.inkDeep },
   column: { flex: 1, width: '100%', maxWidth: 440, backgroundColor: Palette.ink },
-  projector: { maxWidth: '100%' },
+  wide: { maxWidth: '100%' },
 });

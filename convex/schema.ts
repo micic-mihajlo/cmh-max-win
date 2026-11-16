@@ -124,9 +124,11 @@ export default defineSchema({
     squadSize,
     joinCode: v.optional(v.string()), // 4 chars, unique among drops that aren't ended; the QR payload
     hostToken: v.optional(v.string()), // drops:hostDrop: the device that runs the host screen and deals
+    hostWhopUserId: v.optional(v.string()), // hostDrop from a device signed in with Whop: any device on that account hosts it too
     conceptOnly: v.optional(v.boolean()), // hosted drops never take the sandbox payout path
     strictSquadSize: v.optional(v.boolean()), // demo controls: every squad is exactly squadSize, leftovers unmatched
     template: v.optional(v.literal('split-passphrase')), // hostDrop: squads play a split passphrase instead of the mystery
+    payoutMode: v.optional(v.union(v.literal('real'), v.literal('concept'))), // hostDrop's pick; absent: as before
     startsAt: v.number(),
     status: v.union(v.literal('scheduled'), v.literal('live'), v.literal('ended')),
     bounty: v.object({ totalCents: v.number(), currency: v.literal('usd'), winnerSlots: v.number() }),
@@ -135,7 +137,8 @@ export default defineSchema({
   })
     .index('by_dropId', ['dropId'])
     .index('by_joinCode', ['joinCode'])
-    .index('by_status', ['status', 'startsAt']),
+    .index('by_status', ['status', 'startsAt'])
+    .index('by_host_whop', ['hostWhopUserId']),
   dropEntries: defineTable({
     dropId: v.string(),
     deviceToken: v.string(),
@@ -191,6 +194,7 @@ export default defineSchema({
     whopUserId: v.optional(v.string()),
     attempts: v.number(),
     transferId: v.optional(v.string()),
+    transferStatus: v.optional(v.string()), // Whop's status on create ('succeeded'); the fee is never read from create
     failureCode: v.optional(v.string()),
     error: v.optional(v.string()),
     updatedAt: v.number(),
@@ -366,6 +370,7 @@ export default defineSchema({
     scheduledFor: v.union(v.number(), v.null()),
     openedAt: v.union(v.number(), v.null()),
     expiredAt: v.optional(v.number()), // feed.expireStaleDrops ended it as abandoned or a test; kept out of past lists
+    rehearsal: v.optional(v.boolean()), // hostDrop({ rehearsal: true }): kept out of Find streamers and the following feed
   })
     .index('by_streamer', ['streamerId', 'createdAt'])
     .index('by_drop', ['dropId']),

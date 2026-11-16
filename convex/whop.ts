@@ -5,6 +5,8 @@ import type { Id } from './_generated/dataModel';
 import { action, internalMutation, query } from './_generated/server';
 
 export const WHOP_API_VERSION_DATE = '2026-11-04-1';
+// Transfers: the version Whop's sandbox confirmed honours the Idempotency-Key header (2026-11-14-1).
+export const WHOP_TRANSFER_API_VERSION_DATE = '2026-11-14-1';
 const API_VERSION_DATE = WHOP_API_VERSION_DATE;
 const packValidator = v.literal('season01');
 

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { DropEntryScreen } from '@/components/drops/drop-entry';
+import { PassphraseScreen } from '@/components/drops/passphrase';
 import { SquadRevealScreen } from '@/components/drops/squad-reveal';
 import { WaitingRoomScreen } from '@/components/drops/waiting-room';
 import { ClosedScreen } from '@/components/screens/closed';
@@ -10,6 +11,7 @@ import { NameEntryScreen } from '@/components/screens/name-entry';
 import { Atmosphere } from '@/components/signal/backdrop';
 import { Palette } from '@/constants/signal';
 import { useDrop, useEnterDrop, useServerOffset } from '@/hooks/use-drops';
+import { useConfirmPassphrase, usePassphrase, useSubmitPassphrase } from '@/hooks/use-passphrase';
 import { usePlayerName } from '@/hooks/use-player-name';
 import { useMyEvidence, useRoom, useSetPresence } from '@/hooks/use-signal';
 import type { DropView } from '@/lib/contract';
@@ -27,7 +29,10 @@ export default function DropRoute() {
 
   if (drop === undefined || name === undefined) return <Loading />;
   if (drop === null) return <ClosedScreen code={id} onNewCase={() => router.replace('/')} />;
-  if (drop.me.squad) return <Squad drop={drop} code={drop.me.squad.code} />;
+  if (drop.me.squad) {
+    const Play = drop.template === 'split-passphrase' ? PassphraseSquad : Squad;
+    return <Play drop={drop} code={drop.me.squad.code} />;
+  }
   if (drop.me.entered) return <WaitingRoomScreen drop={drop} offset={offset} onBack={() => router.replace('/')} />;
   if (name === null) return <NameEntryScreen name={draft} onChangeName={setDraft} onContinue={() => save(draft.trim())} />;
 
@@ -48,6 +53,34 @@ export default function DropRoute() {
       joining={joining}
       error={closed || drop.status !== 'scheduled' ? 'DROP_CLOSED' : undefined}
       on={{ onJoin: join, onWatch: () => router.push({ pathname: '/drop/[id]/race', params: { id } }) }}
+    />
+  );
+}
+
+function PassphraseSquad({ drop, code }: { drop: DropView; code: string }) {
+  const piece = usePassphrase(code);
+  const offset = useServerOffset();
+  const submit = useSubmitPassphrase(code);
+  const confirm = useConfirmPassphrase(code);
+  const [busy, setBusy] = useState(false);
+  if (piece === undefined) return <Loading />;
+  if (piece === null || piece.squad.status === 'solved') return <Redirect href={{ pathname: '/drop/[id]/race', params: { id: drop.dropId } }} />;
+  const run = async (action: () => Promise<unknown>) => {
+    setBusy(true);
+    try {
+      await action();
+    } catch {
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <PassphraseScreen
+      piece={piece}
+      offset={offset ?? 0}
+      busy={busy}
+      onPropose={(answer) => run(() => submit(answer))}
+      onConfirm={(revision) => run(() => confirm(revision))}
     />
   );
 }

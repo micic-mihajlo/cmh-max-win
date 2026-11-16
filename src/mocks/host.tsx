@@ -3,7 +3,7 @@ import type { HostView } from '@/lib/contract';
 
 import type { MockState } from './gallery';
 
-const names = ['Kit', 'Lou', 'Ana', 'Maya', 'Ravi', 'Jo', 'Ivy', 'Hal', 'Fay', 'Sam', 'Noor', 'Tess', 'Rio', 'Bea'];
+const names = ['Chris', 'Sarah', 'Jen', 'Ashley', 'Ryan', 'Josh', 'Megan', 'Hal', 'Fay', 'Sam', 'Noor', 'Tess', 'Rio', 'Bea'];
 const view = (count: number): HostView => ({
   dropId: 'demo-host',
   title: 'The Aurora Seed',
@@ -35,7 +35,7 @@ const dealt = (solved: number): HostView => {
   };
 };
 
-const first = ['Kit', 'Lou', 'Ana', 'Maya', 'Ravi', 'Jo', 'Ivy', 'Hal', 'Fay', 'Sam', 'Noor', 'Tess', 'Rio', 'Bea', 'Ada', 'Eli', 'Zoe', 'Max', 'Uma', 'Leo'];
+const first = ['Chris', 'Sarah', 'Jen', 'Ashley', 'Ryan', 'Josh', 'Megan', 'Hal', 'Fay', 'Sam', 'Noor', 'Tess', 'Rio', 'Bea', 'Ada', 'Eli', 'Zoe', 'Max', 'Uma', 'Leo'];
 const crowd = Array.from({ length: 100 }, (_, i) => (i < first.length ? first[i] : `${first[i % first.length]} ${String.fromCharCode(65 + Math.floor(i / first.length))}.`));
 const sizes = Array.from({ length: 34 }, (_, i) => (i < 32 ? 3 : 2));
 const starts = sizes.map((_, i) => sizes.slice(0, i).reduce((a, b) => a + b, 0));
@@ -55,31 +55,31 @@ const scale = (solved: number): HostView => {
 };
 
 export const HostStates: MockState[] = [
-  { id: '22-host-100', ref: 'scale', section: 'Scale', title: 'Host · 100 here', render: () => <HostScreen hostName="Nova" view={{ ...scale(0), status: 'scheduled', squads: [] }} /> },
-  { id: '22-host-squads-34', ref: 'scale', section: 'Scale', title: 'Host · 34 squads dealt', render: () => <HostScreen hostName="Nova" view={scale(0)} /> },
-  { id: '22-host-race-34', ref: 'scale', section: 'Scale', title: 'Host · 34 squads, 3 winners + 2 solved', render: () => <HostScreen hostName="Nova" view={scale(5)} /> },
-  { id: '20-host-empty', ref: 'host.md', section: 'Host', title: 'Host · code, nobody here yet', render: () => <HostScreen hostName="Nova" view={view(0)} /> },
-  { id: '20-host-three', ref: 'host.md', section: 'Host', title: 'Host · 3 here (deal disabled)', render: () => <HostScreen hostName="Nova" view={view(3)} /> },
+  { id: '22-host-100', ref: 'scale', section: 'Scale', title: 'Host · 100 here', render: () => <HostScreen hostName="Danny" view={{ ...scale(0), status: 'scheduled', squads: [] }} /> },
+  { id: '22-host-squads-34', ref: 'scale', section: 'Scale', title: 'Host · 34 squads dealt', render: () => <HostScreen hostName="Danny" view={scale(0)} /> },
+  { id: '22-host-race-34', ref: 'scale', section: 'Scale', title: 'Host · 34 squads, 3 winners + 2 solved', render: () => <HostScreen hostName="Danny" view={scale(5)} /> },
+  { id: '20-host-empty', ref: 'host.md', section: 'Host', title: 'Host · code, nobody here yet', render: () => <HostScreen hostName="Danny" view={view(0)} /> },
+  { id: '20-host-three', ref: 'host.md', section: 'Host', title: 'Host · 3 here (deal disabled)', render: () => <HostScreen hostName="Danny" view={view(3)} /> },
   {
     id: '20-host-ready',
     ref: 'host.md',
     section: 'Host',
     title: 'Host · 14 here, ready to deal',
-    render: () => <HostScreen hostName="Nova" view={view(14)} />,
+    render: () => <HostScreen hostName="Danny" view={view(14)} />,
   },
-  { id: '21-host-dealt', ref: 'host.md', section: 'Host', title: 'Host · squads dealt', render: () => <HostScreen hostName="Nova" view={dealt(0)} /> },
+  { id: '21-host-dealt', ref: 'host.md', section: 'Host', title: 'Host · squads dealt', render: () => <HostScreen hostName="Danny" view={dealt(0)} /> },
   {
     id: '21-host-race',
     ref: 'host.md',
     section: 'Host',
     title: 'Host · race, 2 of 3 bounty bars',
-    render: () => <HostScreen hostName="Nova" view={dealt(2)} />,
+    render: () => <HostScreen hostName="Danny" view={dealt(2)} />,
   },
   {
     id: '21-host-race-full',
     ref: 'host.md',
     section: 'Host',
     title: 'Host · race, all slots taken',
-    render: () => <HostScreen hostName="Nova" view={dealt(4)} />,
+    render: () => <HostScreen hostName="Danny" view={dealt(4)} />,
   },
 ];

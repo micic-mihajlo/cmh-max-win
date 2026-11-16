@@ -230,3 +230,42 @@ describe('Sign in with Whop', () => {
     expect(await t.action(internal.whopAuth.checkAccess, { whopUserId: 'user_nova', resourceId: 'prod_other' })).toEqual({ hasAccess: false, accessLevel: 'no_access' });
   });
 });
+
+describe('join-purpose sign-in', () => {
+  async function challenge(t: ReturnType<typeof convexTest>, joinCode: string, patch: Partial<typeof DEFAULT_CONFIG>, status: 'published' | 'live' | 'ended' = 'published') {
+    await t.run((ctx) =>
+      ctx.db.insert('challenges', { creatorToken: 'creator', config: { ...DEFAULT_CONFIG, title: 'Members race', ...patch }, status, serverCreated: false, createdAt: 0, finishedCount: 0, joinCode }),
+    );
+  }
+  const startJoin = (t: ReturnType<typeof convexTest>, challengeCode: string, deviceToken = DEVICE) =>
+    t.action(api.whopAuth.startSignIn, { deviceToken, purpose: 'join', challengeCode, returnUrl: 'cmhmaxwin://c/' + challengeCode });
+
+  test("is refused for challenges that don't need Whop, closed ones and unknown codes", async () => {
+    const t = convexTest(schema, modules);
+    await challenge(t, 'OPEN', {});
+    await challenge(t, 'DONE', { requireWhopToJoin: true }, 'ended');
+    for (const code of ['OPEN', 'DONE', 'NOPE']) expect(await startJoin(t, code)).toEqual({ url: null, reason: 'not_required' });
+    expect(await t.action(api.whopAuth.startSignIn, { deviceToken: DEVICE, purpose: 'join' })).toEqual({ url: null, reason: 'not_required' });
+    expect(await t.run((ctx) => ctx.db.query('whopOAuthSessions').collect())).toEqual([]);
+  });
+
+  test('binds to the device that started it, for members-only and requireWhopToJoin challenges', async () => {
+    const t = convexTest(schema, modules);
+    await challenge(t, 'WHOP', { requireWhopToJoin: true });
+    await challenge(t, 'MEMB', { eligibility: { kind: 'whop_members', productId: 'prod_members' } }, 'live');
+    expect((await startJoin(t, 'memb', 'other-device')).url).toMatch(/\/oauth\/authorize\?/);
+    const { url } = await startJoin(t, 'WHOP');
+    const state = new URL(url!).searchParams.get('state')!;
+    users.j1 = { id: 'user_kit', name: 'Kit', username: 'kit' };
+    const response = await t.fetch(`/whop/oauth/callback?code=j1&state=${state}`, { method: 'GET' });
+    expect(response.headers.get('Location')).toBe('cmhmaxwin://c/WHOP?whop=linked');
+    expect(await t.run((ctx) => resolveIdentity(ctx, DEVICE))).toEqual({ deviceToken: DEVICE, whopUserId: 'user_kit', name: 'Kit' });
+    expect(await t.run((ctx) => resolveIdentity(ctx, 'other-device'))).toEqual({ deviceToken: 'other-device' });
+  });
+
+  test('winner-only stays the default purpose', async () => {
+    const t = convexTest(schema, modules);
+    await challenge(t, 'WHOP', { requireWhopToJoin: true });
+    expect(await t.action(api.whopAuth.startSignIn, { deviceToken: DEVICE, claimCode: 'WHOP' })).toEqual({ url: null, reason: 'not_winner' });
+  });
+});
