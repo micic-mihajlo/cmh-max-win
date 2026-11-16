@@ -12,7 +12,9 @@ import { AnswerTile, type TileState } from './answer-tile';
 import { useCount } from './count';
 import { DrainBar, Heartbeat, SecondsLeft } from './countdown';
 import { points, type QuizPrivateView, type QuizQuestionView, type QuizSharedView } from './format';
+import { RoomPulseField } from './pulse';
 import { Takeover } from './takeover';
+import type { RoomPulse } from '@/lib/contract-pulse';
 import type { TeamStyle } from '@/lib/teams';
 
 function tileState(q: QuizQuestionView, choice: number, picked: number | null, mineIt: boolean): TileState {
@@ -71,10 +73,16 @@ export function PlayScreen({
   mine,
   serverNow,
   team,
+  pulse,
+  myName,
+  solo,
   onAnswer,
 }: {
   quiz: QuizSharedView;
   team: TeamStyle | null;
+  pulse: RoomPulse | null;
+  myName: string | null;
+  solo: boolean;
   mine: QuizPrivateView;
   serverNow: number;
   onAnswer: (questionIndex: number, choice: number) => Promise<string | null>;
@@ -149,7 +157,10 @@ export function PlayScreen({
         </Txt>
       </Animated.View>
 
-      <View style={styles.band}>{open ? <Heartbeat closesAt={q.closesAt} offset={offset} /> : null}</View>
+      <View style={styles.band}>
+        {open ? <Heartbeat closesAt={q.closesAt} offset={offset} /> : null}
+        {pulse ? <RoomPulseField pulse={pulse} myName={myName} meLocked={picked !== null} solo={solo} /> : null}
+      </View>
 
       <View style={styles.bottom}>
         <View style={styles.status} accessibilityLiveRegion="polite">
@@ -194,7 +205,7 @@ const styles = StyleSheet.create({
   prompt: { marginTop: Space.xxl },
   where: { flexDirection: 'row', alignItems: 'center', gap: Space.s },
   marker: { width: 10, height: 10, borderRadius: 5 },
-  band: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  band: { flex: 1, minHeight: 0, justifyContent: 'center', paddingVertical: Space.l, gap: Space.s },
   bottom: { gap: Space.m },
   gain: { fontFamily: FontFamily.uiBold, fontSize: 88, lineHeight: 96, letterSpacing: -3, color: Palette.paper, fontVariant: ['tabular-nums'] },
   answer: { marginTop: Space.l, gap: 2 },
