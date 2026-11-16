@@ -228,4 +228,12 @@ describe('live:roomPulse', () => {
     for (const team of byTeam.values()) expect(team.points).toBe(team.mine.reduce((a, b) => a + b, 0));
     expect([...byTeam.values()].some((team) => team.points > 0)).toBe(true);
   });
+
+  test('a crowd of 150 joining one code at once all get in: no failures, no RATE_LIMITED', async () => {
+    const { t, joinCode } = await quiz({ teamSize: 3 });
+    const names = ['Danny', 'Kayla', 'Marcus', 'Jess', 'Mike', 'Sarah'];
+    const results = await Promise.allSettled(Array.from({ length: 150 }, (_, i) => join(t, joinCode, 'burst-player-' + i, names[i % names.length])));
+    expect(results.filter((r) => r.status === 'rejected')).toEqual([]);
+    expect((await pulse(t, joinCode, 'burst-player-0')).joined).toBe(150);
+  });
 });
