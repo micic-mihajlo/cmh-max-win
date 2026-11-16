@@ -81,9 +81,8 @@ export function StreamerScreen({
             disabled={page.liveDrop.dropStatus === 'live'}
             style={[showcase.gutter, showcase.row, styles.live]}
             onPress={() => onOpenLive(page.liveDrop!)}>
-            <View style={styles.dot} />
             <Txt variant="bodyStrong" style={showcase.flex}>
-              Live now · {page.liveDrop.title}
+              Happening now · {page.liveDrop.title}
             </Txt>
             <Txt variant="label" color={page.liveDrop.dropStatus === 'live' ? Palette.paperMuted : Palette.paper}>
               {page.liveDrop.dropStatus === 'live' ? 'In progress' : 'Join'}
@@ -208,7 +207,6 @@ const styles = StyleSheet.create({
   centerText: { textAlign: 'center' },
   follow: { marginTop: Space.xl, minHeight: 52, justifyContent: 'center' },
   live: { marginTop: Space.xl },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Palette.ember },
   scrim: { backgroundColor: 'rgba(22,21,19,0.2)' },
   sheetWrap: { position: 'absolute', left: 0, right: 0, bottom: 0 },
   grabber: { alignSelf: 'center', width: 36, height: 4, borderRadius: 2, backgroundColor: Palette.hairline, marginTop: -Space.s },

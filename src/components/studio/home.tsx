@@ -72,7 +72,6 @@ function Row({ c }: { c: ChallengeSummaryView }) {
             {meta}
           </Txt>
         </View>
-        {c.status === 'live' ? <View style={styles.liveDot} /> : null}
         <Txt variant="name" color={G.inkSoft}>
           ›
         </Txt>
@@ -137,5 +136,4 @@ const styles = StyleSheet.create({
     minHeight: 64,
     paddingVertical: Space.s,
   },
-  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: G.ink },
 });
