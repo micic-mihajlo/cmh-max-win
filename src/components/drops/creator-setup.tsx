@@ -85,7 +85,7 @@ export function CreatorSetupScreen({
           <View style={styles.flex}>
             <Txt variant="name">{drop.title}</Txt>
             <Txt variant="small" color={Palette.paperMuted}>
-              {`${money(drop.totalCents)} · ${drop.winnerSlots === 1 ? 'first squad wins' : `first ${drop.winnerSlots} squads win`}`}
+              {`${pot?.concept ? 'Just for fun' : money(drop.totalCents)} · ${drop.winnerSlots === 1 ? 'first squad wins' : `first ${drop.winnerSlots} squads win`}`}
             </Txt>
             {pot ? (
               <Txt variant="label" color={Brass}>
@@ -114,9 +114,7 @@ export function CreatorSetupScreen({
             </View>
           </Stagger>
         ) : null}
-        {!live && challenge && onChallenge ? (
-          <Picker label="Challenge" options={CHALLENGES} selected={challenge.key} onPick={onChallenge} />
-        ) : null}
+        {!live && challenge && onChallenge ? <Picker label="Challenge" options={CHALLENGES} selected={challenge.key} onPick={onChallenge} /> : null}
         {!live && pot && onPot ? (
           <>
             <Picker label="Bounty" options={POTS} selected={pot.key} onPick={onPot} disabled={(o) => !potFits(o, real)} />
