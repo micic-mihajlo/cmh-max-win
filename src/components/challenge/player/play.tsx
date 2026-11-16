@@ -27,9 +27,7 @@ function Verdict({ q, picked }: { q: QuizQuestionView; picked: number | null }) 
   }, [right]);
   if (right) {
     return (
-      <Txt variant="name" color={Palette.ok}>
-        {`Correct · +${points(q.points ?? 0)}`}
-      </Txt>
+      <Txt variant="name">{`Correct · +${points(q.points ?? 0)}`}</Txt>
     );
   }
   return <Txt variant="name">{picked === null ? 'No answer in time' : 'Not this one'}</Txt>;
