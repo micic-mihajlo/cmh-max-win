@@ -1,4 +1,6 @@
 /// <reference types="vite/client" />
+import presenceTest from '@convex-dev/presence/test';
+import rateLimiterTest from '@convex-dev/rate-limiter/test';
 import { convexTest } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -191,9 +193,9 @@ describe('real payouts (SIGNAL_REAL_PAYOUTS)', () => {
 
     const a = (await myAward(t, 'dev-a'))!;
     expect(a.mode).toBe('transfer');
-    expect(a.myPayout).toEqual({ status: 'sent', amountCents: 333 });
+    expect(a.myPayout).toEqual({ status: 'sent', amountCents: 333, transferId: 'xfer_1', message: 'Sent to your Whop balance' });
     expect(a.split.reduce((s, r) => s + r.cents, 0)).toBe(a.amountCents);
-    expect((await myAward(t, 'dev-c'))!.myPayout).toEqual({ status: 'sign_in_required', amountCents: 333 });
+    expect((await myAward(t, 'dev-c'))!.myPayout).toEqual({ status: 'sign_in_required', amountCents: 333, message: 'Sign in with Whop to receive $3.33' });
 
     for (const r of await rows(t)) await t.action(internal.bounty.sendTransfer, { payoutId: r._id });
     expect(transfers).toHaveLength(2);
@@ -221,7 +223,7 @@ describe('real payouts (SIGNAL_REAL_PAYOUTS)', () => {
     await link(t, 'dev-a', 'user_a');
     await t.mutation(internal.bounty.startTransfers, { awardId });
     await settle(t);
-    expect((await myAward(t, 'dev-a'))!.myPayout).toEqual({ status: 'failed', amountCents: 333, failureCode: 'kyc_required' });
+    expect((await myAward(t, 'dev-a'))!.myPayout).toEqual({ status: 'failed', amountCents: 333, failureCode: 'kyc_required', message: "The transfer didn't go through." });
 
     let calls = 0;
     respond = () => (++calls < 3 ? new Response('busy', { status: 503 }) : Response.json({ id: 'xfer_ok' }));
@@ -232,3 +234,73 @@ describe('real payouts (SIGNAL_REAL_PAYOUTS)', () => {
     expect(new Set(transfers.filter((x) => x.body.destination_id === 'user_b').map((x) => x.key)).size).toBe(1);
   });
 });
+
+describe('Whop transfer quirks and real pots', () => {
+  // Whop's real create response: fee null until a later GET or the webhook, succeeded_at null even when succeeded.
+  const created = (status: string) => Response.json({ id: 'ctt_98IpVoIUH8J8CJ', status, fee: null, succeeded_at: null, amount: 1 }, { status: 201 });
+
+  test('status is the source of truth; the fee and succeeded_at are never read; the key goes in the header', async () => {
+    const t = convexTest(schema, modules);
+    const headers: Headers[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (_input: string | URL, init?: RequestInit) => {
+      headers.push(new Headers(init?.headers));
+      return created('succeeded');
+    }));
+    const { awardId, memberIds } = await seedAward(t);
+    await link(t, 'dev-a', 'user_41t2bclWAC2x6');
+    await t.mutation(internal.bounty.startTransfers, { awardId });
+    await settle(t);
+    expect(headers[0].get('Idempotency-Key')).toBe(`${awardId}:${memberIds[0]}`);
+    expect(headers[0].get('Api-Version-Date')).toBe('2026-11-14-1');
+    const row = (await rows(t)).find((r) => r.deviceToken === 'dev-a')!;
+    expect(row).toMatchObject({ status: 'sent', transferId: 'ctt_98IpVoIUH8J8CJ', transferStatus: 'succeeded' });
+    expect(Object.keys(row)).not.toContain('fee');
+    expect((await myAward(t, 'dev-a'))!.myPayout).toEqual({ status: 'sent', amountCents: 333, transferId: 'ctt_98IpVoIUH8J8CJ', message: 'Sent to your Whop balance' });
+  });
+
+  test('a 2xx with a failed status is a failure, and releases its budget', async () => {
+    vi.stubEnv('SIGNAL_REAL_PAYOUTS', 'on');
+    vi.stubEnv('SIGNAL_REAL_PAYOUT_BUDGET_CENTS', '1000');
+    const t = convexTest(schema, modules);
+    vi.stubGlobal('fetch', vi.fn(async () => created('failed')));
+    const { awardId } = await seedAward(t);
+    await link(t, 'dev-a', 'user_a');
+    await t.mutation(internal.bounty.startTransfers, { awardId });
+    await settle(t);
+    expect((await rows(t)).find((r) => r.deviceToken === 'dev-a')).toMatchObject({ status: 'failed', failureCode: 'transfer_failed', transferStatus: 'failed' });
+  });
+
+  test('real $3 and $6 pots are accepted, a pot over the remaining budget is refused, and concept stays selectable', async () => {
+    vi.stubEnv('SIGNAL_REAL_PAYOUTS', 'on');
+    vi.stubEnv('SIGNAL_REAL_PAYOUT_BUDGET_CENTS', '700');
+    const t = convexTest(schema, modules);
+    rateLimiterTest.register(t);
+    presenceTest.register(t);
+    const host = (deviceToken: string, totalCents: number, payoutMode: 'real' | 'concept') => t.mutation(api.drops.hostDrop, { deviceToken, totalCents, winnerSlots: 1, payoutMode });
+    expect(await t.query(api.drops.realPayoutStatus, {})).toEqual({ enabled: true, remainingCents: 700, capPerSquadCents: 1000 });
+    const three = await host('h1', 300, 'real');
+    const six = await host('h2', 600, 'real');
+    const view = (dropId: string) => t.query(api.drops.drop, { deviceToken: 'x', dropId });
+    expect((await view(three.dropId))!.bounty.mode).toBe('transfer');
+    expect((await view(six.dropId))!.bounty.mode).toBe('transfer');
+    const code = await errorCode(host('h3', 800, 'real'));
+    expect(code).toEqual({ code: 'REAL_BUDGET_EXCEEDED', message: 'Real payouts have $7 left. Pick a pot up to $7, or concept.' });
+    const concept = await host('h4', 800, 'concept');
+    expect((await view(concept.dropId))!.bounty.mode).toBe('concept');
+    const drop = (await t.run((ctx) => ctx.db.query('drops').withIndex('by_dropId', (q) => q.eq('dropId', concept.dropId)).unique()))!;
+    expect(await t.run((ctx) => awardModeWithBudget(ctx, drop, 300))).toBe('concept');
+    vi.stubEnv('SIGNAL_REAL_PAYOUTS', '');
+    expect((await errorCode(host('h5', 300, 'real')))!.code).toBe('REAL_PAYOUTS_OFF');
+    expect(await t.query(api.drops.realPayoutStatus, {})).toMatchObject({ enabled: false, remainingCents: 0 });
+  });
+});
+
+async function errorCode(p: Promise<unknown>) {
+  try {
+    await p;
+  } catch (e) {
+    const data = (e as { data?: { code?: string; message?: string } }).data;
+    return data ? { code: data.code, message: data.message } : null;
+  }
+  throw new Error('expected the call to fail');
+}

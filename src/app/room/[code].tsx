@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Share, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
@@ -29,6 +29,7 @@ import {
   useSetTheory,
   useStartCase,
 } from '@/hooks/use-signal';
+import { useDrop } from '@/hooks/use-drops';
 import { useFollowStreamer, useStreamerForDrop } from '@/hooks/use-feed';
 import type { Role, RoomView, SuspectId } from '@/lib/contract';
 import { toSignalError } from '@/lib/signal-error';
@@ -39,8 +40,10 @@ type Menu = 'menu' | 'lobby' | 'confirm-restart' | 'confirm-leave' | null;
 export default function RoomRoute() {
   const { code } = useLocalSearchParams<{ code: string }>();
   const room = useRoom(code);
-  if (room === undefined) return <Loading />;
+  const drop = useDrop(room?.drop?.dropId ?? null);
+  if (room === undefined || (room?.drop && drop === undefined)) return <Loading />;
   if (room === null || !room.me) return <ClosedScreen code={code} onNewCase={() => router.replace('/')} />;
+  if (room.drop && drop?.template === 'split-passphrase') return <Redirect href={{ pathname: '/drop/[id]', params: { id: room.drop.dropId } }} />;
   return <LiveRoom room={room} />;
 }
 

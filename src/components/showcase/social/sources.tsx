@@ -65,7 +65,7 @@ function LiveFeed() {
 }
 
 export function Streamer({ id }: { id: string | null }) {
-  if (fx) return <SampleStreamer id={id ?? 'nova'} />;
+  if (fx) return <SampleStreamer id={id ?? 'danny'} />;
   return (
     <LiveBoundary>
       <LiveStreamer id={id} />

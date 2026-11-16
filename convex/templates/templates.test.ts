@@ -20,6 +20,7 @@ import {
   mixerColors,
   mixerTemplate,
   requireFormation,
+  requireTemplate,
   verifyMixerTeam,
   progressOf,
   squadSizes,
@@ -486,5 +487,23 @@ describe('ranking', () => {
     expect(compareOutcomes('split-passphrase', o({ attempts: 3 }), o({ attempts: 1, commitSeq: 2 }))).toBeGreaterThan(0);
     expect(compareOutcomes('mystery-aurora', o({ correct: false, commitSeq: 0 }), o({ commitSeq: 9 }))).toBeGreaterThan(0);
     expect(auroraTemplate.scoring.score(o({ attempts: 3 }))).toBe(700);
+  });
+});
+
+describe('split-passphrase exclude pool', () => {
+  const team = (n: number) => Array.from({ length: n }, (_, i) => ({ playerId: 'p' + i, name: 'P' + i }));
+  test('deals around excluded words, and falls back to repeats without repeating inside a squad', () => {
+    const tpl = requireTemplate('split-passphrase');
+    const first = tpl.deal(team(3), 'seed-a', tpl.config.parse({ wordCount: 3, exclude: [] }), { now: 0 }).state.words as string[];
+    const second = tpl.deal(team(3), 'seed-b', tpl.config.parse({ wordCount: 3, exclude: first }), { now: 0 }).state.words as string[];
+    expect(second.filter((w) => first.includes(w))).toEqual([]);
+    const all = Array.from({ length: 300 }, (_, i) => tpl.deal(team(3), 'seed-' + i, tpl.config.parse({ wordCount: 3 }), { now: 0 }).state.words as string[]);
+    expect(all.every((w) => w.length === 3)).toBe(true);
+    const pool = new Set<string>();
+    for (let i = 0; pool.size < 200 && i < 1000; i++) for (const w of tpl.deal(team(4), 's' + i, tpl.config.parse({ wordCount: 4, exclude: [...pool] }), { now: 0 }).state.words as string[]) pool.add(w);
+    const crowded = tpl.deal(team(4), 'crowded', tpl.config.parse({ wordCount: 4, exclude: [...pool] }), { now: 0 }).state.words as string[];
+    expect(crowded).toHaveLength(4);
+    expect(new Set(crowded).size).toBe(4);
+    expect(tpl.deal(team(3), 'same', tpl.config.parse({ wordCount: 3 }), { now: 0 }).state.words).toEqual(tpl.deal(team(3), 'same', tpl.config.parse({ wordCount: 3 }), { now: 0 }).state.words);
   });
 });

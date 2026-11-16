@@ -87,7 +87,16 @@ async function signIn(t: ReturnType<typeof convexTest>, code: string, user: { id
   expect(authorize.searchParams.get('code_challenge_method')).toBe('S256');
   expect(authorize.searchParams.get('redirect_uri')).toBe('https://example.convex.site/whop/oauth/callback');
   const state = authorize.searchParams.get('state')!;
-  return t.fetch(`/whop/oauth/callback?code=${code}&state=${state}`, { method: 'GET' });
+  const response = await t.fetch(`/whop/oauth/callback?code=${code}&state=${state}`, { method: 'GET' });
+  expect(await redeem(t, response, deviceToken)).toBe(true);
+  return response;
+}
+
+// The starting device redeems the one-time code the callback put on its return URL.
+async function redeem(t: ReturnType<typeof convexTest>, response: Response, deviceToken = DEVICE) {
+  const back = new URL(response.headers.get('Location')!);
+  expect(back.searchParams.get('whop')).toBe('link');
+  return t.mutation(api.whopAuth.completeSignIn, { deviceToken, linkCode: back.searchParams.get('code')! });
 }
 
 describe('Sign in with Whop', () => {
@@ -105,7 +114,7 @@ describe('Sign in with Whop', () => {
     await seedSeat(t);
     const response = await signIn(t, 'c1', { id: 'user_nova', name: 'Nova', username: 'nova' });
     expect(response.status).toBe(302);
-    expect(response.headers.get('Location')).toBe('cmhmaxwin://award/ABC?whop=linked');
+    expect(response.headers.get('Location')).toMatch(/^cmhmaxwin:\/\/award\/ABC\?whop=link&code=[\w-]{43}$/);
     const state = await t.query(api.whopAuth.account, { deviceToken: DEVICE });
     expect(state.account).toMatchObject({ whopUserId: 'user_nova', name: 'Nova', username: 'nova', environment: 'sandbox' });
     expect(JSON.stringify(state)).not.toMatch(/at_|rt_/);
@@ -123,6 +132,41 @@ describe('Sign in with Whop', () => {
     expect(rows[0].whopUserId).toBe('user_rex');
   });
 
+  test('a forwarded authorize link links nobody: only the starting device can redeem the code, once', async () => {
+    const t = convexTest(schema, modules);
+    await seedSeat(t, { deviceToken: 'attacker' });
+    users.c1 = { id: 'user_victim', name: 'Victim', username: 'victim' };
+    const { url } = await start(t, 'attacker');
+    const state = new URL(url!).searchParams.get('state');
+    const response = await t.fetch(`/whop/oauth/callback?code=c1&state=${state}`, { method: 'GET' });
+    expect(await t.run((ctx) => resolveIdentity(ctx, 'attacker'))).toEqual({ deviceToken: 'attacker' });
+    expect(await redeem(t, response, 'victim-device')).toBe(false);
+    expect(await redeem(t, response, 'attacker')).toBe(false);
+    expect(await t.run((ctx) => resolveIdentity(ctx, 'attacker'))).toEqual({ deviceToken: 'attacker' });
+    expect(await t.run((ctx) => resolveIdentity(ctx, 'victim-device'))).toEqual({ deviceToken: 'victim-device' });
+    expect(await t.run((ctx) => ctx.db.query('whopOAuthTokens').collect())).toHaveLength(0);
+    expect(await t.mutation(api.whopAuth.completeSignIn, { deviceToken: 'attacker', linkCode: 'guess' })).toBe(false);
+  });
+
+  test('a link code expires with the session and leaves no tokens behind', async () => {
+    vi.useFakeTimers();
+    try {
+      const t = convexTest(schema, modules);
+      await seedSeat(t);
+      users.c1 = { id: 'user_nova', name: 'Nova', username: 'nova' };
+      const { url } = await start(t);
+      const state = new URL(url!).searchParams.get('state');
+      const response = await t.fetch(`/whop/oauth/callback?code=c1&state=${state}`, { method: 'GET' });
+      vi.advanceTimersByTime(10 * 60 * 1000 + 1);
+      await t.finishAllScheduledFunctions(vi.runAllTimers);
+      expect(await t.run((ctx) => ctx.db.query('whopPendingLinks').collect())).toHaveLength(0);
+      expect(await redeem(t, response)).toBe(false);
+      expect((await t.query(api.whopAuth.account, { deviceToken: DEVICE })).account).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   test('rejects unknown and replayed state', async () => {
     const t = convexTest(schema, modules);
     expect((await t.fetch('/whop/oauth/callback?code=x&state=nope', { method: 'GET' })).status).toBe(400);
@@ -130,8 +174,20 @@ describe('Sign in with Whop', () => {
     await seedSeat(t);
     const { url } = await start(t);
     const state = new URL(url!).searchParams.get('state');
-    expect((await t.fetch(`/whop/oauth/callback?code=c1&state=${state}`, { method: 'GET' })).headers.get('Location')).toBe('cmhmaxwin://whop-auth?whop=linked');
+    expect(await redeem(t, await t.fetch(`/whop/oauth/callback?code=c1&state=${state}`, { method: 'GET' }))).toBe(true);
     expect((await t.fetch(`/whop/oauth/callback?code=c1&state=${state}`, { method: 'GET' })).status).toBe(400);
+  });
+
+  test('production sign-in never returns to an Expo Go URL', async () => {
+    vi.stubEnv('WHOP_ENVIRONMENT', 'production');
+    const t = convexTest(schema, modules);
+    await seedSeat(t);
+    for (const returnUrl of ['exp://evil.example:8081/--/award', 'exps://evil.example/--/award']) {
+      const { url } = await start(t, DEVICE, returnUrl);
+      const state = new URL(url!).searchParams.get('state');
+      const response = await t.fetch(`/whop/oauth/callback?error=access_denied&state=${state}`, { method: 'GET' });
+      expect(response.headers.get('Location')).toBe('cmhmaxwin://whop-auth?whop=cancelled');
+    }
   });
 
   test('ignores return URLs outside the app scheme', async () => {
@@ -258,7 +314,8 @@ describe('join-purpose sign-in', () => {
     const state = new URL(url!).searchParams.get('state')!;
     users.j1 = { id: 'user_kit', name: 'Kit', username: 'kit' };
     const response = await t.fetch(`/whop/oauth/callback?code=j1&state=${state}`, { method: 'GET' });
-    expect(response.headers.get('Location')).toBe('cmhmaxwin://c/WHOP?whop=linked');
+    expect(response.headers.get('Location')).toMatch(/^cmhmaxwin:\/\/c\/WHOP\?whop=link&code=/);
+    expect(await redeem(t, response)).toBe(true);
     expect(await t.run((ctx) => resolveIdentity(ctx, DEVICE))).toEqual({ deviceToken: DEVICE, whopUserId: 'user_kit', name: 'Kit' });
     expect(await t.run((ctx) => resolveIdentity(ctx, 'other-device'))).toEqual({ deviceToken: 'other-device' });
   });

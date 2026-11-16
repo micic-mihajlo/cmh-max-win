@@ -31,7 +31,7 @@ export default function HostRoute() {
     <View style={styles.flex}>
       <HostScreen
         view={view}
-        hostName={name ?? 'Host'}
+        hostName={name ?? 'Danny'}
         dealing={dealing}
         onDeal={async () => {
           setDealing(true);

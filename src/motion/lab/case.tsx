@@ -30,7 +30,7 @@ const dossier = [
   { time: '21:52', text: 'Sixty milliseconds apart, then still.' },
 ];
 
-// The theory round on a mock server: you lock in, Ravi and Lena follow on timers, the third
+// The theory round on a mock server: you lock in, Ryan and Emily follow on timers, the third
 // lock-in triggers the check. Any edit clears every lock-in.
 export default function LabCase() {
   const insets = useSafeAreaInsets();
@@ -131,7 +131,7 @@ export default function LabCase() {
                 <View style={[ui.card, { borderLeftWidth: 4, borderLeftColor: RoleColor.witness }]}>
                   <Text style={ui.title2}>Not {labSuspects.find((s) => s.id === wrong)!.name}.</Text>
                   <Text style={ui.callout}>{labNudge(wrong, revision).text}</Text>
-                  <Text style={[ui.label, { color: RoleColor.witness }]}>Lena · Witness</Text>
+                  <Text style={[ui.label, { color: RoleColor.witness }]}>Emily · Witness</Text>
                 </View>
               </NudgeEntrance>
             ) : (

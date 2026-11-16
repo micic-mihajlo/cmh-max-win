@@ -18,7 +18,7 @@ export function WebHomeScreen() {
       footer={
         <>
           <Button title="Start a game" onPress={() => router.push('/host')} />
-          <Button title="Open in Expo Go" variant="secondary" onPress={() => window.location.assign('/expo')} />
+          <Button title="Play on your phone" variant="secondary" onPress={() => window.location.assign('/expo')} />
         </>
       }>
       <View style={styles.top}>
