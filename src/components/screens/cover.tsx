@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Keyboard, Pressable, StyleSheet, TextInput, View } from 'react-native';
-import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Screen } from '@/components/signal/backdrop';
@@ -11,6 +11,7 @@ import { Txt } from '@/components/signal/txt';
 import { Wordmark } from '@/components/wordmark';
 import { Palette, Radius, RoleMeta, Space } from '@/constants/signal';
 import { Case01 } from '@/constants/case01';
+import { Sheet } from '@/motion';
 import type { ActiveRoomView, Role, SignalErrorCode } from '@/lib/contract';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -130,9 +131,10 @@ function JoinSheet({ join, on }: { join: JoinState; on: CoverActions }) {
   const ready = join.code.length === 4;
   return (
     <>
-      <AnimatedPressable accessibilityLabel="Close" onPress={on.onCloseJoin} entering={reduced ? undefined : FadeIn} style={styles.scrim} />
+      <AnimatedPressable accessibilityLabel="Close" onPress={on.onCloseJoin} entering={Sheet.scrimIn} exiting={Sheet.scrimOut} style={styles.scrim} />
       <Animated.View
-        entering={reduced ? undefined : SlideInDown.springify().damping(20)}
+        entering={Sheet.enter(reduced)}
+        exiting={Sheet.exit(reduced)}
         style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, keyboard) + Space.l }]}>
         <View style={styles.handle} />
         <Txt variant="title">Join a case</Txt>

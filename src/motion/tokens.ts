@@ -4,6 +4,8 @@ import { Easing } from 'react-native-reanimated';
 // damping ratio, so the number you read is roughly how long it takes to settle. They stay
 // interruptible: a new target picks up the current velocity instead of restarting.
 export const Spring = {
+  // GUIDE spring (damping 20, stiffness 240, mass 0.8, ζ≈0.72): press-down and sheets, ~300ms to rest.
+  press: { damping: 20, stiffness: 240, mass: 0.8 },
   // Press release: critically damped, never overshoots past rest.
   release: { duration: 160, dampingRatio: 1 },
   // Seal stamp (claim, ready, lock-in, owned): quick, one small settle.
