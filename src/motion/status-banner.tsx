@@ -42,8 +42,7 @@ export function StatusBanner({ visible, children, showAfterMs = 0, tone = 'neutr
     <Animated.View
       pointerEvents="none"
       accessibilityLiveRegion="polite"
-      accessibilityElementsHidden={!visible}
-      importantForAccessibility={visible ? 'yes' : 'no-hide-descendants'}
+      aria-hidden={!visible}
       style={[styles.wrap, { top: insets.top + 6 }, animated]}>
       <View style={[styles.pill, { backgroundColor: colors.card, borderColor: colors.hairline }]}>
         <View style={[styles.dot, { backgroundColor: tone === 'away' ? colors.faint : colors.accent }]} />
