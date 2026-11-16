@@ -5,10 +5,19 @@ import { Txt } from '@/components/signal/txt';
 import { Palette, Radius, Space } from '@/constants/signal';
 import { PressScale, Stagger } from '@/motion';
 
+import type { DropTemplateId } from '@/lib/contract';
+
 import { Brass, money, Tagline } from './ui';
 
 export type CreatorDrop = { title: string; totalCents: number; winnerSlots: number };
 export type Pot = { key: string; label: string; totalCents: number; concept?: boolean };
+
+export type Challenge = { key: string; label: string; title: string; template?: DropTemplateId };
+
+export const CHALLENGES: Challenge[] = [
+  { key: 'split-passphrase', label: 'Split Passphrase · quick', title: 'Split Passphrase', template: 'split-passphrase' },
+  { key: 'mystery', label: 'Case 01 · Mystery', title: 'The Aurora Seed' },
+];
 
 export const POTS: Pot[] = [
   { key: 'concept', label: 'Concept', totalCents: 30000, concept: true },
@@ -17,13 +26,15 @@ export const POTS: Pot[] = [
   { key: '9', label: '$9', totalCents: 900 },
 ];
 
-// Nova's screen: the drop card, a bounty picker, and Open drop. The server decides whether money really moves;
+// Danny's screen: the drop card, a bounty picker, and Open drop. The server decides whether money really moves;
 // the live card shows the real entrant count from useDrop.
 export function CreatorSetupScreen({
   drop,
   live,
   pot,
   onPot,
+  challenge,
+  onChallenge,
   error,
   onOpen,
 }: {
@@ -31,6 +42,8 @@ export function CreatorSetupScreen({
   live?: { entrantCount: number; shareUrl: string };
   pot?: Pot;
   onPot?: (pot: Pot) => void;
+  challenge?: Challenge;
+  onChallenge?: (challenge: Challenge) => void;
   error?: string | null;
   onOpen?: () => void;
 }) {
@@ -87,26 +100,10 @@ export function CreatorSetupScreen({
             </View>
           </Stagger>
         ) : null}
-        {!live && pot && onPot ? (
-          <View style={styles.pots}>
-            {POTS.map((p) => {
-              const on = p.key === pot.key;
-              return (
-                <PressScale
-                  key={p.key}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: on }}
-                  onPress={() => onPot(p)}
-                  haptic="tap"
-                  style={[styles.pot, on && styles.potOn]}>
-                  <Txt variant="smallStrong" color={on ? Palette.ink : Palette.paper}>
-                    {p.label}
-                  </Txt>
-                </PressScale>
-              );
-            })}
-          </View>
+        {!live && challenge && onChallenge ? (
+          <Picker label="Challenge" options={CHALLENGES} selected={challenge.key} onPick={onChallenge} />
         ) : null}
+        {!live && pot && onPot ? <Picker label="Bounty" options={POTS} selected={pot.key} onPick={onPot} /> : null}
       </View>
       {error ? (
         <Txt variant="body" color={Palette.danger}>
@@ -120,7 +117,36 @@ export function CreatorSetupScreen({
   );
 }
 
+function Picker<T extends { key: string; label: string }>({ label, options, selected, onPick }: { label: string; options: T[]; selected: string; onPick: (option: T) => void }) {
+  return (
+    <View style={styles.picker}>
+      <Txt variant="small" color={Palette.paperMuted}>
+        {label}
+      </Txt>
+      <View style={styles.pots}>
+        {options.map((o) => {
+          const on = o.key === selected;
+          return (
+            <PressScale
+              key={o.key}
+              accessibilityRole="button"
+              accessibilityState={{ selected: on }}
+              onPress={() => onPick(o)}
+              haptic="tap"
+              style={[styles.pot, on && styles.potOn]}>
+              <Txt variant="smallStrong" color={on ? Palette.ink : Palette.paper}>
+                {o.label}
+              </Txt>
+            </PressScale>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  picker: { gap: Space.s },
   flex: { flex: 1 },
   center: { textAlign: 'center' },
   head: { gap: Space.s, marginTop: Space.s },

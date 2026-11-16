@@ -213,3 +213,17 @@ describe('split passphrase in the live room', () => {
     expect(await t.query(api.drops.myAward, { deviceToken: squads[1].tokens[0], code: squads[1].code })).toBeNull();
   });
 });
+
+describe('words across a drop', () => {
+  test('every word is unique across a 50-squad drop', async () => {
+    const t = newTest();
+    const { dropId } = await t.mutation(api.drops.hostDrop, { deviceToken: HOST, creatorName: 'Nova', template: 'split-passphrase' });
+    for (let i = 0; i < 150; i++) await t.mutation(api.drops.enterDrop, { deviceToken: 'p' + i, dropId, name: 'Player ' + i });
+    await t.mutation(api.drops.dealSquads, { deviceToken: HOST, dropId });
+    const rooms = await t.run((ctx) => ctx.db.query('rooms').collect());
+    expect(rooms).toHaveLength(50);
+    const words = rooms.flatMap((r) => (r.passphrase!.session as { state: { words: string[] } }).state.words);
+    expect(words).toHaveLength(150);
+    expect(new Set(words).size).toBe(150);
+  });
+});

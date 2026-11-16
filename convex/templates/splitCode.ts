@@ -20,6 +20,25 @@ const MIXER_WORDS = [
   'mica', 'nova', 'onyx', 'pulsar', 'quill', 'reef', 'sable', 'tidal', 'ultra', 'vapor', 'wren', 'yonder',
 ];
 
+// Live-room drops deal every squad's words from one pool without replacement (config.exclude), so a crowded room
+// never overhears a word from its own phrase. 205 words cover a full 150-seat drop.
+const DROP_WORDS = [
+  ...MIXER_WORDS,
+  'acorn', 'alder', 'anchor', 'anvil', 'arbor', 'arrow', 'atlas', 'aurora', 'badger', 'bamboo', 'banner', 'barley',
+  'beetle', 'birch', 'bison', 'bramble', 'breeze', 'bronze', 'cactus', 'canyon', 'cedar', 'cherry', 'citrus', 'clover',
+  'comet', 'copper', 'coral', 'cosmos', 'cotton', 'crane', 'crater', 'cricket', 'crystal', 'cypress', 'dahlia', 'dawn',
+  'desert', 'dingo', 'dolphin', 'dune', 'eagle', 'easel', 'eclipse', 'elm', 'emerald', 'fern', 'fiddle', 'fig',
+  'flint', 'forest', 'fossil', 'fox', 'galaxy', 'garden', 'gazelle', 'geyser', 'ginger', 'glade', 'granite', 'gravel',
+  'grove', 'gull', 'hazel', 'heron', 'hickory', 'honey', 'horizon', 'iris', 'island', 'ivory', 'jade', 'jaguar',
+  'jetty', 'kayak', 'kiwi', 'koala', 'lagoon', 'lark', 'lava', 'lemon', 'lilac', 'lily', 'linen', 'lotus',
+  'lynx', 'magnet', 'mango', 'maple', 'marble', 'meadow', 'mesa', 'mint', 'moss', 'moth', 'nectar', 'nimbus',
+  'oak', 'oasis', 'ocean', 'olive', 'opal', 'otter', 'owl', 'panda', 'papaya', 'pebble', 'pepper', 'pine',
+  'planet', 'plum', 'pollen', 'poppy', 'puffin', 'quail', 'quiver', 'rain', 'ripple', 'river', 'robin', 'rocket',
+  'rose', 'saffron', 'sage', 'salmon', 'sand', 'sapphire', 'sequoia', 'shell', 'sierra', 'silver', 'sky', 'slate',
+  'sparrow', 'spruce', 'star', 'stone', 'storm', 'summit', 'swan', 'thistle', 'thunder', 'tiger', 'timber', 'topaz',
+  'trail', 'tulip', 'turtle', 'valley', 'velvet', 'violet', 'walnut', 'wave', 'whale', 'wheat', 'wolf', 'yarrow',
+  'zephyr',
+];
 
 function normalize(answer: string) {
   return answer.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean).join(' ');
@@ -29,7 +48,9 @@ export const SPLIT_CODE_MIN_WORDS = 2;
 export const SPLIT_CODE_MAX_WORDS = 8;
 export const SPLIT_CODE_DEFAULT_WORDS = 4;
 
-export type SplitCodeConfig = { wordCount: number };
+// exclude: words already dealt to other squads in the same drop. Fresh words come from DROP_WORDS; if the pool runs
+// out, the squad's remaining words repeat already-dealt ones (never within the squad).
+export type SplitCodeConfig = { wordCount: number; exclude?: string[] };
 export type SplitCodeState = {
   players: { playerId: string; name: string }[];
   words: string[];
@@ -96,13 +117,14 @@ export const splitCodeTemplate: ChallengeTemplate<
   summary: 'Every player holds part of a passphrase. Read your words out, fill the slots, confirm together.',
   mode: 'coop',
   config: {
-    schema: v.object({ wordCount: v.optional(v.number()) }),
+    schema: v.object({ wordCount: v.optional(v.number()), exclude: v.optional(v.array(v.string())) }),
     parse(raw) {
       const wordCount = (raw as { wordCount?: number } | undefined)?.wordCount ?? SPLIT_CODE_DEFAULT_WORDS;
+      const exclude = (raw as { exclude?: unknown } | undefined)?.exclude;
       if (!Number.isInteger(wordCount) || wordCount < SPLIT_CODE_MIN_WORDS || wordCount > SPLIT_CODE_MAX_WORDS) {
         throw new ConvexError({ code: 'BAD_CONFIG', message: `wordCount must be ${SPLIT_CODE_MIN_WORDS}–${SPLIT_CODE_MAX_WORDS}.` });
       }
-      return { wordCount };
+      return Array.isArray(exclude) ? { wordCount, exclude: exclude.filter((w): w is string => typeof w === 'string') } : { wordCount };
     },
   },
   teamSizes: [1, 2, 3, 4],
@@ -134,7 +156,15 @@ export const splitCodeTemplate: ChallengeTemplate<
       throw new ConvexError({ code: 'BAD_CONFIG', message: 'Every player in the squad needs at least one word.' });
     }
     const next = rng(seed);
-    const words = shuffle(WORDS, next).slice(0, config.wordCount);
+    let words: string[];
+    if (config.exclude) {
+      const used = new Set(config.exclude);
+      const fresh = shuffle(DROP_WORDS.filter((w) => !used.has(w)), next).slice(0, config.wordCount);
+      const refill = shuffle(DROP_WORDS.filter((w) => used.has(w)), next).slice(0, config.wordCount - fresh.length);
+      words = [...fresh, ...refill];
+    } else {
+      words = shuffle(WORDS, next).slice(0, config.wordCount);
+    }
     const seats = shuffle(team, next);
     const holders: string[] = Array(words.length);
     shuffle(

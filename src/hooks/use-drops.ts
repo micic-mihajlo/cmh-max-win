@@ -6,6 +6,7 @@ import { useDeviceToken } from '@/hooks/use-device-token';
 import type {
   UseDrop,
   UseDealSquads,
+  UseRealPayoutStatus,
   UseDropByCode,
   UseEnterDropByCode,
   UseHostDrop,
@@ -45,6 +46,8 @@ export const useHostDrop: UseHostDrop = () => {
   const host = useMutation(api.drops.hostDrop);
   return useCallback(async (args) => host({ deviceToken: await getDeviceToken(), ...args }), [host]);
 };
+
+export const useRealPayoutStatus: UseRealPayoutStatus = () => useQuery(api.drops.realPayoutStatus, {});
 
 export const useDealSquads: UseDealSquads = (dropId) => {
   const deal = useMutation(api.drops.dealSquads);

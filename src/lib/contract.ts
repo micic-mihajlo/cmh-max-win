@@ -138,6 +138,8 @@ export type SignalErrorCode =
   | 'TEAM_NOT_LOCKED'
   | 'CHALLENGE_FULL' // a new device joining a challenge at capacity (contract-hardening.ts)
   | 'BAD_ANSWER' // split passphrase: the answer doesn't have one word per slot
+  | 'REAL_PAYOUTS_OFF' // hostDrop payoutMode 'real' while the server has real payouts off
+  | 'REAL_BUDGET_EXCEEDED' // hostDrop payoutMode 'real' with a pot above the remaining real budget (or the per-squad cap)
   | 'NOT_CASE_ROOM' // a Case 01 call (setTheory, lockIn, claimRole, startCase, restart) on a split-passphrase squad
 
 export type SignalError = { code: SignalErrorCode; message: string };
@@ -235,6 +237,9 @@ export type AwardPayoutView = {
   // Set only when failed: Whop's error code, e.g. 'kyc_required' (the business isn't verified),
   // 'transfer_unavailable' (balance held or too low), or 'unknown'.
   failureCode?: string;
+  transferId?: string; // set once sent: Whop's transfer id ('ctt_...')
+  // Real payouts only: 'Sent to your Whop balance' · 'Sign in with Whop to receive $1' · 'Sending to your Whop balance…'
+  message?: string;
 };
 export type AwardSplitRow = { name: string; cents: number; isMe: boolean };
 
@@ -313,11 +318,15 @@ export type WhopAccountView = {
 export type WhopAccountState = { available: boolean; account: WhopAccountView | null };
 // unavailable: no Whop OAuth app configured · not_winner: this device holds no winning seat for that
 // code · no_profile: creator sign-in without a creator profile · cancelled: the person closed the sheet.
-export type WhopSignInResult = 'linked' | 'cancelled' | 'error' | 'unavailable' | 'not_winner' | 'no_profile';
+// not_required: useSignInToJoin on a challenge that doesn't need Whop to join (or isn't open), so just join.
+export type WhopSignInResult = 'linked' | 'cancelled' | 'error' | 'unavailable' | 'not_winner' | 'no_profile' | 'not_required';
 export type UseWhopAccount = () => WhopAccountState | undefined; // undefined while loading
 // From the win screen: code is the squad's or challenge team's room code (same as UseMyAward); returnPath is the app
 // route the sheet returns to (e.g. 'drop/abc/win'). Show the button only when useMyAward returns an award.
 export type UseLinkForClaim = (code: string | null, returnPath: string) => () => Promise<WhopSignInResult>;
+// From a join screen when joinChallenge fails with WHOP_SIGN_IN_REQUIRED: code is the challenge's join code, returnPath
+// the route to come back to (e.g. 'c/K7QM'). Once it resolves 'linked', call join again.
+export type UseSignInToJoin = (code: string | null, returnPath: string) => () => Promise<WhopSignInResult>;
 export type UseSignOutWhop = () => () => Promise<void>;
 
 export type UseDrops = () => DropSummaryView[] | undefined; // scheduled and live drops, soonest first
@@ -343,10 +352,22 @@ export type HostView = {
 };
 
 export type UseHostView = (dropId: string | null) => HostView | null | undefined; // null = not the host, or no such drop
-// creatorName heads the race ("Nova's drop"). Omitted: the newest name this device token used server-side, else "Host".
+// creatorName heads the race ("Danny's drop"). Omitted: the newest name this device token used server-side, else "Host".
 // startsAt (ms epoch, 2 minutes to 30 days ahead): a scheduled drop, listed under "Coming up" with Remind me until it opens.
 // Omitted: the drop opens now and the streamer goes live, as before.
-export type UseHostDrop = () => (args: { title?: string; winnerSlots?: number; totalCents?: number; creatorName?: string; startsAt?: number; template?: DropTemplateId }) => Promise<{ dropId: string; joinCode: string }>;
+// payoutMode 'real' pays winners real (sandbox) money by Whop transfer; 'concept' never does. Omitted: as before.
+export type UseHostDrop = () => (args: {
+  title?: string;
+  winnerSlots?: number;
+  totalCents?: number;
+  creatorName?: string;
+  startsAt?: number;
+  template?: DropTemplateId;
+  payoutMode?: 'real' | 'concept';
+}) => Promise<{ dropId: string; joinCode: string }>;
+// The host's pot picker: offer real presets ($3, $6) only while enabled and totalCents <= remainingCents.
+export type RealPayoutStatusView = { enabled: boolean; remainingCents: number; capPerSquadCents: number };
+export type UseRealPayoutStatus = () => RealPayoutStatusView | undefined;
 export type UseDealSquads = (dropId: string) => () => Promise<void>; // host only; NOT_ENOUGH_PLAYERS below 4
 
 export type UseDropByCode = (code: string | null) => DropView | null | undefined; // null = no open drop with that code
@@ -429,7 +450,7 @@ export type ChallengeStatus = 'draft' | 'published' | 'live' | 'ended' | 'cancel
 export type CreatorProfileView = {
   creatorId: string; // stable id; the device token's creator today, the Whop user later
   displayName: string;
-  handle: string; // '@nova', unique, lowercase a-z 0-9 _
+  handle: string; // '@danny', unique, lowercase a-z 0-9 _
   identity: 'device' | 'whop';
 };
 
@@ -453,6 +474,8 @@ export type ChallengeSummaryView = {
   config: ChallengeConfig;
   joinCode: string | null; // set at publish
   creator: { displayName: string; handle: string };
+  slug: string | null; // 'danny-fridays-trivia-k7qm' (discovery.slugOf); null before publish
+  shareUrl: string | null; // 'https://signal-app-wine.vercel.app/c/K7QM'; null before publish
   entrantCount: number;
   teamCount: number;
   createdAt: number;

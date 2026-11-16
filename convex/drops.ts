@@ -3,7 +3,7 @@ import { ConvexError, v } from 'convex/values';
 import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, mutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
-import { awardModeWithBudget } from './bounty';
+import { awardModeWithBudget, realBudgetRemainingCents, realPayoutBudgetCents, realPayoutCapCents } from './bounty';
 import { ROLES, type Role } from './case01';
 import { checkScheduledStart, noteHostedDrop } from './feed';
 import { dealPassphrase } from './passphrase';
@@ -11,6 +11,7 @@ import { presence as presenceComponent } from './presence';
 import { enforceRateLimit } from './rateLimits';
 import { squadSize } from './schema';
 import { CODE_ALPHABET, generateCode } from './signal';
+import { resolveIdentity } from './whopAuth';
 import type {
   BountyView,
   DropSummaryView,
@@ -23,7 +24,9 @@ import type {
   SquadAwardView,
   SquadSize,
   DropTemplateId,
+  RealPayoutStatusView,
 } from '../src/lib/contract';
+import type { HostedDropRow } from '../src/lib/contract-host';
 
 export const DEMO_DROP_ID = 'aurora-demo';
 
@@ -85,6 +88,14 @@ async function findDrop(ctx: QueryCtx, dropId: string) {
     .query('drops')
     .withIndex('by_dropId', (q) => q.eq('dropId', dropId))
     .unique();
+}
+
+// The host of a hosted drop: the device that made it, or any device signed in to the Whop account that made it.
+export async function isDropHost(ctx: Pick<QueryCtx, 'db'>, drop: Doc<'drops'>, deviceToken: string): Promise<boolean> {
+  if (!drop.hostToken) return false;
+  if (drop.hostToken === deviceToken) return true;
+  if (!drop.hostWhopUserId || !deviceToken) return false;
+  return (await resolveIdentity(ctx, deviceToken)).whopUserId === drop.hostWhopUserId;
 }
 
 async function requireDrop(ctx: QueryCtx, dropId: string) {
@@ -291,6 +302,7 @@ async function formSquads(ctx: MutationCtx, drop: Doc<'drops'>) {
   }
   let next = 0;
   let demoSquads = 0;
+  const usedWords: string[] = [];
   for (const [squadIndex, size] of sizes.entries()) {
     const seats = entries.slice(next, next + size);
     next += size;
@@ -317,7 +329,7 @@ async function formSquads(ctx: MutationCtx, drop: Doc<'drops'>) {
         memberIds.push(await ctx.db.insert('members', { roomId, deviceToken: entry.deviceToken, name: entry.name, role: null, presence: 'online' }));
         await ctx.db.patch(entry._id, { squadRoomId: roomId });
       }
-      await dealPassphrase(ctx, roomId, memberIds.map((id, i) => ({ playerId: id, name: seats[i].name })));
+      usedWords.push(...(await dealPassphrase(ctx, roomId, memberIds.map((id, i) => ({ playerId: id, name: seats[i].name })), usedWords)));
       continue;
     }
     const hands = dealPieces(drop.dropId, squadIndex, size);
@@ -366,7 +378,9 @@ export async function insertDrop(
     bounty: { totalCents: number; winnerSlots: number };
     strictSquadSize?: boolean;
     hostToken?: string;
+    hostWhopUserId?: string;
     template?: DropTemplateId;
+    payoutMode?: 'real' | 'concept';
   },
 ) {
   const { totalCents, winnerSlots } = args.bounty;
@@ -383,7 +397,9 @@ export async function insertDrop(
     joinCode: await generateJoinCode(ctx),
     ...(args.strictSquadSize ? { strictSquadSize: true } : {}),
     ...(args.hostToken ? { hostToken: args.hostToken, conceptOnly: true } : {}),
+    ...(args.hostToken && args.hostWhopUserId ? { hostWhopUserId: args.hostWhopUserId } : {}),
     ...(args.template ? { template: args.template } : {}),
+    ...(args.payoutMode ? { payoutMode: args.payoutMode } : {}),
     startsAt: args.startsAt,
     status: 'scheduled',
     bounty: { totalCents, currency: 'usd', winnerSlots },
@@ -531,6 +547,13 @@ export const serverTime = mutation({
 });
 
 // The claim link is a bearer secret: only members of the room that won it ever receive it.
+function payoutMessage(status: Doc<'bountyPayouts'>['status'], cents: number) {
+  if (status === 'sent') return 'Sent to your Whop balance';
+  if (status === 'sign_in_required') return `Sign in with Whop to receive ${dollars(cents)}`;
+  if (status === 'sending') return 'Sending to your Whop balance…';
+  return "The transfer didn't go through.";
+}
+
 export const myAward = query({
   args: { deviceToken: v.string(), code: v.string() },
   handler: async (ctx, { deviceToken, code }): Promise<SquadAwardView | null> => {
@@ -562,7 +585,13 @@ export const myAward = query({
             .first()
         : null;
     const myPayout: AwardPayoutView = mine
-      ? { status: mine.status, amountCents: mine.cents, ...(mine.failureCode ? { failureCode: mine.failureCode } : {}) }
+      ? {
+          status: mine.status,
+          amountCents: mine.cents,
+          ...(mine.failureCode ? { failureCode: mine.failureCode } : {}),
+          ...(mine.transferId && mine.status === 'sent' ? { transferId: mine.transferId } : {}),
+          message: payoutMessage(mine.status, mine.cents),
+        }
       : { status: award.mode === 'transfer' ? 'sending' : 'concept', amountCents: award.perPlayerCents };
     return {
       myPayout,
@@ -605,12 +634,18 @@ export const hostDrop = mutation({
     startsAt: v.optional(v.number()), // a scheduled drop (feed.ts); omitted, the drop opens now
     avatarUrl: v.optional(v.string()), // https only; shown on the streamer's card
     template: v.optional(v.literal('split-passphrase')), // omitted: the Case 01 mystery
+    rehearsal: v.optional(v.boolean()), // a rehearsal: plays as usual, but stays out of discovery and the feed (feed.ts)
+    // real: pay winners by Whop transfer (refused unless real payouts are on and the pool fits the remaining budget).
+    // concept: never real money. Omitted: as before.
+    payoutMode: v.optional(v.union(v.literal('real'), v.literal('concept'))),
   },
-  handler: async (ctx, { deviceToken, title, winnerSlots, totalCents, creatorName, startsAt, avatarUrl, template }) => {
+  handler: async (ctx, { deviceToken, title, winnerSlots, totalCents, creatorName, startsAt, avatarUrl, template, rehearsal, payoutMode }) => {
     if (!deviceToken) fail('WRONG_STATUS', 'Missing device token.');
     await enforceRateLimit(ctx, 'hostDrop', deviceToken);
+    if (payoutMode === 'real') await requireRealBudget(ctx, totalCents ?? 30_000, winnerSlots ?? 3);
     if (startsAt !== undefined) checkScheduledStart(startsAt, Date.now());
     const name = (creatorName ?? '').trim().slice(0, 24) || (await lastNameOf(ctx, deviceToken)) || 'Host';
+    const { whopUserId } = await resolveIdentity(ctx, deviceToken);
     const hosted = await insertDrop(ctx, {
       dropId: `host-${Date.now().toString(36)}-${Math.floor(Math.random() * 46656).toString(36)}`,
       title: (title ?? 'The Aurora Seed').trim().slice(0, 60) || 'The Aurora Seed',
@@ -619,11 +654,37 @@ export const hostDrop = mutation({
       startsAt: startsAt ?? Date.now() + HOSTED_DROP_HOLD_MS,
       bounty: { totalCents: totalCents ?? 30_000, winnerSlots: winnerSlots ?? 3 },
       hostToken: deviceToken,
+      ...(whopUserId ? { hostWhopUserId: whopUserId } : {}),
       ...(template ? { template } : {}),
+      ...(payoutMode ? { payoutMode } : {}),
     });
-    await noteHostedDrop(ctx, { hostToken: deviceToken, name, dropId: hosted.dropId, scheduledFor: startsAt ?? null, avatarUrl });
+    await noteHostedDrop(ctx, { hostToken: deviceToken, name, dropId: hosted.dropId, scheduledFor: startsAt ?? null, avatarUrl, rehearsal });
     return hosted;
   },
+});
+
+const dollars = (cents: number) => '$' + (cents / 100).toFixed(2).replace(/\.00$/, '');
+
+// A real-money pool must fit what's left of the real budget, and each squad's share the per-award cap.
+async function requireRealBudget(ctx: QueryCtx, totalCents: number, winnerSlots: number) {
+  if (process.env.SIGNAL_REAL_PAYOUTS !== 'on') fail('REAL_PAYOUTS_OFF', 'Real payouts are off on this server. Pick concept.');
+  const remaining = await realBudgetRemainingCents(ctx);
+  if (totalCents <= 0 || totalCents > remaining) {
+    fail('REAL_BUDGET_EXCEEDED', `Real payouts have ${dollars(remaining)} left. Pick a pot up to ${dollars(remaining)}, or concept.`);
+  }
+  if (Math.floor(totalCents / Math.max(1, winnerSlots)) > realPayoutCapCents()) {
+    fail('REAL_BUDGET_EXCEEDED', `Each winning squad can get at most ${dollars(realPayoutCapCents())} in real money. Lower the pot, add winner slots, or pick concept.`);
+  }
+}
+
+// The host screen's pot picker: whether a real pot can be chosen and how much is left.
+export const realPayoutStatus = query({
+  args: {},
+  handler: async (ctx): Promise<RealPayoutStatusView> => ({
+    enabled: process.env.SIGNAL_REAL_PAYOUTS === 'on' && realPayoutBudgetCents() > 0,
+    remainingCents: await realBudgetRemainingCents(ctx),
+    capPerSquadCents: realPayoutCapCents(),
+  }),
 });
 
 export const MIN_DEAL_ENTRANTS = 4;
@@ -633,7 +694,7 @@ export const dealSquads = mutation({
   args: { deviceToken: v.string(), dropId: v.string() },
   handler: async (ctx, { deviceToken, dropId }) => {
     const drop = await requireDrop(ctx, dropId);
-    if (!drop.hostToken || drop.hostToken !== deviceToken) fail('NOT_HOST', 'Only the host can deal squads.');
+    if (!(await isDropHost(ctx, drop, deviceToken))) fail('NOT_HOST', 'Only the host can deal squads.');
     if ((await entriesOf(ctx, dropId)).length < MIN_DEAL_ENTRANTS) {
       fail('NOT_ENOUGH_PLAYERS', `Deal squads needs at least ${MIN_DEAL_ENTRANTS} players.`);
     }
@@ -645,7 +706,7 @@ export const hostView = query({
   args: { deviceToken: v.string(), dropId: v.string() },
   handler: async (ctx, { deviceToken, dropId }): Promise<HostView | null> => {
     const drop = await findDrop(ctx, dropId);
-    if (!drop?.hostToken || drop.hostToken !== deviceToken) return null;
+    if (!drop || !(await isDropHost(ctx, drop, deviceToken))) return null;
     const entries = await entriesOf(ctx, dropId);
     const rooms = await ctx.db
       .query('rooms')
@@ -689,5 +750,40 @@ export const hostView = query({
         isWinner: s.place <= drop.bounty.winnerSlots,
       })),
     };
+  },
+});
+
+const MY_HOSTED_WINDOW_MS = 24 * 60 * 60 * 1000;
+const HOSTED_STATUS = { scheduled: 'lobby', live: 'live', ended: 'finished' } as const;
+
+// "My live drops": the drops the signed-in Whop account hosted in the last 24 hours, from any device, newest first.
+export const myHostedDrops = query({
+  args: { deviceToken: v.string() },
+  handler: async (ctx, { deviceToken }): Promise<HostedDropRow[]> => {
+    const { whopUserId } = await resolveIdentity(ctx, deviceToken);
+    if (!whopUserId) return [];
+    const drops = await ctx.db
+      .query('drops')
+      .withIndex('by_host_whop', (q) => q.eq('hostWhopUserId', whopUserId).gt('_creationTime', Date.now() - MY_HOSTED_WINDOW_MS))
+      .order('desc')
+      .take(50);
+    return Promise.all(
+      drops.map(async (drop) => {
+        const listing = await ctx.db
+          .query('streamerDrops')
+          .withIndex('by_drop', (q) => q.eq('dropId', drop.dropId))
+          .unique();
+        return {
+          dropId: drop.dropId,
+          code: drop.joinCode ?? '',
+          title: drop.title,
+          template: drop.template ?? 'case01',
+          status: HOSTED_STATUS[drop.status],
+          players: (await entriesOf(ctx, drop.dropId)).length,
+          createdAt: drop._creationTime,
+          scheduledFor: listing?.scheduledFor ?? null,
+        };
+      }),
+    );
   },
 });

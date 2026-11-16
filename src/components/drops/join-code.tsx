@@ -104,7 +104,7 @@ export function JoinCodeScreen({
         </Animated.View>
       </Pressable>
       <Txt variant="small" color={phase === 'error' ? Palette.danger : Palette.paperMuted} style={styles.text}>
-        {phase === 'error' ? `That code isn’t live yet. Check ${hostName ? `${hostName}’s` : 'the host’s'} chat.` : phase === 'checking' ? 'Checking…' : ' '}
+        {phase === 'error' ? `That code isn’t live yet. ${hostName ? `Check ${hostName}’s chat.` : 'Check the code on the big screen.'}` : phase === 'checking' ? 'Checking…' : ' '}
       </Txt>
       <TextInput
         ref={input}

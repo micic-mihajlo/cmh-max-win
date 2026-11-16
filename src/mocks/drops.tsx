@@ -1,7 +1,8 @@
 import { BountyResultScreen } from '@/components/drops/bounty-result';
-import { RACE_REVEAL_MS, type DossierView, type DropView, type LeaderboardRow, type LeaderboardView, type SquadAwardView } from '@/lib/contract';
-import { CreatorSetupScreen, POTS } from '@/components/drops/creator-setup';
+import { RACE_REVEAL_MS, type DossierView, type DropView, type LeaderboardRow, type LeaderboardView, type PassphrasePieceView, type SquadAwardView } from '@/lib/contract';
+import { CHALLENGES, CreatorSetupScreen, POTS } from '@/components/drops/creator-setup';
 import { JoinChooser } from '@/components/drops/join-chooser';
+import { PassphraseScreen } from '@/components/drops/passphrase';
 import { DropEntryScreen } from '@/components/drops/drop-entry';
 import { JoinCodeScreen } from '@/components/drops/join-code';
 import { LeaderboardScreen } from '@/components/drops/leaderboard';
@@ -16,13 +17,13 @@ const opensIn = loadedAt + 161_000;
 const startedAgo = (raceMs: number) => loadedAt - RACE_REVEAL_MS - raceMs;
 const startsAt = opensIn;
 
-const crowd = ['Kit', 'Maya', 'Jo', 'Ana', 'Lou', 'Hal', 'Ivy', 'Fay', 'Sam', 'Noor'];
+const crowd = ['Chris', 'Ashley', 'Josh', 'Jen', 'Sarah', 'Hal', 'Megan', 'Fay', 'Sam', 'Noor'];
 
 function drop(over: Partial<DropView> = {}, me: Partial<DropView['me']> = {}): DropView {
   return {
     dropId: 'aurora-demo',
     title: 'The Aurora Seed',
-    creatorName: '@nova',
+    creatorName: '@danny',
     caseId: 'case01',
     squadSize: 3,
     startsAt,
@@ -30,8 +31,8 @@ function drop(over: Partial<DropView> = {}, me: Partial<DropView['me']> = {}): D
     entrantCount: 212,
     bounty: { totalCents: 30000, currency: 'usd', winnerSlots: 3, perSquadCents: 10000, mode: 'concept' },
     winnersSoFar: 0,
-    entrants: [...crowd.map((name) => ({ name, isMe: false })), { name: 'Ravi', isMe: true }],
-    me: { entered: true, name: 'Ravi', squad: null, unmatched: false, ...me },
+    entrants: [...crowd.map((name) => ({ name, isMe: false })), { name: 'Ryan', isMe: true }],
+    me: { entered: true, name: 'Ryan', squad: null, unmatched: false, ...me },
     ...over,
   };
 }
@@ -44,19 +45,19 @@ const camera = piece('hacker', 'CAMERA LOG', 'Station systems', 'The dock camera
 const witness = piece('witness', 'STATEMENT', 'Dr. Sam Reyes, medic', 'Priya played Go with me in the lounge from 21:30 to 21:50. Neither of us got up.');
 
 const trio: SquadMemberView[] = [
-  { memberId: 'm_ravi', name: 'Ravi', role: 'hacker', roles: ['hacker'], isMe: true },
-  { memberId: 'm_ivy', name: 'Ivy', role: 'witness', roles: ['witness'], isMe: false },
-  { memberId: 'm_jo', name: 'Jo', role: 'detective', roles: ['detective'], isMe: false },
+  { memberId: 'm_ryan', name: 'Ryan', role: 'hacker', roles: ['hacker'], isMe: true },
+  { memberId: 'm_megan', name: 'Megan', role: 'witness', roles: ['witness'], isMe: false },
+  { memberId: 'm_josh', name: 'Josh', role: 'detective', roles: ['detective'], isMe: false },
 ];
 const duo: SquadMemberView[] = [
-  { memberId: 'm_ravi', name: 'Ravi', role: 'hacker', roles: ['hacker', 'witness'], isMe: true },
-  { memberId: 'm_lou', name: 'Lou', role: 'detective', roles: ['detective'], isMe: false },
+  { memberId: 'm_ryan', name: 'Ryan', role: 'hacker', roles: ['hacker', 'witness'], isMe: true },
+  { memberId: 'm_sarah', name: 'Sarah', role: 'detective', roles: ['detective'], isMe: false },
 ];
 
 const row = (rank: number | null, n: number, status: LeaderboardRow['status'], solveMs: number | null, wrongGuesses = 0, isMine = false): LeaderboardRow => ({
   rank,
   squadLabel: `Squad ${n}`,
-  memberNames: isMine ? ['Kit', 'Lou', 'Ana'] : [],
+  memberNames: isMine ? ['Chris', 'Sarah', 'Jen'] : [],
   status,
   solveMs,
   attempts: wrongGuesses,
@@ -101,9 +102,9 @@ const award = (over: Partial<SquadAwardView> = {}): SquadAwardView => ({
   label: 'Concept payout — no real money moves',
   myPayout: { status: 'concept', amountCents: 3333 },
   split: [
-    { name: 'Nova', cents: 3333, isMe: true },
-    { name: 'Rex', cents: 3333, isMe: false },
-    { name: 'Ivy', cents: 3333, isMe: false },
+    { name: 'Danny', cents: 3333, isMe: true },
+    { name: 'Tyler', cents: 3333, isMe: false },
+    { name: 'Megan', cents: 3333, isMe: false },
   ],
   ...over,
 });
@@ -113,17 +114,71 @@ const paid = (myPayout: SquadAwardView['myPayout']) =>
     label: 'Squad 14 · 3rd place',
     myPayout,
     split: [
-      { name: 'Kit', cents: 3333, isMe: true },
-      { name: 'Lou', cents: 3333, isMe: false },
-      { name: 'Ana', cents: 3333, isMe: false },
+      { name: 'Chris', cents: 3333, isMe: true },
+      { name: 'Sarah', cents: 3333, isMe: false },
+      { name: 'Jen', cents: 3333, isMe: false },
     ],
   });
 
 const bounty = drop().bounty;
-const nova = { title: 'The Aurora Seed', totalCents: 30000, winnerSlots: 3 };
+const danny = { title: 'The Aurora Seed', totalCents: 30000, winnerSlots: 3 };
+
+const trioSlots = [
+  { name: 'Sarah', position: 0, isMe: false },
+  { name: 'Chris', position: 1, isMe: true },
+  { name: 'Jen', position: 2, isMe: false },
+];
+const passPiece = (squad: Partial<PassphrasePieceView['squad']> = {}, over: Partial<PassphrasePieceView> = {}): PassphrasePieceView => ({
+  code: 'K7QX',
+  squadLabel: 'Squad 14',
+  squadSize: 3,
+  slotCount: 3,
+  word: 'glass-12',
+  position: 1,
+  clue: 'Your squad’s passphrase is every member’s word in slot order, 1 to 3. Yours goes in slot 2.',
+  teammates: trioSlots,
+  squad: { status: 'solving', proposal: null, attempts: 0, cooldownUntil: null, lastNudge: null, result: null, ...squad },
+  serverNow: loadedAt,
+  ...over,
+});
+const sarahProposal = { revision: 3, words: ['ember-47', 'glass-12', 'tide-03'], proposedBy: 'Sarah', confirmedBy: ['Sarah'], confirmedByMe: false };
 
 export const DropStates: MockState[] = [
-  { id: '10-creator-card', ref: 'beat 2', section: 'Drops', title: 'Creator · prefilled drop card', render: () => <CreatorSetupScreen drop={nova} pot={POTS[0]} onPot={() => {}} /> },
+  { id: '17-pass-solving', ref: 'passphrase', section: 'Passphrase', title: 'Passphrase · your word, empty slots', render: () => <PassphraseScreen piece={passPiece()} /> },
+  {
+    id: '17-pass-first',
+    ref: 'passphrase',
+    section: 'Passphrase',
+    title: 'Passphrase · you go first',
+    render: () => <PassphraseScreen piece={passPiece({}, { word: 'ember-47', position: 0, teammates: [{ name: 'Chris', position: 0, isMe: true }, { name: 'Sarah', position: 1, isMe: false }, { name: 'Jen', position: 2, isMe: false }] })} />,
+  },
+  {
+    id: '17-pass-duo',
+    ref: 'passphrase',
+    section: 'Passphrase',
+    title: 'Passphrase · duo',
+    render: () => <PassphraseScreen piece={passPiece({}, { squadSize: 2, slotCount: 2, teammates: [{ name: 'Sarah', position: 0, isMe: false }, { name: 'Chris', position: 1, isMe: true }] })} />,
+  },
+  { id: '17-pass-confirm', ref: 'passphrase', section: 'Passphrase', title: 'Passphrase · Sarah proposed, your confirm', render: () => <PassphraseScreen piece={passPiece({ status: 'confirming', proposal: sarahProposal })} /> },
+  {
+    id: '17-pass-waiting',
+    ref: 'passphrase',
+    section: 'Passphrase',
+    title: 'Passphrase · confirmed, waiting for Jen',
+    render: () => <PassphraseScreen piece={passPiece({ status: 'confirming', proposal: { ...sarahProposal, confirmedBy: ['Sarah', 'Chris'], confirmedByMe: true } })} />,
+  },
+  {
+    id: '17-pass-wrong',
+    ref: 'passphrase',
+    section: 'Passphrase',
+    title: 'Passphrase · wrong, cooldown + nudge',
+    render: () => (
+      <PassphraseScreen
+        piece={passPiece({ status: 'cooldown', attempts: 1, cooldownUntil: loadedAt + 20_000, lastNudge: { text: 'Check Jen’s word.', holderName: 'Jen' } })}
+      />
+    ),
+  },
+  { id: '10-creator-card', ref: 'beat 2', section: 'Drops', title: 'Creator · prefilled drop card', render: () => <CreatorSetupScreen drop={{ ...danny, title: 'Split Passphrase' }} challenge={CHALLENGES[0]} onChallenge={() => {}} pot={POTS[0]} onPot={() => {}} /> },
   {
     id: '10-creator-pot-error',
     ref: 'beat 2',
@@ -131,7 +186,7 @@ export const DropStates: MockState[] = [
     title: 'Creator · $9 picked, server refused it',
     render: () => (
       <CreatorSetupScreen
-        drop={{ ...nova, totalCents: 900 }}
+        drop={{ ...danny, totalCents: 900 }}
         pot={POTS[3]}
         onPot={() => {}}
         error="That bounty is more than your Whop balance can cover."
@@ -143,28 +198,28 @@ export const DropStates: MockState[] = [
     ref: 'beat 2',
     section: 'Drops',
     title: 'Creator · live drop card (live count in the app)',
-    render: () => <CreatorSetupScreen drop={nova} live={{ entrantCount: 212, shareUrl: 'signal.gg/aurora' }} />,
+    render: () => <CreatorSetupScreen drop={danny} live={{ entrantCount: 212, shareUrl: 'signal.gg/aurora' }} />,
   },
   {
     id: '11-join-empty',
     ref: 'host.md',
     section: 'Drops',
     title: 'Join · code tiles empty',
-    render: () => <JoinCodeScreen code="" phase="typing" name="Kit" onScan={() => {}} />,
+    render: () => <JoinCodeScreen code="" phase="typing" name="Chris" onScan={() => {}} />,
   },
   {
     id: '11-join-typing',
     ref: 'host.md',
     section: 'Drops',
     title: 'Join · typing',
-    render: () => <JoinCodeScreen code="KR" phase="typing" name="Kit" onScan={() => {}} />,
+    render: () => <JoinCodeScreen code="KR" phase="typing" name="Chris" onScan={() => {}} />,
   },
   {
     id: '11-join-error',
     ref: 'host.md',
     section: 'Drops',
     title: 'Join · no drop with that code',
-    render: () => <JoinCodeScreen code="KRQZ" phase="error" name="Kit" />,
+    render: () => <JoinCodeScreen code="KRQZ" phase="error" name="Chris" />,
   },
   { id: '11-join-chooser', ref: 'web join', section: 'Drops', title: 'Web · QR landing (app or browser)', render: () => <JoinChooser code="KRQX" /> },
   {
@@ -172,9 +227,9 @@ export const DropStates: MockState[] = [
     ref: 'host.md',
     section: 'Drops',
     title: 'Join · drop known, not live',
-    render: () => <JoinCodeScreen code="KRQZ" phase="error" name="Kit" hostName="Nova" />,
+    render: () => <JoinCodeScreen code="KRQZ" phase="error" name="Chris" hostName="Danny" />,
   },
-  { id: '11-join-in', ref: 'host.md', section: 'Drops', title: 'Join · you’re in', render: () => <JoinCodeScreen code="KRQX" phase="joined" name="Kit" /> },
+  { id: '11-join-in', ref: 'host.md', section: 'Drops', title: 'Join · you’re in', render: () => <JoinCodeScreen code="KRQX" phase="joined" name="Chris" /> },
   {
     id: '11-entry',
     ref: 'D2',
@@ -205,7 +260,7 @@ export const DropStates: MockState[] = [
     render: () => (
       <WaitingRoomScreen
         offset={0}
-        drop={drop({ status: 'live', startsAt: startedAgo(0), entrantCount: 1, entrants: [{ name: 'Ravi', isMe: true }] }, { unmatched: true })}
+        drop={drop({ status: 'live', startsAt: startedAgo(0), entrantCount: 1, entrants: [{ name: 'Ryan', isMe: true }] }, { unmatched: true })}
       />
     ),
   },
@@ -233,7 +288,7 @@ export const DropStates: MockState[] = [
         offset={0}
         drop={live(3)}
         board={racingBoard}
-        racing={{ pick: 'Jun Halloway', locked: 2, size: 3, nudge: null, cooldownUntil: null, agreed: ['Lou', 'Ana'], meLocked: false }}
+        racing={{ pick: 'Jun Halloway', locked: 2, size: 3, nudge: null, cooldownUntil: null, agreed: ['Sarah', 'Jen'], meLocked: false }}
       />
     ),
   },
@@ -247,7 +302,7 @@ export const DropStates: MockState[] = [
         offset={0}
         drop={live(3)}
         board={racingBoard}
-        racing={{ pick: 'Ines Vale', locked: 0, size: 3, nudge: 'Not Ines. Ask Ana to read the Scene Notes.', cooldownUntil: loadedAt + 20_000 }}
+        racing={{ pick: 'Ines Vale', locked: 0, size: 3, nudge: 'Not Ines. Ask Jen to read the Scene Notes.', cooldownUntil: loadedAt + 20_000 }}
       />
     ),
   },

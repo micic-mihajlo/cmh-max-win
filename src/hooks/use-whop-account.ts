@@ -3,7 +3,7 @@ import { useAction, useMutation, useQuery } from 'convex/react';
 import { useCallback } from 'react';
 
 import { useDeviceToken } from '@/hooks/use-device-token';
-import type { UseLinkForClaim, UseSignOutWhop, UseWhopAccount, WhopSignInResult } from '@/lib/contract';
+import type { UseLinkForClaim, UseSignInToJoin, UseSignOutWhop, UseWhopAccount, WhopSignInResult } from '@/lib/contract';
 import { openWhopSignIn, whopReturnUrl } from '@/lib/whop-auth';
 
 export const useWhopAccount: UseWhopAccount = () => {
@@ -18,6 +18,18 @@ export const useLinkForClaim: UseLinkForClaim = (code, returnPath) => {
     if (!deviceToken || !code) return 'not_winner';
     const returnUrl = whopReturnUrl(returnPath);
     const result = await start({ deviceToken, claimCode: code, returnUrl });
+    if (result.reason) return result.reason;
+    return openWhopSignIn(result.url, returnUrl);
+  }, [code, deviceToken, returnPath, start]);
+};
+
+export const useSignInToJoin: UseSignInToJoin = (code, returnPath) => {
+  const deviceToken = useDeviceToken();
+  const start = useAction(api.whopAuth.startSignIn);
+  return useCallback(async (): Promise<WhopSignInResult> => {
+    if (!deviceToken || !code) return 'not_required';
+    const returnUrl = whopReturnUrl(returnPath);
+    const result = await start({ deviceToken, purpose: 'join', challengeCode: code, returnUrl });
     if (result.reason) return result.reason;
     return openWhopSignIn(result.url, returnUrl);
   }, [code, deviceToken, returnPath, start]);

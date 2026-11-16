@@ -40,7 +40,7 @@ export default function WinRoute() {
             setSigningIn(false);
           }
         },
-        onContinue: () => router.push({ pathname: '/room/[code]', params: { code: squad.code, reveal: '1' } }),
+        onContinue: () => (drop.template ? router.replace({ pathname: '/drop/[id]/race', params: { id } }) : router.push({ pathname: '/room/[code]', params: { code: squad.code, reveal: '1' } })),
       }}
     />
   );

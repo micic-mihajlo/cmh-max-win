@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Atmosphere } from '@/components/signal/backdrop';
 import { Txt } from '@/components/signal/txt';
 import { FontFamily, Palette, Radius, Space } from '@/constants/signal';
 import { PressScale } from '@/motion';
@@ -44,18 +45,21 @@ export function Screen({
     </View>
   );
   const pad = { paddingTop: insets.top + Space.s, paddingBottom: insets.bottom + Space.xxxl };
-  if (!scroll)
-    return (
-      <View style={[styles.screen, pad]}>
-        {bar}
-        {children}
-      </View>
-    );
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={pad} showsVerticalScrollIndicator={false}>
-      {bar}
-      {children}
-    </ScrollView>
+    <View style={styles.screen}>
+      <Atmosphere />
+      {scroll ? (
+        <ScrollView style={styles.flex} contentContainerStyle={pad} showsVerticalScrollIndicator={false}>
+          {bar}
+          {children}
+        </ScrollView>
+      ) : (
+        <View style={[styles.flex, pad]}>
+          {bar}
+          {children}
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -118,6 +122,7 @@ export const showcase = StyleSheet.create({
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Palette.ink },
+  flex: { flex: 1 },
   bar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Space.l, height: 44, marginBottom: Space.s },
   back: { width: 32 },
   chevron: { fontSize: 34, lineHeight: 40, marginTop: -4 },

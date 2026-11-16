@@ -24,7 +24,7 @@ export default function RaceRoute() {
       </View>
     );
   }
-  const solving = room && room.status !== 'resolved';
+  const solving = !drop.template && room && room.status !== 'resolved';
   return (
     <LeaderboardScreen
       drop={drop}
@@ -45,7 +45,7 @@ export default function RaceRoute() {
       }
       roles={room?.members.map((m) => m.role ?? m.roles[0]).filter((r) => r !== undefined)}
       on={{
-        onCase: () => code && router.push({ pathname: '/room/[code]', params: { code } }),
+        onCase: () => code && (drop.template ? router.replace({ pathname: '/drop/[id]', params: { id } }) : router.push({ pathname: '/room/[code]', params: { code } })),
         onShare: () => router.push({ pathname: '/drop/[id]/win', params: { id } }),
         onReveal: () => code && router.push({ pathname: '/room/[code]', params: { code, reveal: '1' } }),
       }}

@@ -14,6 +14,7 @@ import {
 } from './_generated/server';
 import { CONCEPT_LABEL, createSandboxClaimLink } from './bounty';
 import { ELIGIBILITY_STUB_NOTE, resolveIdentity } from './creatorIdentity';
+import { slugOf } from './discovery';
 import { dealPieces, splitSizes } from './drops';
 import { handleProblem, normalizeHandle } from './handles';
 import { mixerTemplate, publishIssues, verifyMixerTeam } from './templates/engine';
@@ -24,7 +25,7 @@ import { releaseChallengeSeat, takeChallengeSeat } from './hardening';
 import { enforceRateLimit } from './rateLimits';
 import { isSessionTemplate, placeTeamSessions, startTeamSessions } from './teamSessions';
 import { CODE_ALPHABET, generateCode } from './signal';
-import { whopEnvironment, whopRequest } from './whop';
+import { WHOP_TRANSFER_API_VERSION_DATE, whopEnvironment, whopRequest } from './whop';
 import type {
   ChallengeConfig,
   ChallengeDraftView,
@@ -260,6 +261,8 @@ function eligibilityView(c: ChallengeConfig): EligibilityView {
       : { kind: 'whop_members', productId: c.eligibility.productId, enforced: false, note: ELIGIBILITY_STUB_NOTE };
 }
 
+export const SHARE_URL_BASE = 'https://signal-app-wine.vercel.app/c/';
+
 async function summaryView(ctx: Ctx, c: Challenge): Promise<ChallengeSummaryView> {
   const [entries, teams, creator] = await Promise.all([entriesOf(ctx, c._id), teamsOf(ctx, c._id), creatorOf(ctx, c.creatorToken)]);
   return {
@@ -268,6 +271,8 @@ async function summaryView(ctx: Ctx, c: Challenge): Promise<ChallengeSummaryView
     config: c.config,
     joinCode: c.joinCode ?? null,
     creator,
+    slug: c.joinCode ? slugOf(creator.handle.replace(/^@/, ''), c.config.title, c.joinCode) : null,
+    shareUrl: c.joinCode ? SHARE_URL_BASE + c.joinCode : null,
     entrantCount: entries.length,
     teamCount: teams.length,
     createdAt: c.createdAt,
@@ -928,9 +933,9 @@ export const sendWhopPayout = internalAction({
     const message = (e: unknown) => (e instanceof ConvexError ? (e.data as { message?: string }).message : e instanceof Error ? e.message : 'unknown error');
     try {
       if (whopEnvironment() !== 'sandbox') throw new Error('Whop payouts only run against the sandbox.');
-      await whopRequest('/transfers', {
+      const transfer = await whopRequest<{ id?: string; status?: string | null }>('/transfers', {
         method: 'POST',
-        headers: { 'Idempotency-Key': row.idempotencyKey },
+        headers: { 'Idempotency-Key': row.idempotencyKey, 'Api-Version-Date': WHOP_TRANSFER_API_VERSION_DATE },
         body: {
           amount: row.cents / 100,
           currency: 'usd',
@@ -939,6 +944,7 @@ export const sendWhopPayout = internalAction({
           idempotence_key: row.idempotencyKey,
         },
       });
+      if (transfer?.status && ['failed', 'canceled', 'cancelled', 'reversed', 'rejected'].includes(transfer.status)) throw new Error('Whop transfer ' + transfer.status);
       await ctx.runMutation(internal.challenges.recordSend, { payoutId, status: 'sent', method: 'transfer' });
     } catch (transferError) {
       try {
