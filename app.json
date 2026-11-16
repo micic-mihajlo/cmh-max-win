@@ -51,7 +51,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "SIGNAL uses the camera to scan a challenge's QR code.",
+          "cameraPermission": "Signal uses the camera to scan a challenge's QR code.",
           "microphonePermission": false,
           "recordAudioAndroid": false
         }
