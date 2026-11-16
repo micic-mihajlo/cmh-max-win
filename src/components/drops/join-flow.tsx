@@ -2,6 +2,7 @@ import { Redirect } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 
 import { JoinCodeScreen, type JoinPhase } from '@/components/drops/join-code';
+import { markJoinLinkHandled } from '@/components/drops/launch-join';
 import { NameEntryScreen } from '@/components/screens/name-entry';
 import { useDrop, useDropByCode, useEnterDropByCode } from '@/hooks/use-drops';
 import { usePlayerName } from '@/hooks/use-player-name';
@@ -31,6 +32,10 @@ export function JoinFlow({ initial }: { initial: string | null }) {
       setPhase('error');
     }
   };
+
+  useEffect(() => {
+    if (initial) markJoinLinkHandled();
+  }, [initial]);
 
   useEffect(() => {
     if (!name || !initial || tried.current) return;

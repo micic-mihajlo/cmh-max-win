@@ -1,7 +1,8 @@
 import { Redirect, router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 
+import { launchJoinCode } from '@/components/drops/launch-join';
 import { CoverScreen, type JoinState } from '@/components/screens/cover';
 import { NameEntryScreen } from '@/components/screens/name-entry';
 import { WebHomeScreen } from '@/components/screens/web-home';
@@ -31,6 +32,10 @@ function Cover() {
   const reclaim = useReclaimRole(join?.code ?? '');
 
   const go = (code: string) => router.push({ pathname: '/room/[code]', params: { code } });
+
+  useEffect(() => {
+    launchJoinCode().then((code) => code && router.push({ pathname: '/join', params: { code } }));
+  }, []);
 
   const start = async (who: string) => {
     setCreating(true);
