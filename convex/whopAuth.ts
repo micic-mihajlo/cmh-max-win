@@ -18,7 +18,7 @@ import { whopApiBase, whopEnvironment, whopRequest } from './whop';
 
 const SESSION_TTL_MS = 10 * 60 * 1000;
 const DEFAULT_RETURN_URL = 'cmhmaxwin://whop-auth';
-const RETURN_URL_PREFIXES = ['cmhmaxwin://', 'exp://', 'exps://'];
+const RETURN_URL_PREFIXES = ['cmhmaxwin://', 'exp://', 'exps://', 'https://signal-app-wine.vercel.app/'];
 
 export type ResolvedIdentity = { deviceToken: string; whopUserId?: string; name?: string };
 
@@ -167,15 +167,16 @@ export const isCreator = internalQuery({
 });
 
 // Two ways in: a device holding a winning seat (claimCode is its squad or team room code), or a creator
-// (no claimCode, the device has a creator profile). Nobody else gets Whop sign-in.
+// (no claimCode, the device has a creator profile). Nobody else gets Whop sign-in, except to join or host.
 export const startSignIn = action({
-  // purpose 'join' (with challengeCode): sign in to join a challenge that requires Whop. Otherwise, as before:
-  // claimCode for a winning seat, or neither for a creator.
+  // purpose 'join' (with challengeCode): sign in to join a challenge that requires Whop. purpose 'host': any device
+  // signs in to host drops from it (drops:isDropHost). Otherwise, as before: claimCode for a winning seat, or neither
+  // for a creator.
   args: {
     deviceToken: v.string(),
     claimCode: v.optional(v.string()),
     returnUrl: v.optional(v.string()),
-    purpose: v.optional(v.literal('join')),
+    purpose: v.optional(v.union(v.literal('join'), v.literal('host'))),
     challengeCode: v.optional(v.string()),
   },
   handler: async (
@@ -184,7 +185,9 @@ export const startSignIn = action({
   ): Promise<{ url: string; reason: null } | { url: null; reason: 'unavailable' | 'not_winner' | 'no_profile' | 'not_required' }> => {
     const clientId = process.env.WHOP_OAUTH_CLIENT_ID;
     if (!clientId) return { url: null, reason: 'unavailable' };
-    if (purpose === 'join') {
+    if (purpose === 'host') {
+      // Any device may host, so there is nothing to gate.
+    } else if (purpose === 'join') {
       if (!challengeCode || !(await ctx.runQuery(internal.whopAuth.joinNeedsWhop, { challengeCode }))) return { url: null, reason: 'not_required' };
     } else if (claimCode === undefined) {
       if (!(await ctx.runQuery(internal.whopAuth.isCreator, { deviceToken }))) return { url: null, reason: 'no_profile' };
