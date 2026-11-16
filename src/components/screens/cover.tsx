@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Keyboard, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { QuietLink } from '@/components/home/your-challenges';
 import { Screen } from '@/components/signal/backdrop';
 import { CodeCells } from '@/components/signal/code-cells';
 import { Button, Label } from '@/components/signal/primitives';
@@ -51,6 +52,8 @@ export type CoverActions = {
   onTakeSeat?: (role: Role) => void;
   onJoinDrop?: () => void;
   onHostDrop?: () => void;
+  onCreate?: () => void;
+  onStreamers?: () => void;
 };
 
 export function CoverScreen({
@@ -58,12 +61,14 @@ export function CoverScreen({
   passphrase,
   join,
   creating,
+  mine,
   on = {},
 }: {
   active: ActiveRoomView | undefined;
   passphrase?: boolean;
   join?: JoinState;
   creating?: boolean;
+  mine?: ReactNode;
   on?: CoverActions;
 }) {
   const banner =
@@ -103,7 +108,11 @@ export function CoverScreen({
       footer={
         <View style={styles.cta}>
           <Button title="Join a drop" disabled={creating} onPress={on.onJoinDrop} />
-          <Button title="Host a drop" variant="ghost" disabled={creating} onPress={on.onHostDrop} />
+          <View style={styles.links}>
+            <QuietLink title="Create a challenge" disabled={creating} onPress={on.onCreate} />
+            <QuietLink title="Host a drop" disabled={creating} onPress={on.onHostDrop} />
+            <QuietLink title="Streamers" disabled={creating} onPress={on.onStreamers} />
+          </View>
         </View>
       }>
       <Wordmark />
@@ -117,6 +126,7 @@ export function CoverScreen({
           {Case01.logline}
         </Txt>
       </View>
+      {mine}
     </Screen>
   );
 }
@@ -261,6 +271,7 @@ const styles = StyleSheet.create({
   center: { textAlign: 'center' },
   hero: { gap: Space.m, marginTop: Space.xxl },
   cta: { gap: Space.xs, paddingBottom: Space.l },
+  links: { paddingTop: Space.xs },
   bannerLoading: { height: 128, borderColor: Palette.hairline, opacity: 0.6 },
   dot: { width: 7, height: 7, borderRadius: 4 },
   banner: {
