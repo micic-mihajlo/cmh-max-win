@@ -1,11 +1,26 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, type ErrorBoundaryProps } from 'expo-router';
 
 import { LeaderboardScreen } from '@/components/drops/leaderboard';
-import { Arrive, Pending } from '@/components/signal/backdrop';
+import { Arrive, Pending, Screen } from '@/components/signal/backdrop';
+import { Button } from '@/components/signal/primitives';
 import { lockedIds } from '@/components/signal/room';
+import { Txt } from '@/components/signal/txt';
 import { suspectById } from '@/constants/case01';
+import { Palette } from '@/constants/signal';
 import { useDrop, useLeaderboard, useServerOffset } from '@/hooks/use-drops';
 import { useRoom } from '@/hooks/use-signal';
+
+// A render error on the race used to leave a blank white page on web until a manual reload.
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  return (
+    <Screen footer={<Button title="Tap to reload" onPress={() => (process.env.EXPO_OS === 'web' ? window.location.reload() : retry())} />}>
+      <Txt variant="title">The race didn’t load.</Txt>
+      <Txt variant="small" color={Palette.paperMuted}>
+        {error.message}
+      </Txt>
+    </Screen>
+  );
+}
 
 export default function RaceRoute() {
   const { id } = useLocalSearchParams<{ id: string }>();
