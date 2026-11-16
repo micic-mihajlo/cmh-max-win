@@ -40,7 +40,7 @@ const fill: ViewStyle = Platform.OS === 'web' ? ({ position: 'fixed', inset: 0, 
 
 type Round = { prompt: string | null; index: number | null; questionCount: number; opensAt: number | null; correctText: string | null };
 
-const nameOf = (t: RoomPulseTeam) => teamStyle(t.id, teamIndexFromLabel(t.label)).name;
+const nameOf = (t: RoomPulseTeam) => teamStyle(t.label, teamIndexFromLabel(t.label)).name;
 
 // The host's stream view of an open question: every team is a cluster of dots that lights in its team's colour as its
 // members lock, with the clock, the locked count, the newest locks and, with a bounty, the paid spots as they're taken.
@@ -64,10 +64,11 @@ export function Stage({ pulse, round, controls }: { pulse: RoomPulse; round: Rou
   const d = Math.min(52, pitch * 0.3);
   const at = (i: number) => {
     const row = Math.floor(i / cols);
-    const inRow = row === rows - 1 ? n - row * cols : cols;
-    return { x: field.x + field.w / 2 + ((i % cols) - (inRow - 1) / 2) * pitch, y: field.y + field.h / 2 + (row - (rows - 1) / 2) * pitch };
+    return { x: field.x + field.w / 2 + ((i % cols) - (cols - 1) / 2) * pitch, y: field.y + field.h / 2 + (row - (rows - 1) / 2) * pitch };
   };
   const hovered = pulse.teams.findIndex((t) => t.id === hover);
+  // Past 24 teams the field reads as a crowd; names stay one hover or hold away.
+  const labelled = pulse.teams.length <= 24;
 
   return (
     <View style={[fill, styles.root]}>
@@ -110,7 +111,7 @@ export function Stage({ pulse, round, controls }: { pulse: RoomPulse; round: Rou
           const c = at(i);
           const size = t.memberFirstNames.length || 1;
           const lit = !open ? (t.correct ? size : 0) : t.lockedAt !== null ? size : (t.lockedCount ?? 0);
-          const on = teamStyle(t.id, teamIndexFromLabel(t.label)).ink;
+          const on = teamStyle(t.label, teamIndexFromLabel(t.label)).ink;
           const off = open ? THINKING : MISSED;
           return (
             <Pressable
@@ -121,15 +122,17 @@ export function Stage({ pulse, round, controls }: { pulse: RoomPulse; round: Rou
               onPressIn={() => setHover(t.id)}
               onPressOut={() => setHover(null)}
               style={[styles.abs, { left: c.x * u - (pitch / 2) * u, top: c.y * u - (pitch / 2) * u, width: pitch * u, height: pitch * u }]}>
-              <Txt
-                numberOfLines={1}
-                style={[
-                  styles.muted,
-                  styles.label,
-                  { top: (pitch / 2 + 0.75 * d) * u, fontSize: Math.min(22, d * 0.45) * u, lineHeight: Math.min(28, d * 0.6) * u },
-                ]}>
-                {nameOf(t).replace(/^Team /, '')}
-              </Txt>
+              {labelled ? (
+                <Txt
+                  numberOfLines={1}
+                  style={[
+                    styles.muted,
+                    styles.label,
+                    { top: (pitch / 2 + 0.75 * d) * u, fontSize: Math.min(22, d * 0.45) * u, lineHeight: Math.min(28, d * 0.6) * u },
+                  ]}>
+                  {nameOf(t).replace(/^Team /, '')}
+                </Txt>
+              ) : null}
               {Array.from({ length: size }, (_, m) => {
                 const [ox, oy] = offsetOf(size, m);
                 return (
