@@ -50,7 +50,7 @@ const STATUS: Record<LivePhase, string> = {
   draft: 'Draft',
   open: 'Open',
   locked: 'Entries locked',
-  live: 'Live',
+  live: 'In progress',
   ended: 'Ended',
   cancelled: 'Cancelled',
 };
@@ -218,14 +218,6 @@ function Header({ phase }: { phase: LivePhase }) {
         </Txt>
       </PressScale>
       <View style={styles.status}>
-        <View
-          style={[
-            styles.dot,
-            {
-              backgroundColor: phase === 'live' ? Palette.ember : phase === 'cancelled' ? Palette.danger : Palette.paperMuted,
-            },
-          ]}
-        />
         <Txt variant="label">{STATUS[phase]}</Txt>
       </View>
     </View>
@@ -523,7 +515,6 @@ const styles = StyleSheet.create({
     minHeight: 40,
   },
   status: { flexDirection: 'row', alignItems: 'center', gap: Space.s },
-  dot: { width: 8, height: 8, borderRadius: 4 },
   titleBlock: { gap: Space.xs },
   share: { minHeight: 44, justifyContent: 'center', paddingHorizontal: Space.m },
   codeBlock: { alignItems: 'center', gap: Space.l, paddingTop: Space.s },
