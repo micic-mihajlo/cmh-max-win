@@ -14,6 +14,7 @@ import {
 } from './_generated/server';
 import { CONCEPT_LABEL, createSandboxClaimLink } from './bounty';
 import { ELIGIBILITY_STUB_NOTE, resolveIdentity } from './creatorIdentity';
+import { linkedDeviceTokens } from './whopAuth';
 import { slugOf } from './discovery';
 import { dealPieces, splitSizes } from './drops';
 import { handleProblem, normalizeHandle } from './handles';
@@ -428,8 +429,11 @@ export const creatorProfile = query({
   args: { deviceToken: v.string() },
   handler: async (ctx, { deviceToken }): Promise<CreatorProfileView | null> => {
     const me = await resolveIdentity(ctx, deviceToken);
-    const p = await ctx.db.query('creators').withIndex('by_token', (q) => q.eq('deviceToken', me.deviceToken)).first();
-    return p ? profileView(p, !!me.whopUserId) : null;
+    for (const token of await linkedDeviceTokens(ctx, deviceToken)) {
+      const p = await ctx.db.query('creators').withIndex('by_token', (q) => q.eq('deviceToken', token)).first();
+      if (p) return profileView(p, !!me.whopUserId);
+    }
+    return null;
   },
 });
 
@@ -495,8 +499,10 @@ export const retitleChallenge = internalMutation({
 export const myChallenges = query({
   args: { deviceToken: v.string() },
   handler: async (ctx, { deviceToken }): Promise<ChallengeSummaryView[]> => {
-    const me = await resolveIdentity(ctx, deviceToken);
-    const mine = await ctx.db.query('challenges').withIndex('by_creator', (q) => q.eq('creatorToken', me.deviceToken)).collect();
+    const tokens = await linkedDeviceTokens(ctx, deviceToken);
+    const mine = (
+      await Promise.all(tokens.map((t) => ctx.db.query('challenges').withIndex('by_creator', (q) => q.eq('creatorToken', t)).collect()))
+    ).flat();
     return Promise.all(mine.sort((a, b) => b.createdAt - a.createdAt).map((c) => summaryView(ctx, c)));
   },
 });
@@ -891,8 +897,11 @@ async function myRow(ctx: Ctx, challengeId: string, deviceToken: string) {
 export const myPayout = query({
   args: { deviceToken: v.string(), challengeId: v.string() },
   handler: async (ctx, { deviceToken, challengeId }): Promise<MyPayoutView | null> => {
-    const row = await myRow(ctx, challengeId, deviceToken);
-    return row ? payoutView(ctx, row) : null;
+    for (const token of await linkedDeviceTokens(ctx, deviceToken)) {
+      const row = await myRow(ctx, challengeId, token);
+      if (row) return payoutView(ctx, row);
+    }
+    return null;
   },
 });
 

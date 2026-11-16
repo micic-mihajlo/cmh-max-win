@@ -5,7 +5,7 @@ import { convexTest } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { api, internal } from './_generated/api';
-import { STARTING_LEAD_MS } from './feed';
+import { distinctFirstNames, squadmatesFor, STARTING_LEAD_MS } from './feed';
 import { EXPO_RECEIPTS_URL, EXPO_SEND_URL, RECEIPT_DELAY_MS } from './push';
 import schema from './schema';
 
@@ -317,6 +317,27 @@ describe('squadmates on the 2-minute ping', () => {
   });
 });
 
+describe('first names that stay apart', () => {
+  test('a shared first name takes the last initial, else a number; unique names stay first-name-only', () => {
+    expect(distinctFirstNames(['Chris', 'Chris Bell', 'Bot Priya', 'Bot Theo', 'Chris', 'Demo · Danny Ruiz', 'Kayla'])).toEqual([
+      'Chris',
+      'Chris B.',
+      'Bot P.',
+      'Bot T.',
+      'Chris 2',
+      'Danny',
+      'Kayla',
+    ]);
+    expect(distinctFirstNames(['Chris Bell', 'chris brown', 'Player 1', 'Player 2', ''])).toEqual(['Chris B.', 'chris B. 2', 'Player', 'Player 2', '']);
+  });
+
+  test('two waiting players with one first name both show', () => {
+    const people = ['Bot Priya', 'Bot Theo', 'Chris'].map((name, i) => ({ deviceToken: 'd' + i, name }));
+    expect(squadmatesFor(people, 'd2')).toEqual(['Bot P.', 'Bot T.']);
+    expect(squadmatesFor(people, 'd0')).toEqual(['Bot', 'Chris']);
+  });
+});
+
 describe('squadmates on Coming up rows', () => {
   test('a device that entered or tapped Remind me sees who is waiting; other followers do not', async () => {
     const t = newTest();
@@ -366,7 +387,7 @@ describe('renamePlayers', () => {
       await t.mutation(api.drops.enterDrop, { deviceToken: token, dropId, name });
       await t.mutation(api.drops.enterDrop, { deviceToken: token, dropId: other.dropId, name });
     }
-    const names = { Lou: 'Sarah', Ana: ' Jen ' };
+    const names = [{ from: 'Lou', to: 'Sarah' }, { from: 'Ana', to: ' Jen ' }];
     expect(await t.mutation(internal.feed.renamePlayers, { names, dropIds: [dropId], challengeIds: [] })).toEqual({ renamed: 2 });
     expect(await t.mutation(internal.feed.renamePlayers, { names, dropIds: [dropId], challengeIds: [] })).toEqual({ renamed: 0 });
     const namesOf = (id: string) => t.run(async (ctx) => (await ctx.db.query('dropEntries').withIndex('by_drop', (q) => q.eq('dropId', id)).collect()).map((e) => e.name).sort());

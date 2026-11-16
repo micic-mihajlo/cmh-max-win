@@ -8,9 +8,9 @@
 //   3. It checks that feed:streamers lists only the four seeded streamers, so no test host shows on camera.
 //   4. It stays running and plays the bots once the host starts: each bot answers every question, but every bot
 //      misses at least one, so a seat that answers all three right wins 1st. It exits when the quiz ends.
-// --real makes the quiz server-created with the Whop adapter and a $1 pot, all to 1st, and links the printed winner
-// seat to the sandbox Whop user, so after the host approves payouts that seat is paid for real. It needs the Convex
-// CLI's deploy access (internal functions). Without --real the pot is concept and nothing real moves.
+// --real makes the quiz server-created with the Whop adapter and a $1 pot, all to 1st. The winner seat then signs in
+// with Whop for real before the host approves payouts; the script never links an account itself. It needs the Convex
+// CLI's deploy access (an internal function). Without --real the pot is concept and nothing real moves.
 // The drop stops reading as live 20 minutes after its last activity; the quiz lobby stays open until --clear.
 //
 //   node scripts/demo/seed-filming.mjs --key <secret> [--follower <deviceToken>] [--bots 20-40] [--lead <minutes>]
@@ -35,7 +35,6 @@ const NAMES = [
   'Rachel', 'Steph', 'Amanda', 'Justin', 'Lauren', 'Eric', 'Brittany', 'Jason', 'Heather', 'Andrew', 'Jessica', 'Nick',
   'Amber', 'Kyle', 'Melissa', 'Adam', 'Laura', 'Sean', 'Kelly', 'Jake', 'Lisa', 'Derek', 'Erin', 'Greg', 'Tiffany', 'Jordan',
 ];
-const WHOP_USER = 'user_41t2bclWAC2x6';
 const FILL_MS = 60_000;
 const ANSWER = 'jun';
 const avatar = (seed) => 'https://api.dicebear.com/9.x/notionists/png?size=256&seed=' + encodeURIComponent(seed);
@@ -171,8 +170,7 @@ async function seed() {
   const { joinCode } = await m(HOST, 'challenges:publishChallenge', { challengeId });
   log('published Quick Quiz ' + joinCode + ' (challengeId ' + challengeId + '); filling the lobby over ' + FILL_MS / 1000 + ' s');
   const seat = 'film-seat-' + hash('film:seat:' + challengeId);
-  if (REAL) cli('whopAuth:linkIdentity', { deviceToken: seat, whopUserId: WHOP_USER, name: 'Winner seat', accessToken: 'film-seat-placeholder', expiresAt: 0 });
-  log('winner seat ' + seat + (REAL ? ' (linked to Whop ' + WHOP_USER + ')' : '') + ': load it as localStorage signal.deviceToken, then join ' + joinCode);
+  log('winner seat ' + seat + ': load it as localStorage signal.deviceToken, then join ' + joinCode + (REAL ? ' and sign in with Whop' : ''));
   for (const [i, name] of BOTS.entries()) {
     await a(botToken(challengeId, name), 'challenges:joinChallenge', { code: joinCode, name });
     if (i < 8) await m(botToken(dropId, name), 'drops:enterDrop', { dropId, name });

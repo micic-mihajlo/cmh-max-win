@@ -76,6 +76,18 @@ export const HostStates: MockState[] = [
     render: () => <HostScreen hostName="Danny" view={dealt(2)} />,
   },
   {
+    id: '21-host-race-real',
+    ref: 'host.md',
+    section: 'Host',
+    title: 'Host · real $3 pot, award committed',
+    render: () => (
+      <HostScreen
+        hostName="Danny"
+        view={{ ...dealt(1), bounty: { totalCents: 300, currency: 'usd', winnerSlots: 1, perSquadCents: 300, mode: 'transfer' }, solves: dealt(1).solves.map((s) => ({ ...s, isWinner: true })) }}
+      />
+    ),
+  },
+  {
     id: '21-host-race-full',
     ref: 'host.md',
     section: 'Host',

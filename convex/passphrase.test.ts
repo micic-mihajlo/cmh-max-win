@@ -84,6 +84,17 @@ describe('split passphrase in the live room', () => {
     expect(await errorCode(t.mutation(api.passphrase.submitPassphrase, { deviceToken: squads[0].tokens[0], code: squads[0].code, answer: 'a b c' }))).toBe('WRONG_STATUS');
   });
 
+  test('squadmates who share a first name stay apart in the piece and the nudge', async () => {
+    const t = newTest();
+    const { dropId } = await t.mutation(api.drops.hostDrop, { deviceToken: HOST, creatorName: 'Danny', template: 'split-passphrase' });
+    const players = ['Bot Priya', 'Bot Theo', 'Chris'].map((name, i) => ({ name, token: 'dup' + i }));
+    for (const p of players) await t.mutation(api.drops.enterDrop, { deviceToken: p.token, dropId, name: p.name });
+    await t.mutation(api.drops.dealSquads, { deviceToken: HOST, dropId });
+    const code = (await t.query(api.drops.drop, { deviceToken: 'dup0', dropId }))!.me.squad!.code;
+    const piece = (await pieceOf(t, 'dup2', code))!;
+    expect(piece.teammates.map((m) => m.name).sort()).toEqual(['Bot P.', 'Bot T.', 'Chris']);
+  });
+
   test('each member sees only their own word, and the clue names no other word', async () => {
     const t = newTest();
     const { dropId, squads } = await dealt(t, 'split-passphrase');

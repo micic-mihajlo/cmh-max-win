@@ -64,10 +64,9 @@ export function CreatorScreen({ page, onFollow, onUnfollow }: { page: CreatorPag
       {live ? (
         <Enter index={2}>
           <PressScale accessibilityRole="button" scaleTo={0.98} haptic="tap" disabled={!live.joinCode} style={[showcase.gutter, showcase.row, styles.live]} onPress={() => play(live)}>
-            <View style={styles.dot} />
             <View style={showcase.flex}>
               <Txt variant="bodyStrong" numberOfLines={1}>
-                {live.phase === 'open' ? 'Open now' : 'Live now'} · {live.title}
+                {live.phase === 'open' ? 'Open now' : 'Happening now'} · {live.title}
               </Txt>
               <Txt variant="caption" color={Palette.paperMuted} numberOfLines={1}>
                 {live.entrantCount} playing · {live.prizePool.label}
@@ -128,6 +127,5 @@ const styles = StyleSheet.create({
   center: { alignItems: 'center' },
   follow: { marginTop: Space.xl, minHeight: 52, justifyContent: 'center' },
   live: { marginTop: Space.xxl },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Palette.ember },
   item: { gap: 2 },
 });

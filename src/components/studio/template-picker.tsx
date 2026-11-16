@@ -1,36 +1,21 @@
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { Txt } from '@/components/signal/txt';
 import { Caption, G, StudioScreen } from '@/components/showcase/studio-ui';
 import { FontFamily, Space } from '@/constants/signal';
-import { useChallengeTemplates, useCreateChallenge } from '@/hooks/use-challenges';
-import type { ChallengeConfigPatch, ChallengeTemplateId } from '@/lib/contract';
+import { useChallengeTemplates, useCreateChallenge, useCreatorProfile } from '@/hooks/use-challenges';
+import type { ChallengeTemplateId } from '@/lib/contract';
 import { PressScale, Stagger } from '@/motion';
 
-import { blankQuestion } from './quiz-config';
 import { errorMessage, STUDIO_TEMPLATES, templateName } from './format';
-
-const starts: Record<string, ChallengeConfigPatch> = {
-  'quick-quiz': {
-    templateId: 'quick-quiz',
-    teamSize: 1,
-    startMode: 'live',
-    templateConfig: {
-      questions: [blankQuestion(), blankQuestion(), blankQuestion()],
-    },
-  },
-  'mystery-aurora': {
-    templateId: 'mystery-aurora',
-    teamSize: 3,
-    startMode: 'live',
-  },
-};
+import { STARTS } from './local-draft';
 
 export function TemplatePicker() {
   const templates = useChallengeTemplates()?.filter((t) => STUDIO_TEMPLATES.includes(t.id));
   const create = useCreateChallenge();
+  const profile = useCreatorProfile();
   const [busy, setBusy] = useState<ChallengeTemplateId | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,8 +23,12 @@ export function TemplatePicker() {
     if (busy) return;
     setBusy(id);
     setError(null);
+    if (!profile) {
+      router.replace(`/studio/draft?template=${id}` as Href);
+      return;
+    }
     try {
-      const { challengeId } = await create(starts[id]);
+      const { challengeId } = await create(STARTS[id]);
       router.replace({ pathname: '/studio/[id]', params: { id: challengeId } });
     } catch (e) {
       setError(errorMessage(e, 'Couldn’t start a draft. Try again.'));

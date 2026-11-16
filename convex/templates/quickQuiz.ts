@@ -14,6 +14,7 @@ export const QUIZ_MIN_CHOICES = 2;
 export const QUIZ_MAX_CHOICES = 4;
 export const QUIZ_MIN_TIME_MS = 5_000;
 export const QUIZ_MAX_TIME_MS = 60_000;
+export const QUIZ_DEFAULT_TIME_MS = 20_000; // a question without its own time limit; stored quizzes keep theirs
 export const QUIZ_MAX_POINTS = 1000;
 
 export type QuizQuestion = { prompt: string; choices: string[]; correct: number; timeLimitMs: number };
@@ -69,7 +70,7 @@ export type QuizRoundView = {
   correctText: string | null;
 };
 
-const questionValidator = v.object({ prompt: v.string(), choices: v.array(v.string()), correct: v.number(), timeLimitMs: v.number() });
+const questionValidator = v.object({ prompt: v.string(), choices: v.array(v.string()), correct: v.number(), timeLimitMs: v.optional(v.number()) });
 
 function issues(raw: unknown): ConfigIssue[] {
   const qs = (raw as { questions?: unknown } | undefined)?.questions;
@@ -90,7 +91,8 @@ function issues(raw: unknown): ConfigIssue[] {
       out.push({ field: at('choices'), message: 'Choices must be different.' });
     }
     if (!Number.isInteger(q?.correct) || q.correct! < 0 || q.correct! >= choices.length) out.push({ field: at('correct'), message: 'Mark which choice is correct.' });
-    if (!Number.isInteger(q?.timeLimitMs) || q.timeLimitMs! < QUIZ_MIN_TIME_MS || q.timeLimitMs! > QUIZ_MAX_TIME_MS) {
+    if (q?.timeLimitMs === undefined) return;
+    if (!Number.isInteger(q.timeLimitMs) || q.timeLimitMs < QUIZ_MIN_TIME_MS || q.timeLimitMs > QUIZ_MAX_TIME_MS) {
       out.push({ field: at('timeLimitMs'), message: `Time limits are ${QUIZ_MIN_TIME_MS / 1000}–${QUIZ_MAX_TIME_MS / 1000} seconds.` });
     }
   });
@@ -194,9 +196,9 @@ export const quickQuizTemplate: ChallengeTemplate<QuizConfig, QuizState, QuizAct
     parse(raw) {
       const found = issues(raw);
       if (found.length) throw new ConvexError({ code: 'BAD_CONFIG', message: `${found[0].field}: ${found[0].message}` });
-      const { questions } = raw as QuizConfig;
+      const { questions } = raw as { questions: (Omit<QuizQuestion, 'timeLimitMs'> & { timeLimitMs?: number })[] };
       return {
-        questions: questions.map((q) => ({ prompt: q.prompt.trim(), choices: q.choices.map((c) => c.trim()), correct: q.correct, timeLimitMs: q.timeLimitMs })),
+        questions: questions.map((q) => ({ prompt: q.prompt.trim(), choices: q.choices.map((c) => c.trim()), correct: q.correct, timeLimitMs: q.timeLimitMs ?? QUIZ_DEFAULT_TIME_MS })),
       };
     },
   },

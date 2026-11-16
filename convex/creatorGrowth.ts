@@ -2,9 +2,9 @@ import { v } from 'convex/values';
 
 import type { Doc } from './_generated/dataModel';
 import { query, type QueryCtx } from './_generated/server';
-import { paidPlaceCount } from './challenges';
+import { entriesOf, paidPlaceCount } from './challenges';
 import { resolveIdentity } from './creatorIdentity';
-import { firstName } from './feed';
+import { distinctFirstNames } from './feed';
 import type { ChallengeGrowthView, CreatorStatsView } from '../src/lib/contract';
 
 // Creator growth (CAP-43): read-only counts over #58's challenge records. Every read goes through an index on
@@ -15,7 +15,7 @@ const MAX_PLAYER_NAMES = 50;
 
 async function growthOf(ctx: QueryCtx, c: Doc<'challenges'>) {
   const [entries, teams, mixerTeams, payouts] = await Promise.all([
-    ctx.db.query('challengeEntries').withIndex('by_challenge', (q) => q.eq('challengeId', c._id)).collect(),
+    entriesOf(ctx, c._id),
     ctx.db.query('challengeTeams').withIndex('by_challenge', (q) => q.eq('challengeId', c._id)).collect(),
     ctx.db.query('mixerTeams').withIndex('by_challenge', (q) => q.eq('challengeId', c._id)).collect(),
     ctx.db.query('payouts').withIndex('by_challenge', (q) => q.eq('challengeId', c._id)).collect(),
@@ -26,11 +26,9 @@ async function growthOf(ctx: QueryCtx, c: Doc<'challenges'>) {
   ];
   const paidPlaces = paidPlaceCount(c.config.reward);
   const whopUsers = new Set(payouts.flatMap((r) => (r.whopUserId ? [r.whopUserId] : [])));
-  if (c.config.eligibility.kind === 'whop_members') {
-    for (const e of entries) {
-      const me = await resolveIdentity(ctx, e.deviceToken);
-      if (me.whopUserId) whopUsers.add(me.whopUserId);
-    }
+  const membersOnly = c.config.eligibility.kind === 'whop_members';
+  if (membersOnly) {
+    for (const me of await Promise.all(entries.map((e) => resolveIdentity(ctx, e.deviceToken)))) if (me.whopUserId) whopUsers.add(me.whopUserId);
   }
   const view: ChallengeGrowthView = {
     challengeId: c._id,
@@ -44,9 +42,9 @@ async function growthOf(ctx: QueryCtx, c: Doc<'challenges'>) {
     winners: c.status === 'cancelled' ? 0 : finished.filter((t) => t.place <= paidPlaces).reduce((s, t) => s + t.size, 0),
     paidCents: payouts.filter((r) => r.status === 'sent' || r.status === 'sent_concept').reduce((s, r) => s + r.cents, 0),
     payoutAdapter: c.config.payoutAdapter,
-    newWhopMembers: whopUsers.size,
+    newWhopMembers: membersOnly ? whopUsers.size : null,
   };
-  return { view, whopUsers };
+  return { view, whopUsers, entries };
 }
 
 export const challengeGrowth = query({
@@ -57,16 +55,10 @@ export const challengeGrowth = query({
     if (!c || c.status === 'draft') return null;
     const me = await resolveIdentity(ctx, deviceToken);
     if (c.creatorToken !== me.deviceToken) return null;
-    const entries = await ctx.db
-      .query('challengeEntries')
-      .withIndex('by_challenge', (q) => q.eq('challengeId', c._id))
-      .collect();
-    const playerNames = entries
-      .sort((a, b) => a.joinedAt - b.joinedAt)
-      .slice(0, MAX_PLAYER_NAMES)
-      .map((e) => firstName(e.name))
-      .filter(Boolean);
-    return { ...(await growthOf(ctx, c)).view, playerNames };
+    const { view, entries } = await growthOf(ctx, c);
+    const inOrder = [...entries].sort((a, b) => a.joinedAt - b.joinedAt);
+    const playerNames = distinctFirstNames(inOrder.map((e) => e.name)).filter(Boolean).slice(0, MAX_PLAYER_NAMES);
+    return { ...view, playerNames };
   },
 });
 

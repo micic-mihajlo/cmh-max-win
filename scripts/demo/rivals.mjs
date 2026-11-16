@@ -5,7 +5,10 @@
 //   Demo Squad B solves 4 s after the first real squad's correct lock-in shows on the leaderboard.
 //   Demo Squad C never solves. The script exits once B has solved and C has gone 3 minutes.
 //
-//   node scripts/demo/rivals.mjs --code ABCD [--dry-run] [--url https://...convex.cloud]
+//   node scripts/demo/rivals.mjs --code ABCD [--dry-run] [--solo] [--url https://...convex.cloud]
+//
+// --solo (a rehearsal with no real players): B solves at +40 s and C at +55 s, so the host sees every slot fill.
+// Split Passphrase drops are solved by pooling each member's word; mystery drops by naming the culprit.
 //
 // Squads split in entry order, so the 9 demo players must sit in one block at the end of the entrant list,
 // after a multiple of 3 real players. Until the deal, the script watches the entrant list. If a real player
@@ -37,6 +40,7 @@ const flag = (name) => {
 };
 const CODE = String(flag('code') ?? '').toUpperCase();
 const DRY = !!flag('dry-run');
+const SOLO = !!flag('solo');
 const URL_ = typeof flag('url') === 'string' ? flag('url') : DEV_URL;
 if (!/^[A-Z0-9]{4}$/.test(CODE)) {
   console.error('usage: node scripts/demo/rivals.mjs --code ABCD [--dry-run] [--url URL]');
@@ -152,15 +156,26 @@ async function main() {
 
   const solve = async (label) => {
     const s = byLabel[label];
-    const { revision } = await m(s.members[0], 'signal:setTheory', { code: s.code, culprit: ANSWER });
+    const pieces = await Promise.all(s.members.map((p) => q(p, 'passphrase:piece', { code: s.code })));
     let out;
-    for (const p of s.members) out = await m(p, 'signal:lockIn', { code: s.code, revision });
+    if (pieces[0]) {
+      const answer = pieces.sort((a, b) => a.position - b.position).map((x) => x.word).join(' ');
+      out = await m(s.members[0], 'passphrase:submitPassphrase', { code: s.code, answer });
+      for (const p of s.members.slice(1)) out = await m(p, 'passphrase:confirmPassphrase', { code: s.code, revision: out.revision });
+    } else {
+      const { revision } = await m(s.members[0], 'signal:setTheory', { code: s.code, culprit: ANSWER });
+      for (const p of s.members) out = await m(p, 'signal:lockIn', { code: s.code, revision });
+    }
     log(label + ' locked in: ' + out.outcome + '.');
   };
 
   const aDone = sleep(Math.max(0, dealAt + A_AT_MS - Date.now())).then(() => solve('Demo Squad A'));
 
-  const bDone = new Promise((res) => {
+  const soloDone = SOLO
+    ? Promise.all([sleep(Math.max(0, dealAt + 40_000 - Date.now())).then(() => solve('Demo Squad B')), sleep(Math.max(0, dealAt + 55_000 - Date.now())).then(() => solve('Demo Squad C'))])
+    : null;
+
+  const bDone = soloDone ?? new Promise((res) => {
     let fired = false;
     let stop = () => {};
     const timer = setTimeout(() => {
@@ -180,7 +195,7 @@ async function main() {
     });
   });
 
-  await Promise.all([aDone, bDone, sleep(Math.max(0, dealAt + C_HOLD_MS - Date.now()))]);
+  await Promise.all([aDone, bDone, SOLO ? null : sleep(Math.max(0, dealAt + C_HOLD_MS - Date.now()))]);
   const board = await q(watcher, 'drops:leaderboard', { dropId });
   log('Final board:');
   for (const r of board.rows) console.log('    ' + String(r.rank ?? '-') + '  ' + r.squadLabel.padEnd(14) + ' ' + r.status.padEnd(8) + ' ' + r.memberNames.join(', '));

@@ -72,6 +72,15 @@ export type ChallengeReminderView = {
   squadmates?: string[]; // first names of up to 3 others already joined, or on this device's team; never this device
 };
 
+// The home screen (CMHM-56). path: '/c/K7QM' for a challenge, '/join/K7QM' for a drop.
+export type ResolvedCodeView = { kind: 'challenge' | 'drop'; code: string; path: string };
+
+export type DiscoveryHomeView = {
+  onNow: ChallengeCardView[]; // open and live now, at most 10, followed creators first, then newest
+  comingUp: ChallengeCardView[]; // not started, at most 10, followed creators first, then soonest; live mode after timed
+  serverNow: number;
+};
+
 export type HandleCheckView = { handle: string; available: boolean; problem: string | null }; // handle is normalized
 
 export type UseCreatorPage = (handle: string | null) => CreatorPageView | null | undefined; // null = no such creator
@@ -86,4 +95,7 @@ export type UseFollowCreator = (handle: string) => {
 // "Notify me when this starts": follows the creator and stores a reminder; idempotent. Push delivery comes later.
 // CHALLENGE_CLOSED unless the challenge is published and not started (scheduled or live mode).
 export type UseRemindChallenge = (challengeId: string) => { remind: () => Promise<void>; cancel: () => Promise<void> };
+// code: a join code in any case or a challenge slug. null = no open game has that code.
+export type UseResolveCode = (code: string | null) => ResolvedCodeView | null | undefined;
+export type UseDiscoveryHome = () => DiscoveryHomeView | undefined;
 export type UseUpcomingReminders = () => ChallengeReminderView[] | undefined; // timed soonest first, then live mode

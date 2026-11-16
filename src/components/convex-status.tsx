@@ -1,4 +1,4 @@
-import { useQuery } from 'convex/react';
+import { useQuery } from 'convex-helpers/react/cache/hooks';
 
 import { HintRow } from './hint-row';
 import { ThemedText } from './themed-text';

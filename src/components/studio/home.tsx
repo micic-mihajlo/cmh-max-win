@@ -1,32 +1,29 @@
 import { router, type Href } from 'expo-router';
-import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Txt } from '@/components/signal/txt';
-import { Caption, Card, Field, G, Hairline, PrimaryButton, Section, StudioScreen, studio } from '@/components/showcase/studio-ui';
+import { Caption, Card, G, Hairline, PrimaryButton, Section, StudioScreen } from '@/components/showcase/studio-ui';
 import { Space } from '@/constants/signal';
-import { useCreatorProfile, useMyChallenges, useSaveCreatorProfile } from '@/hooks/use-challenges';
-import { useCheckHandle } from '@/hooks/use-discovery';
+import { useCreatorProfile, useMyChallenges } from '@/hooks/use-challenges';
 import type { ChallengeSummaryView } from '@/lib/contract';
 import { PressScale, Stagger } from '@/motion';
 
-import { at, errorMessage, statusName, templateName } from './format';
+import { at, statusName, templateName } from './format';
 
 export function StudioHome() {
   const profile = useCreatorProfile();
   if (profile === undefined) return <StudioScreen title="Studio">{null}</StudioScreen>;
-  if (profile === null) return <ProfileSetup />;
-  return <Challenges name={profile.displayName} handle={profile.handle} />;
+  return <Challenges name={profile?.displayName ?? 'Studio'} handle={profile?.handle ?? null} />;
 }
 
-function Challenges({ name, handle }: { name: string; handle: string }) {
+function Challenges({ name, handle }: { name: string; handle: string | null }) {
   const mine = useMyChallenges();
   const running = mine?.filter((c) => c.status === 'published' || c.status === 'live') ?? [];
   const drafts = mine?.filter((c) => c.status === 'draft') ?? [];
   const past = mine?.filter((c) => c.status === 'ended' || c.status === 'cancelled') ?? [];
 
   return (
-    <StudioScreen kicker={at(handle)} title={name} footer={<PrimaryButton title="New challenge" onPress={() => router.push('/studio/new')} />}>
+    <StudioScreen kicker={handle ? at(handle) : undefined} title={name} footer={<PrimaryButton title="New challenge" onPress={() => router.push('/studio/new')} />}>
       {mine?.length === 0 ? <Caption>No challenges yet.</Caption> : null}
       <List title="Running" items={running} />
       <List title="Drafts" items={drafts} />
@@ -72,7 +69,6 @@ function Row({ c }: { c: ChallengeSummaryView }) {
             {meta}
           </Txt>
         </View>
-        {c.status === 'live' ? <View style={styles.liveDot} /> : null}
         <Txt variant="name" color={G.inkSoft}>
           ›
         </Txt>
@@ -88,45 +84,6 @@ function hrefFor(c: ChallengeSummaryView): Href {
   return `/studio/run/${c.challengeId}` as Href;
 }
 
-function ProfileSetup() {
-  const save = useSaveCreatorProfile();
-  const [name, setName] = useState('');
-  const [handle, setHandle] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const check = useCheckHandle(handle.trim() ? handle : null);
-  const problem = handle.trim() && check && !check.available ? (check.problem ?? 'That handle is taken.') : null;
-  const ready = name.trim().length > 0 && check?.available === true && !saving;
-
-  const submit = async () => {
-    setSaving(true);
-    setError(null);
-    try {
-      await save({ displayName: name.trim(), handle: handle.trim() });
-    } catch (e) {
-      setError(errorMessage(e, 'That didn’t save. Try again.'));
-      setSaving(false);
-    }
-  };
-
-  return (
-    <StudioScreen title="Your studio" footer={<PrimaryButton title={saving ? 'Saving…' : 'Continue'} disabled={!ready} onPress={submit} />}>
-      <View style={studio.gap}>
-        <Field label="Name" value={name} onChange={setName} placeholder="Danny" autoFocus maxLength={40} />
-        <Field
-          label="Handle"
-          value={handle}
-          onChange={(t) => setHandle(t.replace(/\s/g, '').toLowerCase())}
-          placeholder="@danny"
-          prefix="@"
-          maxLength={21}
-        />
-        {problem || error ? <Caption color={G.bad}>{problem ?? error}</Caption> : null}
-      </View>
-    </StudioScreen>
-  );
-}
-
 const styles = StyleSheet.create({
   flex: { flex: 1, gap: 2 },
   list: { paddingVertical: Space.s, gap: 0 },
@@ -137,5 +94,4 @@ const styles = StyleSheet.create({
     minHeight: 64,
     paddingVertical: Space.s,
   },
-  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: G.ink },
 });

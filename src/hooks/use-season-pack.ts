@@ -1,5 +1,6 @@
 import { api } from '@convex/_generated/api';
-import { useAction, useQuery } from 'convex/react';
+import { useAction } from 'convex/react';
+import { useQuery } from 'convex-helpers/react/cache/hooks';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { useCallback, useState } from 'react';

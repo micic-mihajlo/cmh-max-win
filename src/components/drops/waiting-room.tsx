@@ -20,7 +20,7 @@ export function WaitingRoomScreen({ drop, offset, onBack }: { drop: DropView; of
   const display = creator.charAt(0).toUpperCase() + creator.slice(1);
   const named = drop.entrants.filter((p) => !p.isMe).slice(0, 2).map((p) => p.name);
   const others = drop.entrantCount - named.length - (drop.me.entered ? 1 : 0);
-  const hereLine = !named.length && others <= 0 ? 'You’re the first one here' : others > 0 ? `${named.length ? `${named.join(', ')} and ` : ''}${others} ${others === 1 ? 'other' : 'others'} ${named.length + others === 1 ? 'is' : 'are'} here` : `${named.join(' and ')} ${named.length === 1 ? 'is' : 'are'} here`;
+  const hereLine = !named.length && others <= 0 ? 'You’re the first one here' : others > 0 ? `${named.length ? `${named.join(', ')} and ` : ''}${others} ${others === 1 ? 'other' : 'others'}` : named.join(' and ');
   return (
     <Screen
       footer={
@@ -42,12 +42,9 @@ export function WaitingRoomScreen({ drop, offset, onBack }: { drop: DropView; of
           </View>
           <View style={styles.flex}>
             <Txt variant="bodyStrong">{display}</Txt>
-            <View style={styles.liveRow}>
-              <View style={styles.live} />
-              <Txt variant="small" color={Palette.paperMuted}>
-                is live
-              </Txt>
-            </View>
+            <Txt variant="small" color={Palette.paperMuted}>
+              is hosting
+            </Txt>
           </View>
         </View>
         <Txt variant="display" style={styles.title}>
@@ -83,7 +80,7 @@ export function WaitingRoomScreen({ drop, offset, onBack }: { drop: DropView; of
                 </View>
               ))}
             </View>
-            <Txt variant="small" color={Palette.paperMuted} style={styles.flexShrink}>
+            <Txt variant="small" color={Palette.paperMuted} numberOfLines={1} style={styles.flexShrink}>
               {hereLine}
             </Txt>
           </View>
@@ -112,8 +109,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  liveRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  live: { width: 6, height: 6, borderRadius: 3, backgroundColor: Palette.ember },
   title: { marginTop: Space.l },
   countBox: { alignItems: 'center', gap: 4, marginTop: Space.s },
   count: { fontFamily: FontFamily.uiMedium, fontSize: 76, lineHeight: 84, letterSpacing: -2, color: Palette.paper, fontVariant: ['tabular-nums'] },

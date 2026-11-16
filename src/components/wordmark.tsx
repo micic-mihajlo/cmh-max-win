@@ -10,12 +10,11 @@ const pieces = [
   'M66.564 70.824A17 17 0 0 1 34.025 72.814',
 ];
 
-export function SignalMark({ size = 24, mono }: { size?: number; mono?: boolean }) {
-  const colors = [Palette.inkOnPaper, mono ? Palette.inkOnPaper : Palette.ember, Palette.inkOnPaper];
+export function SignalMark({ size = 24 }: { size?: number; mono?: boolean }) {
   return (
     <Svg width={(size * 50) / 84} height={size} viewBox="25 8 50 84" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       {pieces.map((d, i) => (
-        <Path key={i} d={d} fill="none" stroke={colors[i]} strokeWidth={15} />
+        <Path key={i} d={d} fill="none" stroke={Palette.inkOnPaper} strokeWidth={15} />
       ))}
     </Svg>
   );

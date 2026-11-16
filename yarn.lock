@@ -3799,6 +3799,7 @@ __metadata:
     "@types/react": "npm:~19.3.0"
     "@whop/sdk": "npm:^2.8.1"
     convex: "npm:^1.50.0"
+    convex-helpers: "npm:^0.1.135"
     convex-test: "npm:^0.0.71"
     eslint: "npm:^9.0.0"
     eslint-config-expo: "npm:~58.0.4"
@@ -3814,6 +3815,7 @@ __metadata:
     expo-glass-effect: "npm:~58.0.5"
     expo-haptics: "npm:~58.0.8"
     expo-image: "npm:~58.0.18"
+    expo-keep-awake: "npm:~58.0.4"
     expo-linking: "npm:~58.0.17"
     expo-notifications: "npm:~58.1.9"
     expo-router: "npm:~58.0.31"
@@ -3952,7 +3954,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"convex-helpers@npm:^0.1.127":
+"convex-helpers@npm:^0.1.127, convex-helpers@npm:^0.1.135":
   version: 0.1.135
   resolution: "convex-helpers@npm:0.1.135"
   peerDependencies:
