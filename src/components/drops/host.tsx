@@ -37,9 +37,8 @@ export function HostScreen({
   const wide = width >= 768;
   if (view.squads.length) return wide ? <HostBoard view={view} /> : <PhoneBoard view={view} />;
   const qr = wide ? 260 : Math.min(width - Space.xl * 2 - Space.m * 2, 280);
-  const server = view as HostView & { minToDeal?: number; needMore?: number };
-  const min = server.minToDeal ?? minToDeal;
-  const need = server.needMore ?? Math.max(0, min - view.entrantCount);
+  const min = view.minToDeal ?? minToDeal;
+  const need = view.needMore ?? Math.max(0, min - view.entrantCount);
   const canDeal = !need && !dealing;
   return (
     <Screen

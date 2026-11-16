@@ -31,9 +31,6 @@ export const CHALLENGES: Challenge[] = [
   { key: 'mystery', label: 'Case 01 · Mystery', title: 'The Aurora Seed' },
 ];
 
-export const MIN_PLAYERS = [3, 6, 9, 12, 20, 30, 50, 100].map((n) => ({ key: String(n), label: String(n), value: n }));
-export type MinPlayers = (typeof MIN_PLAYERS)[number];
-
 export const POTS: Pot[] = [
   { key: 'concept', label: 'Concept', totalCents: 30000, concept: true },
   { key: '3', label: '$3', totalCents: 300 },
@@ -51,8 +48,6 @@ export function CreatorSetupScreen({
   real,
   challenge,
   onChallenge,
-  minPlayers,
-  onMinPlayers,
   error,
   onOpen,
 }: {
@@ -63,8 +58,6 @@ export function CreatorSetupScreen({
   real?: RealPayoutStatusView;
   challenge?: Challenge;
   onChallenge?: (challenge: Challenge) => void;
-  minPlayers?: MinPlayers;
-  onMinPlayers?: (min: MinPlayers) => void;
   error?: string | null;
   onOpen?: () => void;
 }) {
@@ -131,9 +124,6 @@ export function CreatorSetupScreen({
               {real?.enabled ? `Real · paid via Whop · ${money(real.remainingCents)} left` : 'Real payouts are off right now.'}
             </Txt>
           </>
-        ) : null}
-        {!live && minPlayers && onMinPlayers ? (
-          <Picker label="Minimum players" options={MIN_PLAYERS} selected={minPlayers.key} onPick={onMinPlayers} />
         ) : null}
       </View>
       {error ? (
