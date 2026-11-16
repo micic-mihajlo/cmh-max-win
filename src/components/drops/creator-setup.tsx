@@ -26,7 +26,7 @@ export const POTS: Pot[] = [
   { key: '9', label: '$9', totalCents: 900 },
 ];
 
-// Nova's screen: the drop card, a bounty picker, and Open drop. The server decides whether money really moves;
+// Danny's screen: the drop card, a bounty picker, and Open drop. The server decides whether money really moves;
 // the live card shows the real entrant count from useDrop.
 export function CreatorSetupScreen({
   drop,

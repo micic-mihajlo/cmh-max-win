@@ -13,7 +13,7 @@ import { auroraBroken } from '@/mocks/showcase/aurora';
 import { Enter } from '@/motion';
 
 const steps = ['World', 'Suspects', 'Pieces', 'Answer', 'Squads', 'Bounty', 'Check'] as const;
-const members = ['Kit', 'Lou', 'Ana'];
+const members = ['Chris', 'Sarah', 'Jen'];
 
 function Builder() {
   const params = useLocalSearchParams<{ step?: string; fresh?: string; broken?: string }>();
