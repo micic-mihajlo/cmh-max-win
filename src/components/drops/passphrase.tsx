@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, StyleSheet, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/signal/backdrop';
 import { Button, Label } from '@/components/signal/primitives';
 import { useSecondsUntil } from '@/components/signal/theory-sheet';
+import { InkInput } from '@/components/signal/ink-input';
 import { Txt } from '@/components/signal/txt';
 import { FontFamily, Palette, Radius, Space } from '@/constants/signal';
 import { Enter, NudgeEntrance, Seal } from '@/motion';
@@ -145,7 +146,7 @@ export function PassphraseScreen({
             <View style={styles.slots}>
               {slots.map((t, i) => (
                 <View key={t.position} style={styles.slot}>
-                  <TextInput
+                  <InkInput
                     value={draft[i]}
                     editable={!cooling}
                     onChangeText={(text) => setDraft((d) => d.map((w, j) => (j === i ? text : w)))}

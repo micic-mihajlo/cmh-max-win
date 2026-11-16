@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
+import { InkInput } from '@/components/signal/ink-input';
 import { Txt } from '@/components/signal/txt';
 import { Caption, Card, Chip, Field, G, PrimaryButton, Section, StudioScreen, studio } from '@/components/showcase/studio-ui';
 import { FontFamily, Palette, Space } from '@/constants/signal';
@@ -177,6 +178,7 @@ function QuestionCard({
   onChange: (q: Partial<QuizQuestion>) => void;
   onRemove?: () => void;
 }) {
+  const [focusedChoice, setFocusedChoice] = useState<number | null>(null);
   return (
     <Card>
       <View style={studio.between}>
@@ -187,7 +189,7 @@ function QuestionCard({
           </Pressable>
         ) : null}
       </View>
-      <TextInput
+      <InkInput
         value={q.prompt}
         onChangeText={(prompt) => onChange({ prompt })}
         placeholder="Ask something"
@@ -196,10 +198,11 @@ function QuestionCard({
         numberOfLines={1}
         maxLength={200}
         style={styles.prompt}
+        focusedStyle={styles.focused}
       />
       <View style={styles.choices}>
         {q.choices.map((choice, i) => (
-          <View key={i} style={styles.choice}>
+          <View key={i} style={[styles.choice, focusedChoice === i && styles.focused]}>
             <PressScale
               accessibilityRole="radio"
               accessibilityState={{ checked: q.correct === i }}
@@ -208,7 +211,7 @@ function QuestionCard({
               onPress={() => onChange({ correct: i })}>
               <View style={[styles.mark, q.correct === i && styles.markOn]}>{q.correct === i ? <Txt style={styles.tick}>✓</Txt> : null}</View>
             </PressScale>
-            <TextInput
+            <InkInput
               value={choice}
               onChangeText={(t) =>
                 onChange({
@@ -218,6 +221,8 @@ function QuestionCard({
               placeholder={`Choice ${i + 1}`}
               placeholderTextColor={Palette.disabledText}
               maxLength={80}
+              onFocus={() => setFocusedChoice(i)}
+              onBlur={() => setFocusedChoice((f) => (f === i ? null : f))}
               style={styles.choiceInput}
             />
             {q.choices.length > QUIZ.minChoices ? (
@@ -263,9 +268,14 @@ const styles = StyleSheet.create({
     fontSize: 17,
     lineHeight: 24,
     color: G.ink,
-    padding: 0,
+    paddingVertical: Space.xs,
+    paddingHorizontal: Space.s,
+    marginHorizontal: -Space.s,
+    borderRadius: 10,
     minHeight: 24,
+    borderWidth: 1.5, borderColor: 'transparent',
   },
+  focused: { borderColor: G.ink },
   choices: { gap: Space.s },
   add: { alignSelf: 'flex-start', paddingVertical: Space.s },
   choice: {
@@ -276,6 +286,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: Space.m,
     minHeight: 48,
+    borderWidth: 1.5, borderColor: 'transparent',
   },
   choiceInput: {
     flex: 1,

@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { StyleSheet, TextInput, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { InkInput } from '@/components/signal/ink-input';
 import { Txt } from '@/components/signal/txt';
 import { FontFamily, Palette, Space } from '@/constants/signal';
 import { Enter } from '@/motion';
@@ -51,7 +52,7 @@ export function ClaimHandleScreen({ onDone }: { onDone: () => void }) {
         </Txt>
         <View style={styles.field}>
           <Txt style={styles.at}>@</Txt>
-          <TextInput
+          <InkInput
             value={clean}
             onChangeText={setHandle}
             autoCapitalize="none"
