@@ -40,11 +40,12 @@ export default function HostNewRoute() {
   if (name === undefined) return <Pending />;
   if (name === null) return <NameEntryScreen name={draft} onChangeName={setDraft} onContinue={() => save(draft.trim())} />;
   const mode = real && !real.enabled ? 'fun' : state.mode;
+  const hostName = (whop?.available ? whop.account?.name : undefined) || name;
   const effective = { ...state, mode };
   return (
     <Arrive>
       <RunGameScreen
-        hostName={name}
+        hostName={hostName}
         state={effective}
         onChange={(next) => {
           setState(next);
@@ -85,7 +86,7 @@ export default function HostNewRoute() {
                     title: state.challenge.title,
                     totalCents: fun ? 0 : state.cents,
                     winnerSlots: fun ? 3 : 1,
-                    creatorName: name,
+                    creatorName: hostName,
                     template: state.challenge.template,
                     payoutMode: fun ? 'concept' : 'real',
                     minPlayers: state.minPlayers,
