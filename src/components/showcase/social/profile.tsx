@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { StyleSheet, View } from 'react-native';
 
 import { Avatar } from '@/components/signal/primitives';
@@ -6,21 +7,33 @@ import { Palette, Space } from '@/constants/signal';
 import { me } from '@/mocks/showcase/social';
 import { Enter } from '@/motion';
 
-import { Account } from './account';
+import { AccountSection, useAccount } from './account';
 import { nameList } from './copy';
+import { SampleNote } from './feed';
 import { Screen, Section, showcase } from './kit';
 
 export function ProfileScreen() {
+  const state = useAccount();
+  const who = state?.account;
+  const name = who?.displayName ?? me.name;
   return (
     <Screen>
       <Enter style={[showcase.gutter, styles.head]}>
-        <Avatar name={me.name} size={48} filled />
+        {who?.avatarUrl ? <Image source={{ uri: who.avatarUrl }} style={styles.photo} contentFit="cover" accessibilityIgnoresInvertColors /> : <Avatar name={name} size={48} filled />}
         <Txt variant="display" style={styles.name}>
-          {me.name}
+          {name}
         </Txt>
-        <Txt variant="caption" color={Palette.paperMuted}>
-          @{me.handle} · {me.joined} · Sample data
-        </Txt>
+        {who ? (
+          who.username ? (
+            <Txt variant="caption" color={Palette.paperMuted}>
+              @{who.username}
+            </Txt>
+          ) : null
+        ) : (
+          <Txt variant="caption" color={Palette.paperMuted}>
+            @{me.handle} · {me.joined} · Sample data
+          </Txt>
+        )}
         <Txt variant="body" style={styles.summary}>
           {me.solved} cases solved with {me.squadCount} squads. {`Best\u00A0finish\u00A0${me.bestFinish}.`}
         </Txt>
@@ -56,7 +69,8 @@ export function ProfileScreen() {
         </View>
       </Section>
 
-      <Account bare />
+      {state ? <AccountSection {...state} bare /> : null}
+      {who ? <SampleNote /> : null}
     </Screen>
   );
 }
@@ -64,6 +78,7 @@ export function ProfileScreen() {
 const styles = StyleSheet.create({
   head: { gap: Space.xs, marginTop: Space.s },
   name: { marginTop: Space.m },
+  photo: { width: 48, height: 48, borderRadius: 24 },
   summary: { marginTop: Space.l },
   tabular: { fontVariant: ['tabular-nums'] },
   place: { width: 36, fontVariant: ['tabular-nums'] },
