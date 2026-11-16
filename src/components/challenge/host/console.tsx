@@ -306,7 +306,7 @@ function QuizBoard({ host, board, serverNow }: { host: HostConsoleView; board: B
   const scored = board.rows.some((r) => r.points > 0);
   const n = round?.questionCount ?? 0;
   const position = round?.index !== null && round?.index !== undefined ? 'Question ' + (round.index + 1) + ' of ' + n : '';
-  const left = open && round?.closesAt ? Math.max(0, round.closesAt - now) : 0;
+  const left = open && round?.closesAt ? Math.max(0, Math.min(round.closesAt - now, round.closesAt - (round.opensAt ?? now))) : 0;
   return (
     <>
       <View style={styles.round}>
