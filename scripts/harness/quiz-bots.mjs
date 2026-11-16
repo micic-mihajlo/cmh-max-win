@@ -11,7 +11,7 @@ const NAMES = ['Danny', 'Kayla', 'Marcus', 'Jess', 'Mike', 'Sarah'];
 const t0 = Date.now();
 const log = (m) => console.log('[' + ((Date.now() - t0) / 1000).toFixed(1) + 's] ' + m);
 const err = (e) => (e?.data?.code ? e.data.code : String(e?.message ?? e).split('\n')[0]);
-const bots = Array.from({ length: N }, (_, i) => ({ name: 'Bot ' + NAMES[i], token: 'bot-' + randomUUID(), c: new ConvexClient(URL_, { unsavedChangesWarning: false }) }));
+const bots = Array.from({ length: N }, (_, i) => ({ name: 'Bot ' + NAMES[i % NAMES.length], token: 'bot-' + randomUUID(), c: new ConvexClient(URL_, { unsavedChangesWarning: false }) }));
 for (const b of bots) {
   const r = await b.c.action(F('challenges:joinChallenge'), { deviceToken: b.token, code: CODE, name: b.name }).catch((e) => ({ error: err(e) }));
   b.cid = r.challengeId; log(b.name + ' join: ' + JSON.stringify(r));
