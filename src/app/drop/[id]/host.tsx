@@ -1,12 +1,11 @@
 import { useKeepAwake } from 'expo-keep-awake';
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { HostScreen } from '@/components/drops/host';
 import { ClosedScreen } from '@/components/screens/closed';
+import { Arrive, Pending } from '@/components/signal/backdrop';
 import { Toast } from '@/components/signal/primitives';
-import { Palette } from '@/constants/signal';
 import { useDealSquads, useHostView } from '@/hooks/use-drops';
 import { usePlayerName } from '@/hooks/use-player-name';
 import { toSignalError } from '@/lib/signal-error';
@@ -20,16 +19,10 @@ export default function HostRoute() {
   const [dealing, setDealing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [minToDeal, setMinToDeal] = useState<number>();
-  if (view === undefined) {
-    return (
-      <View style={styles.loading}>
-        <ActivityIndicator color={Palette.paper} />
-      </View>
-    );
-  }
+  if (view === undefined) return <Pending />;
   if (view === null) return <ClosedScreen code={id} />;
   return (
-    <View style={styles.flex}>
+    <Arrive>
       <HostScreen
         view={view}
         hostName={name ?? 'Danny'}
@@ -51,11 +44,6 @@ export default function HostRoute() {
         }}
       />
       {error ? <Toast text={error} tone="warn" /> : null}
-    </View>
+    </Arrive>
   );
 }
-
-const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Palette.ink },
-});
