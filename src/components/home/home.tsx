@@ -110,8 +110,8 @@ export function HomeScreen() {
             <Txt variant="label">Back to your squad</Txt>
           </PressScale>
         ) : null}
-        <PressScale accessibilityRole="link" haptic="tap" onPress={() => router.push('/studio/new' as Href)} style={styles.host}>
-          <Txt variant="label">Host a game</Txt>
+        <PressScale accessibilityRole="link" haptic="tap" onPress={() => router.push('/host')} style={styles.host}>
+          <Txt variant="label">Start a game</Txt>
         </PressScale>
       </View>
       {desktop ? (
