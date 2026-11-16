@@ -5,6 +5,7 @@ import { Txt } from '@/components/signal/txt';
 import { Palette, Space } from '@/constants/signal';
 import type { StreamerCardView } from '@/lib/contract';
 
+import { Account } from './account';
 import { SampleNote } from './feed';
 import { Avatar, Screen, Section, Wash, showcase } from './kit';
 
@@ -32,8 +33,11 @@ export function NotificationSettingsScreen({
   sample?: boolean;
 }) {
   return (
-    <Screen title="Notifications">
-      <Section title="Going live" style={styles.first}>
+    <Screen title="Settings">
+      <View style={styles.first}>
+        <Account />
+      </View>
+      <Section title="Going live">
         {streamers && streamers.length === 0 ? (
           <Txt variant="body" color={Palette.paperMuted}>
             Follow a streamer to get a ping when they go live.
