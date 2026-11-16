@@ -21,7 +21,8 @@ export function HostControls({ view, onEnd, onAward }: { view: HostView; onEnd: 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   if (view.status === 'ended') return null;
-  const slots = view.bounty.winnerSlots;
+  const winners = view.solves.filter((w) => w.isWinner);
+  const slots = view.bounty.winnerSlots - winners.length;
   const real = view.bounty.mode !== 'concept';
   const close = () => {
     setStep(null);
@@ -63,7 +64,9 @@ export function HostControls({ view, onEnd, onAward }: { view: HostView; onEnd: 
             <>
               <Txt variant="name">Host controls</Txt>
               <Button title="End now" variant="secondary" onPress={() => setStep('end')} style={styles.option} />
-              {view.squads.length ? <Button title="Pick winners" variant="secondary" onPress={() => setStep('pick')} style={styles.option} /> : null}
+              {slots > 0 && view.squads.some((s) => s.status === 'solving') ? (
+                <Button title="Pick winners" variant="secondary" onPress={() => setStep('pick')} style={styles.option} />
+              ) : null}
               <Button title="Close" variant="ghost" onPress={close} />
             </>
           ) : null}
@@ -73,16 +76,21 @@ export function HostControls({ view, onEnd, onAward }: { view: HostView; onEnd: 
               <Txt variant="body" color={Palette.paperMuted}>
                 Squads still solving stop here. Places already taken stay.
               </Txt>
-              <Button title={busy ? 'Ending…' : 'End now'} variant="accent" disabled={busy} onPress={() => run(onEnd)} />
+              <Button title={busy ? 'Ending…' : 'End now'} variant="primary" disabled={busy} onPress={() => run(onEnd)} />
               <Button title="Cancel" variant="ghost" disabled={busy} onPress={close} />
             </>
           ) : null}
           {step === 'pick' ? (
             <>
               <Txt variant="name">Pick winners</Txt>
+              {winners.map((w) => (
+                <Txt key={w.squadLabel} variant="small" color={Palette.paperMuted}>
+                  {`${w.squadLabel} · ${ordinal(w.place)}`}
+                </Txt>
+              ))}
               <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
                 {view.squads
-                  .filter((s) => s.squadId)
+                  .filter((s) => s.squadId && s.status === 'solving')
                   .map((s) => {
                     const place = picked.indexOf(s.squadLabel);
                     return (
@@ -99,7 +107,7 @@ export function HostControls({ view, onEnd, onAward }: { view: HostView; onEnd: 
                             {s.memberNames.join(', ')}
                           </Txt>
                         </View>
-                        <Txt variant="bodyStrong">{place >= 0 ? ordinal(place + 1) : ''}</Txt>
+                        <Txt variant="bodyStrong">{place >= 0 ? ordinal(winners.length + place + 1) : ''}</Txt>
                       </PressScale>
                     );
                   })}
