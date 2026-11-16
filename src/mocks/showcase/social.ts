@@ -7,7 +7,7 @@ export const me = {
   bestFinish: '#1',
   squads: [
     { id: 'q14', squad: 'Squad 14', members: ['Chris', 'Sarah', 'Jen'], drop: 'The Aurora Seed', placement: '#2', earned: '$33.33', when: 'Today' },
-    { id: 'q9', squad: 'Squad 9', members: ['Chris', 'Mae'], drop: 'Glass Harbor', placement: '#1', earned: '$50.00', when: 'Nov 8' },
-    { id: 'q3', squad: 'Squad 3', members: ['Chris', 'Theo', 'Megan'], drop: 'Night Ferry', placement: '#6', earned: null, when: 'Nov 1' },
+    { id: 'q9', squad: 'Squad 9', members: ['Chris', 'Nicole'], drop: 'Glass Harbor', placement: '#1', earned: '$50.00', when: 'Nov 8' },
+    { id: 'q3', squad: 'Squad 3', members: ['Chris', 'Matt', 'Megan'], drop: 'Night Ferry', placement: '#6', earned: null, when: 'Nov 1' },
   ],
 };
