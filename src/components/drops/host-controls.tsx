@@ -13,8 +13,6 @@ import { money2, ordinal } from './ui';
 
 type Step = 'menu' | 'end' | 'pick';
 
-const idOf = (squad: HostView['squads'][number]) => (squad as { squadId?: string }).squadId ?? squad.squadLabel;
-
 // Backup controls kept off the projected view: a small link at the end of the host screen opens a sheet with End now and Pick winners.
 export function HostControls({ view, onEnd, onAward }: { view: HostView; onEnd: () => Promise<void>; onAward: (squadIds: string[]) => Promise<void> }) {
   const insets = useSafeAreaInsets();
@@ -83,32 +81,34 @@ export function HostControls({ view, onEnd, onAward }: { view: HostView; onEnd: 
             <>
               <Txt variant="name">Pick winners</Txt>
               <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
-                {view.squads.map((s) => {
-                  const place = picked.indexOf(s.squadLabel);
-                  return (
-                    <PressScale
-                      key={s.squadLabel}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: place >= 0 }}
-                      onPress={() => toggle(s.squadLabel)}
-                      haptic="tap"
-                      style={[styles.row, place >= 0 && styles.rowOn]}>
-                      <View style={styles.flex}>
-                        <Txt variant="bodyStrong">{s.squadLabel}</Txt>
-                        <Txt variant="small" color={Palette.paperMuted} numberOfLines={1}>
-                          {s.memberNames.join(', ')}
-                        </Txt>
-                      </View>
-                      <Txt variant="bodyStrong">{place >= 0 ? ordinal(place + 1) : ''}</Txt>
-                    </PressScale>
-                  );
-                })}
+                {view.squads
+                  .filter((s) => s.squadId)
+                  .map((s) => {
+                    const place = picked.indexOf(s.squadLabel);
+                    return (
+                      <PressScale
+                        key={s.squadLabel}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: place >= 0 }}
+                        onPress={() => toggle(s.squadLabel)}
+                        haptic="tap"
+                        style={[styles.row, place >= 0 && styles.rowOn]}>
+                        <View style={styles.flex}>
+                          <Txt variant="bodyStrong">{s.squadLabel}</Txt>
+                          <Txt variant="small" color={Palette.paperMuted} numberOfLines={1}>
+                            {s.memberNames.join(', ')}
+                          </Txt>
+                        </View>
+                        <Txt variant="bodyStrong">{place >= 0 ? ordinal(place + 1) : ''}</Txt>
+                      </PressScale>
+                    );
+                  })}
               </ScrollView>
               <Button
                 title={busy ? 'Confirming…' : awardTitle}
                 variant="accent"
                 disabled={busy || !picked.length}
-                onPress={() => run(() => onAward(picked.map((label) => idOf(view.squads.find((s) => s.squadLabel === label)!))))}
+                onPress={() => run(() => onAward(picked.map((label) => view.squads.find((s) => s.squadLabel === label)?.squadId ?? '')))}
               />
               <Button title="Cancel" variant="ghost" disabled={busy} onPress={close} />
             </>

@@ -27,6 +27,7 @@ const dealt = (solved: number): HostView => {
       const s = solves.find((x) => x.squadLabel === `Squad ${i + 1}`);
       return {
         squadLabel: `Squad ${i + 1}`,
+        squadId: `mock-squad-${i + 1}`,
         memberNames: names.slice(i * 3, i * 3 + 3),
         status: s ? (s.isWinner ? 'winner' : 'solved') : 'solving',
         rank: s?.place ?? null,
