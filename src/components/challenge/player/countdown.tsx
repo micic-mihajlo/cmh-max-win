@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 
 import { Txt } from '@/components/signal/txt';
 import { Palette, Radius } from '@/constants/signal';
+import { Haptic, useReduced } from '@/motion';
 
 // Time left on the open question, from the server clock: a hairline that drains, and the whole seconds left.
 function useSecondsLeft(closesAt: number | null, offset: number) {
@@ -18,10 +19,20 @@ function useSecondsLeft(closesAt: number | null, offset: number) {
 
 export function SecondsLeft({ closesAt, offset }: { closesAt: number | null; offset: number }) {
   const secs = useSecondsLeft(closesAt, offset);
+  const reduced = useReduced();
+  const scale = useSharedValue(1);
+  useEffect(() => {
+    if (secs < 1 || secs > 3) return;
+    Haptic.select();
+    if (!reduced) scale.set(withSequence(withTiming(1.06, { duration: 60 }), withTiming(1, { duration: 60 })));
+  }, [secs, reduced, scale]);
+  const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.get() }] }));
   return (
-    <Txt variant="time" color={Palette.paperMuted}>
-      {`${secs}s`}
-    </Txt>
+    <Animated.View style={style}>
+      <Txt variant="time" color={secs <= 3 ? Palette.paper : Palette.paperMuted}>
+        {`${secs}s`}
+      </Txt>
+    </Animated.View>
   );
 }
 
