@@ -57,7 +57,7 @@ export function HostScreen({ view, hostName, dealing, onDeal }: { view: HostView
       <View style={styles.qrCard}>
         <QRCode value={WEB_URL ? `${WEB_URL}/join/${view.joinCode}` : view.joinCode} size={qr} color={Palette.paper} backgroundColor={Palette.card} />
         <Txt variant="small" color={Palette.paperMuted} style={styles.center}>
-          {wide ? 'Scan with your camera · Expo Go or browser' : 'Scan with your camera, or open Signal → Join → type the code'}
+          {wide ? 'Scan with your camera' : 'Scan with your camera, or open Signal → Join → type the code'}
         </Txt>
       </View>
       <View style={styles.here}>
@@ -118,7 +118,7 @@ function HostBoard({ view }: { view: HostView }) {
                   {solved ? (
                     <>
                       <Txt variant="time">{short(solved.solveMs)}</Txt>
-                      <Seal locked color={solved.isWinner ? Palette.ember : Palette.paperMuted} initial={String(solved.place)} size={32} />
+                      <Seal locked color={solved.isWinner ? Palette.paper : Palette.paperMuted} initial={String(solved.place)} size={32} />
                     </>
                   ) : null}
                 </View>
@@ -170,7 +170,7 @@ function PhoneBoard({ view }: { view: HostView }) {
           <Stagger stagger={120}>
             {winners.map((w) => (
               <View key={w.squadLabel} style={styles.podiumRow}>
-                <Seal locked color={Palette.ember} initial={String(w.place)} size={44} />
+                <Seal locked color={Palette.paper} initial={String(w.place)} size={44} />
                 <View style={styles.flex}>
                   <Txt variant="name">{w.squadLabel}</Txt>
                   <Txt variant="small" color={Palette.paperMuted} numberOfLines={1}>
@@ -203,7 +203,7 @@ function PhoneBoard({ view }: { view: HostView }) {
               {solved ? (
                 <>
                   <Txt variant="time">{short(solved.solveMs)}</Txt>
-                  <Seal locked color={solved.isWinner ? Palette.ember : Palette.paperMuted} initial={String(solved.place)} size={32} />
+                  <Seal locked color={solved.isWinner ? Palette.paper : Palette.paperMuted} initial={String(solved.place)} size={32} />
                 </>
               ) : (
                 <Txt variant="small" color={Palette.paperMuted}>
@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
   boardHead: { flexDirection: 'row', alignItems: 'baseline', gap: Space.m },
   bars: { flexDirection: 'row', gap: Space.s },
   bar: { flex: 1, height: 10, borderRadius: Radius.pill, backgroundColor: Palette.hairline, overflow: 'hidden' },
-  barFill: { flex: 1, backgroundColor: Palette.ember },
+  barFill: { flex: 1, backgroundColor: Palette.paper },
   squads: { flexDirection: 'row', flexWrap: 'wrap', gap: Space.s },
   squadCell: { flexGrow: 1, flexBasis: 280 },
   squad: {
@@ -248,8 +248,8 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Palette.hairline,
   },
-  squadWinner: { borderColor: Palette.ember, borderWidth: 1 },
-  podium: { gap: Space.m, padding: Space.l, borderRadius: Radius.m, backgroundColor: Palette.accentSoft },
+  squadWinner: { borderColor: Palette.paper, borderWidth: 1 },
+  podium: { gap: Space.m, padding: Space.l, borderRadius: Radius.m, backgroundColor: Palette.paperShade },
   podiumRow: { flexDirection: 'row', alignItems: 'center', gap: Space.m },
   rows: { gap: Space.s },
   row: {
@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
   here: { gap: Space.m, alignItems: 'center' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: Space.s },
   more: { backgroundColor: 'transparent' },
-  chip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: Radius.pill, backgroundColor: Palette.accentSoft },
+  chip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: Radius.pill, backgroundColor: Palette.paperShade },
   footer: { flexDirection: 'row', alignItems: 'center', gap: Space.l },
   deal: { height: 54, paddingHorizontal: Space.xl, borderRadius: 16, backgroundColor: Palette.ember, alignItems: 'center', justifyContent: 'center' },
   dealOff: { backgroundColor: Palette.inkDeep },
