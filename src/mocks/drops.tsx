@@ -108,15 +108,19 @@ const award = (over: Partial<SquadAwardView> = {}): SquadAwardView => ({
   ],
   ...over,
 });
-const paid = (myPayout: SquadAwardView['myPayout']) =>
+// A real $3 pot: the first squad takes all $3, so each of the three gets $1.00 (Whop's minimum transfer).
+const paid = (myPayout: Omit<SquadAwardView['myPayout'], 'amountCents'>) =>
   award({
     mode: 'sandbox',
-    label: 'Squad 14 · 3rd place',
-    myPayout,
+    amountCents: 300,
+    perPlayerCents: 100,
+    place: 1,
+    label: 'Squad 14 · 1st place',
+    myPayout: { ...myPayout, amountCents: 100 } as SquadAwardView['myPayout'],
     split: [
-      { name: 'Chris', cents: 3333, isMe: true },
-      { name: 'Sarah', cents: 3333, isMe: false },
-      { name: 'Jen', cents: 3333, isMe: false },
+      { name: 'Chris', cents: 100, isMe: true },
+      { name: 'Sarah', cents: 100, isMe: false },
+      { name: 'Jen', cents: 100, isMe: false },
     ],
   });
 
@@ -383,14 +387,14 @@ export const DropStates: MockState[] = [
     title: 'Payout · static CONCEPT card',
     render: () => <BountyResultScreen award={award()} bounty={bounty} />,
   },
-  { id: '16-payout-sign-in', ref: 'payout', section: 'Payout', title: 'Payout · sign in with Whop', render: () => <BountyResultScreen award={paid({ status: 'sign_in_required', amountCents: 100, message: 'Sign in with Whop to receive $1' })} bounty={bounty} /> },
-  { id: '16-payout-sending', ref: 'payout', section: 'Payout', title: 'Payout · sending', render: () => <BountyResultScreen award={paid({ status: 'sending', amountCents: 3333 })} bounty={bounty} /> },
-  { id: '16-payout-sent', ref: 'payout', section: 'Payout', title: 'Payout · sent', render: () => <BountyResultScreen award={paid({ status: 'sent', amountCents: 100, transferId: 'ctt_8kQ2mZ4hYw', message: 'Sent to your Whop balance' })} bounty={bounty} /> },
+  { id: '16-payout-sign-in', ref: 'payout', section: 'Payout', title: 'Payout · sign in with Whop', render: () => <BountyResultScreen award={paid({ status: 'sign_in_required', message: 'Sign in with Whop to receive $1' })} bounty={bounty} /> },
+  { id: '16-payout-sending', ref: 'payout', section: 'Payout', title: 'Payout · sending', render: () => <BountyResultScreen award={paid({ status: 'sending' })} bounty={bounty} /> },
+  { id: '16-payout-sent', ref: 'payout', section: 'Payout', title: 'Payout · sent', render: () => <BountyResultScreen award={paid({ status: 'sent', transferId: 'ctt_8kQ2mZ4hYw', message: 'Sent to your Whop balance' })} bounty={bounty} /> },
   {
     id: '16-payout-failed',
     ref: 'payout',
     section: 'Payout',
     title: 'Payout · failed (KYC)',
-    render: () => <BountyResultScreen award={paid({ status: 'failed', amountCents: 3333, failureCode: 'kyc_required' })} bounty={bounty} />,
+    render: () => <BountyResultScreen award={paid({ status: 'failed', failureCode: 'kyc_required' })} bounty={bounty} />,
   },
 ];
