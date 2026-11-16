@@ -2,7 +2,7 @@ import { v } from 'convex/values';
 
 import type { Doc } from './_generated/dataModel';
 import { query, type QueryCtx } from './_generated/server';
-import { entriesOf, paidPlaceCount } from './challenges';
+import { entriesOf, isChallengeOwner, paidPlaceCount } from './challenges';
 import { resolveIdentity } from './creatorIdentity';
 import { distinctFirstNames } from './feed';
 import type { ChallengeGrowthView, CreatorStatsView } from '../src/lib/contract';
@@ -53,8 +53,7 @@ export const challengeGrowth = query({
     const id = ctx.db.normalizeId('challenges', challengeId);
     const c = id ? await ctx.db.get(id) : null;
     if (!c || c.status === 'draft') return null;
-    const me = await resolveIdentity(ctx, deviceToken);
-    if (c.creatorToken !== me.deviceToken) return null;
+    if (!(await isChallengeOwner(ctx, c, deviceToken))) return null;
     const { view, entries } = await growthOf(ctx, c);
     const inOrder = [...entries].sort((a, b) => a.joinedAt - b.joinedAt);
     const playerNames = distinctFirstNames(inOrder.map((e) => e.name)).filter(Boolean).slice(0, MAX_PLAYER_NAMES);

@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { api } from './_generated/api';
 import { DEFAULT_CONFIG } from './challenges';
+import { counterTemplate } from './liveTemplates';
 import schema from './schema';
 
 const modules = import.meta.glob('./**/*.ts');
@@ -126,3 +127,57 @@ describe('Whop accounts across devices', () => {
     expect((await sees(t, 'A')).following).toEqual([]);
   });
 });
+
+async function errorCode(p: Promise<unknown>) {
+  try {
+    await p;
+  } catch (e) {
+    return (e as { data?: { code?: string } }).data?.code;
+  }
+  throw new Error('expected the call to fail');
+}
+
+describe('challenge ownership across devices', () => {
+  test("device B signed in to A's account edits, publishes, runs and pays out A's challenge; others cannot", async () => {
+    const t = newTest();
+    await t.mutation(api.challenges.saveCreatorProfile, { deviceToken: 'A', displayName: 'Marcus', handle: 'marcus' });
+    const { challengeId } = await t.mutation(api.challenges.createChallenge, { deviceToken: 'A', patch: { title: 'Friday stream', teamSize: 1 } });
+    await signIn(t, 'A', 'user_marcus');
+    await signIn(t, 'B', 'user_marcus');
+    await signIn(t, 'C', 'user_kayla');
+    const refusedFor = async (deviceToken: string) => [
+      await t.query(api.challenges.challengeDraft, { deviceToken, challengeId }),
+      await t.query(api.challenges.hostConsole, { deviceToken, challengeId }),
+      await errorCode(t.mutation(api.challenges.updateChallengeDraft, { deviceToken, challengeId, patch: { title: 'Mine now' } })),
+      await errorCode(t.mutation(api.challenges.publishChallenge, { deviceToken, challengeId })),
+      await errorCode(t.mutation(api.live.lockEntries, { deviceToken, challengeId })),
+      await errorCode(t.mutation(api.live.startLive, { deviceToken, challengeId })),
+      await errorCode(t.mutation(api.live.runHostAction, { deviceToken, challengeId, action: 'tick', payload: { delta: 1 } })),
+      await errorCode(t.mutation(api.challenges.approvePayouts, { deviceToken, challengeId })),
+    ];
+    const refused = [null, null, 'NOT_CREATOR', 'NOT_CREATOR', 'NOT_CREATOR', 'NOT_CREATOR', 'NOT_CREATOR', 'NOT_CREATOR'];
+    expect(await refusedFor('C')).toEqual(refused);
+    expect(await refusedFor('stranger')).toEqual(refused);
+
+    expect(await t.query(api.challenges.challengeDraft, { deviceToken: 'B', challengeId })).not.toBeNull();
+    await t.mutation(api.challenges.updateChallengeDraft, { deviceToken: 'B', challengeId, patch: { title: 'Saturday stream' } });
+    const { joinCode } = await t.mutation(api.challenges.publishChallenge, { deviceToken: 'B', challengeId });
+    expect((await t.query(api.challenges.hostConsole, { deviceToken: 'B', challengeId }))?.config.title).toBe('Saturday stream');
+    await t.run(async (ctx) => {
+      await ctx.db.insert('liveSessions', { challengeId: ctx.db.normalizeId('challenges', challengeId)!, templateId: 'counter', state: counterTemplate.init(null, challengeId) });
+    });
+    await t.action(api.challenges.joinChallenge, { deviceToken: 'viewer-1', code: joinCode, name: 'Viewer 1' });
+    await t.mutation(api.live.lockEntries, { deviceToken: 'B', challengeId });
+    await t.mutation(api.live.startLive, { deviceToken: 'B', challengeId });
+    expect(await t.mutation(api.live.runHostAction, { deviceToken: 'B', challengeId, action: 'tick', payload: { delta: 1 } })).toMatchObject({ view: { value: 1 } });
+    expect(await refusedFor('C')).toEqual(refused);
+    await t.mutation(api.challenges.endChallenge, { deviceToken: 'B', challengeId });
+    expect(await t.mutation(api.challenges.approvePayouts, { deviceToken: 'B', challengeId })).toMatchObject({ alreadyApproved: 0 });
+    expect(await t.query(api.challenges.hostConsole, { deviceToken: 'A', challengeId })).not.toBeNull();
+
+    await t.mutation(api.whopAuth.signOut, { deviceToken: 'B' });
+    expect(await t.query(api.challenges.hostConsole, { deviceToken: 'B', challengeId })).toBeNull();
+    expect(await errorCode(t.mutation(api.challenges.approvePayouts, { deviceToken: 'B', challengeId }))).toBe('NOT_CREATOR');
+  });
+});
+
