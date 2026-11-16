@@ -1,6 +1,6 @@
 import type { Difficulty, Setting } from '@/components/showcase/generate';
 
-export const creator = { name: 'Nova', handle: '@nova', followers: 1284, drops: 12 };
+export const creator = { name: 'Danny Ortiz', handle: '@danny', followers: 1284, drops: 12 };
 
 export const liveDrop = { title: 'The Aurora Seed', code: 'KQZT', here: 38, squads: 12, bounty: 300, winners: 3 };
 
@@ -24,9 +24,9 @@ export type CommunityCase = {
 };
 
 export const communityCases: CommunityCase[] = [
-  { id: 'c1', title: 'The Courier Case', creator: 'Mara Lin', plays: 3420, solveRate: 0.71, tone: '#EEF0F5', setting: 'train', difficulty: 'hard', seed: 4 },
-  { id: 'c2', title: 'The Ashby Emerald', creator: 'Theo Grant', plays: 2180, solveRate: 0.83, tone: '#EEF2EC', setting: 'manor', difficulty: 'medium', seed: 11 },
-  { id: 'c3', title: 'The Vermeer Sketch', creator: 'Nova', plays: 1904, solveRate: 0.86, tone: '#F3EDE0', setting: 'gallery', difficulty: 'medium', seed: 2 },
+  { id: 'c1', title: 'The Courier Case', creator: 'Rachel Lee', plays: 3420, solveRate: 0.71, tone: '#EEF0F5', setting: 'train', difficulty: 'hard', seed: 4 },
+  { id: 'c2', title: 'The Ashby Emerald', creator: 'Matt Grant', plays: 2180, solveRate: 0.83, tone: '#EEF2EC', setting: 'manor', difficulty: 'medium', seed: 11 },
+  { id: 'c3', title: 'The Vermeer Sketch', creator: 'Danny Ortiz', plays: 1904, solveRate: 0.86, tone: '#F3EDE0', setting: 'gallery', difficulty: 'medium', seed: 2 },
   { id: 'c4', title: 'The Reactor Key', creator: 'Jules Park', plays: 1266, solveRate: 0.64, tone: '#F4E6E1', setting: 'station', difficulty: 'hard', seed: 9 },
   { id: 'c5', title: 'Last Stop, Platform 9', creator: 'Ade Okoro', plays: 812, solveRate: 0.92, tone: '#E7EDF4', setting: 'train', difficulty: 'easy', seed: 3 },
 ];

@@ -35,11 +35,11 @@ export function WelcomeScreen({ onWhop, onApple }: { onWhop: () => void; onApple
   );
 }
 
-const suggestions = ['kitmarlowe', 'kit.solves', 'kit_m'];
+const suggestions = ['chriswalker', 'chris.solves', 'chris_w'];
 
 export function ClaimHandleScreen({ onDone }: { onDone: () => void }) {
   const insets = useSafeAreaInsets();
-  const [handle, setHandle] = useState('kit');
+  const [handle, setHandle] = useState('chris');
   const clean = handle.toLowerCase().replace(/[^a-z0-9._]/g, '');
   const ok = clean.length >= 3;
   return (

@@ -8,7 +8,7 @@ import { Enter, InviteCode, PressScale, RoleColor, RoleInitial, RoleLabel, Seal 
 
 import { C, ui } from './ui';
 
-// Lobby: the code deals in, then Ravi and Lena claim their seats on a timer (mock backend).
+// Lobby: the code deals in, then Ryan and Emily claim their seats on a timer (mock backend).
 export default function LabLobby() {
   const insets = useSafeAreaInsets();
   const [claimed, setClaimed] = useState(1);

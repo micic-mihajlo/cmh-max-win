@@ -352,7 +352,7 @@ export type HostView = {
 };
 
 export type UseHostView = (dropId: string | null) => HostView | null | undefined; // null = not the host, or no such drop
-// creatorName heads the race ("Nova's drop"). Omitted: the newest name this device token used server-side, else "Host".
+// creatorName heads the race ("Danny's drop"). Omitted: the newest name this device token used server-side, else "Host".
 // startsAt (ms epoch, 2 minutes to 30 days ahead): a scheduled drop, listed under "Coming up" with Remind me until it opens.
 // Omitted: the drop opens now and the streamer goes live, as before.
 // payoutMode 'real' pays winners real (sandbox) money by Whop transfer; 'concept' never does. Omitted: as before.
@@ -450,7 +450,7 @@ export type ChallengeStatus = 'draft' | 'published' | 'live' | 'ended' | 'cancel
 export type CreatorProfileView = {
   creatorId: string; // stable id; the device token's creator today, the Whop user later
   displayName: string;
-  handle: string; // '@nova', unique, lowercase a-z 0-9 _
+  handle: string; // '@danny', unique, lowercase a-z 0-9 _
   identity: 'device' | 'whop';
 };
 
@@ -474,7 +474,7 @@ export type ChallengeSummaryView = {
   config: ChallengeConfig;
   joinCode: string | null; // set at publish
   creator: { displayName: string; handle: string };
-  slug: string | null; // 'nova-fridays-trivia-k7qm' (discovery.slugOf); null before publish
+  slug: string | null; // 'danny-fridays-trivia-k7qm' (discovery.slugOf); null before publish
   shareUrl: string | null; // 'https://signal-app-wine.vercel.app/c/K7QM'; null before publish
   entrantCount: number;
   teamCount: number;

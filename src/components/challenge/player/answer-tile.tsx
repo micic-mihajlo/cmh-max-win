@@ -12,7 +12,7 @@ const fill: Record<TileState, string> = {
   mine: Palette.paper,
   team: Palette.paper,
   dim: Palette.panel,
-  correct: Palette.ok,
+  correct: Palette.paper,
   missed: Palette.paperShade,
 };
 const border: Record<TileState, string> = {
@@ -20,7 +20,7 @@ const border: Record<TileState, string> = {
   mine: Palette.paper,
   team: Palette.paper,
   dim: Palette.hairline,
-  correct: Palette.ok,
+  correct: Palette.paper,
   missed: Palette.paperShade,
 };
 
@@ -35,7 +35,7 @@ export function AnswerTile({ label, state, note, onPress }: { label: string; sta
     };
   });
   const onDark = state === 'mine' || state === 'team' || state === 'correct';
-  const color = onDark ? (state === 'correct' ? Palette.onAccent : Palette.ink) : state === 'missed' ? Palette.paperMuted : Palette.paper;
+  const color = onDark ? Palette.ink : state === 'missed' ? Palette.paperMuted : Palette.paper;
   return (
     <PressScale
       accessibilityRole="button"
@@ -52,6 +52,11 @@ export function AnswerTile({ label, state, note, onPress }: { label: string; sta
           numberOfLines={3}>
           {label}
         </Txt>
+        {state === 'correct' ? (
+          <Txt style={styles.check} color={color} accessibilityLabel="Correct answer">
+            ✓
+          </Txt>
+        ) : null}
         {note ? (
           <View style={styles.note}>
             {state === 'mine' ? <View style={styles.dot} /> : null}
@@ -78,6 +83,7 @@ const styles = StyleSheet.create({
   },
   label: { flex: 1, fontFamily: FontFamily.uiMedium, fontSize: 18, lineHeight: 24 },
   struck: { textDecorationLine: 'line-through' },
+  check: { fontFamily: FontFamily.uiSemi, fontSize: 18, lineHeight: 24 },
   note: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dot: { width: 8, height: 8, borderRadius: Radius.pill, backgroundColor: Palette.ember },
 });
