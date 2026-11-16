@@ -102,7 +102,7 @@ const award = (over: Partial<SquadAwardView> = {}): SquadAwardView => ({
   label: 'Concept payout — no real money moves',
   myPayout: { status: 'concept', amountCents: 3333 },
   split: [
-    { name: 'Danny', cents: 3333, isMe: true },
+    { name: 'Chris', cents: 3333, isMe: true },
     { name: 'Tyler', cents: 3333, isMe: false },
     { name: 'Megan', cents: 3333, isMe: false },
   ],
