@@ -1,9 +1,10 @@
+import { usePathname } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Txt } from '@/components/signal/txt';
 import { Palette, Space } from '@/constants/signal';
-import { useSignOutWhop, useWhopAccount } from '@/hooks/use-whop-account';
+import { useSignInWithWhop, useSignOutWhop, useWhopAccount } from '@/hooks/use-whop-account';
 import { feedFixtures } from '@/mocks/showcase/feed-load';
 import { PressScale } from '@/motion';
 
@@ -14,11 +15,13 @@ export type AccountView = { username: string | null; displayName: string; avatar
 export function AccountSection({
   account,
   bare,
+  note,
   onSignIn,
   onSignOut,
 }: {
   account: AccountView | null;
   bare?: boolean;
+  note?: string;
   onSignIn?: () => void;
   onSignOut: () => void;
 }) {
@@ -52,7 +55,7 @@ export function AccountSection({
               Sign in with Whop
             </Txt>
             <Txt variant="caption" color={Palette.paperMuted} numberOfLines={1}>
-              Keep your follows on every device
+              {note ?? 'Keep your follows on every device'}
             </Txt>
           </View>
           <Txt variant="name" color={Palette.paperMuted} style={styles.chevron}>
@@ -77,10 +80,25 @@ function SampleAccount({ bare }: { bare?: boolean }) {
 
 function LiveAccount({ bare }: { bare?: boolean }) {
   const state = useWhopAccount();
+  const signIn = useSignInWithWhop(usePathname().replace(/^\//, ''));
   const signOut = useSignOutWhop();
-  const a = state?.available ? state.account : null;
-  if (!a) return null;
-  return <AccountSection account={{ displayName: a.name, username: a.username, avatarUrl: a.avatarUrl }} bare={bare} onSignOut={() => void signOut()} />;
+  const [note, setNote] = useState<string>();
+  if (!state?.available) return null;
+  const a = state.account;
+  const start = async () => {
+    setNote('Opening Whop…');
+    const result = await signIn().catch(() => 'error' as const);
+    setNote(result === 'linked' || result === 'cancelled' ? undefined : "Couldn't sign in. Try again.");
+  };
+  return (
+    <AccountSection
+      account={a && { displayName: a.displayName, username: a.username, avatarUrl: a.avatarUrl }}
+      bare={bare}
+      note={note}
+      onSignIn={() => void start()}
+      onSignOut={() => void signOut()}
+    />
+  );
 }
 
 const styles = StyleSheet.create({
