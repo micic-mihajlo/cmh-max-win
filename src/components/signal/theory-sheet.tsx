@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { PanResponder, ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { FadeIn, LinearTransition, SlideInDown, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { PanResponder, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import Animated, { LinearTransition, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Palette, Radius, RoleMeta, Space } from '@/constants/signal';
 import { Suspects, suspectById } from '@/constants/case01';
 import type { RoomView, SuspectId } from '@/lib/contract';
-import { PressScale } from '@/motion';
+import { PressScale, Sheet, Spring } from '@/motion';
 
 import { Banner, Button } from './primitives';
 import { joinNames, lockedIds, seals } from './room';
@@ -14,6 +14,8 @@ import { Seal } from './seal';
 import { useMotionReduced } from './settings';
 import { SuspectOption } from './suspect-card';
 import { Txt } from './txt';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export type SheetNotice = { tone: 'warn' | 'info' | 'good'; title: string; text?: string };
 
@@ -85,7 +87,7 @@ export function TheorySheet({
   const dragY = useSharedValue(0);
   const dragStyle = useAnimatedStyle(() => ({ transform: [{ translateY: dragY.get() }] }));
   const drag = useMemo(() => {
-    const settle = (vy: number) => dragY.set(reduced ? 0 : withSpring(0, { velocity: vy * 1000, damping: 20, stiffness: 240 }));
+    const settle = (vy: number) => dragY.set(reduced ? 0 : withSpring(0, { ...Spring.press, velocity: vy * 1000 }));
     return PanResponder.create({
       onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 8 && Math.abs(g.dy) > Math.abs(g.dx),
       onPanResponderMove: (_, g) => dragY.set(expanded ? Math.max(0, g.dy) : Math.min(0, g.dy)),
@@ -102,11 +104,10 @@ export function TheorySheet({
   return (
     <>
       {expanded ? (
-        <Animated.View entering={reduced ? undefined : FadeIn.duration(200)} style={styles.scrim} pointerEvents="none" />
+        <AnimatedPressable accessibilityLabel="Close theory" onPress={onToggle} entering={Sheet.scrimIn} exiting={Sheet.scrimOut} style={styles.scrim} />
       ) : null}
       <Animated.View
-        entering={reduced ? undefined : SlideInDown.springify().damping(20)}
-        layout={reduced ? undefined : LinearTransition.springify().damping(20).stiffness(240)}
+        layout={reduced ? undefined : LinearTransition.springify().damping(Spring.press.damping).stiffness(Spring.press.stiffness).mass(Spring.press.mass)}
         style={[
           styles.sheet,
           { paddingBottom: insets.bottom + Space.m },

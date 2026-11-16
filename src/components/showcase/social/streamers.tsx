@@ -9,7 +9,6 @@ import type { StreamerCardView } from '@/lib/contract';
 import { followers } from './copy';
 import { SampleNote, streamerHref } from './feed';
 import { Avatar, Screen, showcase } from './kit';
-import { LiveAvatar } from './live-avatar';
 
 export function StreamersScreen({ streamers, sample }: { streamers: StreamerCardView[] | undefined; sample?: boolean }) {
   return (
@@ -22,12 +21,12 @@ export function StreamersScreen({ streamers, sample }: { streamers: StreamerCard
         <View style={[showcase.gutter, showcase.list, styles.list]}>
           {(streamers ?? []).map((s) => (
             <PressScale scaleTo={0.98} haptic="tap" key={s.streamerId} accessibilityRole="button" style={showcase.row} onPress={() => router.push(streamerHref(s.streamerId))}>
-              {s.live ? <LiveAvatar initials={s.name.slice(0, 1)} uri={s.avatarUrl} size={44} /> : <Avatar initials={s.name.slice(0, 1)} uri={s.avatarUrl} size={44} />}
+              <Avatar initials={s.name.slice(0, 1)} uri={s.avatarUrl} size={44} />
               <View style={showcase.flex}>
                 <Txt variant="bodyStrong">{s.name}</Txt>
                 {s.live || s.showFollowerCount !== false ? (
                   <Txt variant="small" color={Palette.paperMuted}>
-                    {s.live ? 'Live now' : followers(s.followerCount)}
+                    {s.live ? 'Happening now' : followers(s.followerCount)}
                   </Txt>
                 ) : null}
               </View>

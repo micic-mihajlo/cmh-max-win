@@ -41,7 +41,7 @@ export function DropEntryScreen({
       }>
       <DropCard drop={drop} />
       <View style={styles.stats}>
-        <Stat label={closed ? 'Started' : 'Opens in'} value={closed ? 'Live' : clock(drop.startsAt - now)} />
+        <Stat label={closed ? 'Started' : 'Opens in'} value={closed ? 'In progress' : clock(drop.startsAt - now)} />
         <Stat label="Joined" value={String(drop.entrantCount)} />
       </View>
       <Txt variant="small" color={Palette.paperMuted}>

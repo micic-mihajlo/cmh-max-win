@@ -4,7 +4,9 @@ import { StyleSheet, View } from 'react-native';
 import { Screen } from '@/components/signal/backdrop';
 import { Txt } from '@/components/signal/txt';
 import { Palette, Space, Type } from '@/constants/signal';
-import { Enter, Haptic } from '@/motion';
+import Animated, { FadeIn } from 'react-native-reanimated';
+
+import { Duration, Enter, Haptic, useReduced } from '@/motion';
 
 import { AnswerTile, type TileState } from './answer-tile';
 import { DrainBar, SecondsLeft } from './countdown';
@@ -43,6 +45,8 @@ export function PlayScreen({
   const [offset] = useState(() => serverNow - Date.now());
   const [pending, setPending] = useState<{ index: number; choice: number } | null>(null);
   const [refused, setRefused] = useState<{ index: number; message: string } | null>(null);
+  const [shake, setShake] = useState({ index: -1, choice: -1, n: 0 });
+  const reduced = useReduced();
 
   const error = refused?.index === q.index ? refused.message : null;
   const local = pending?.index === q.index ? pending.choice : null;
@@ -64,6 +68,7 @@ export function PlayScreen({
     if (refused) {
       setPending(null);
       setRefused({ index: q.index, message: refused });
+      setShake((s) => ({ index: q.index, choice, n: s.n + 1 }));
     }
   };
 
@@ -87,11 +92,11 @@ export function PlayScreen({
         <DrainBar opensAt={q.opensAt} closesAt={q.closesAt} offset={offset} stopped={q.closed} />
       </View>
 
-      <Enter key={`prompt-${q.index}`} style={styles.prompt}>
+      <Animated.View key={`prompt-${q.index}`} entering={reduced ? undefined : FadeIn.duration(Duration.swap)} style={styles.prompt}>
         <Txt style={q.prompt.length > 70 ? Type.quote : Type.title} accessibilityRole="header">
           {q.prompt}
         </Txt>
-      </Enter>
+      </Animated.View>
 
       <View style={styles.bottom}>
         <View style={styles.status} accessibilityLiveRegion="polite">
@@ -107,18 +112,23 @@ export function PlayScreen({
             <Txt variant="smallStrong">{status}</Txt>
           ) : null}
         </View>
-        <View style={styles.tiles}>
+        <Enter index={1} style={styles.tiles}>
           {q.choices.map((choice, i) => {
             const state = tileState(q, i, picked, mineIt);
             const note =
               state === 'mine' ? 'You' : state === 'team' ? 'Team' : state === 'correct' && picked === i ? 'You' : null;
             return (
-              <Enter key={`${q.index}-${i}`} index={i + 1}>
-                <AnswerTile label={choice} state={state} note={note} onPress={open && picked === null ? () => answer(i) : undefined} />
-              </Enter>
+              <AnswerTile
+                key={`tile-${i}`}
+                label={choice}
+                state={state}
+                note={note}
+                shake={shake.index === q.index && shake.choice === i ? shake.n : 0}
+                onPress={open && picked === null ? () => answer(i) : undefined}
+              />
             );
           })}
-        </View>
+        </Enter>
       </View>
     </Screen>
   );

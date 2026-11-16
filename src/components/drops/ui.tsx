@@ -82,7 +82,7 @@ export function DropCard({ drop, children }: { drop: DropSummaryView; children?:
         <View style={styles.flex}>
           <Txt variant="smallStrong">{drop.creatorName}</Txt>
           <Txt variant="small" color={Palette.paperMuted}>
-            {drop.status === 'scheduled' ? 'Drop · free to enter' : drop.status === 'live' ? 'Drop · live now' : 'Drop · ended'}
+            {drop.status === 'scheduled' ? 'Drop · free to enter' : drop.status === 'live' ? 'Drop · in progress' : 'Drop · ended'}
           </Txt>
         </View>
         <ModeTag mode={drop.bounty.mode} />
