@@ -3,6 +3,7 @@ import { Platform, Pressable, StyleSheet, useWindowDimensions, View, type ViewSt
 import Animated, { FadeIn, FadeOut, interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { ordinal } from '@/components/drops/ui';
+import { joinNames } from '@/components/signal/room';
 import { Txt } from '@/components/signal/txt';
 import { FontFamily, Palette } from '@/constants/signal';
 import type { RoomPulse, RoomPulseTeam } from '@/lib/contract-pulse';
@@ -12,6 +13,8 @@ import { Ease } from '@/motion';
 import { useServerNow } from './use-server-now';
 
 const THINKING = '#D3D1CC';
+// The host's controls sit in a strip under the 1920x1080 canvas, so a capture cropped to the canvas never shows them.
+const STRIP = 88;
 const MISSED = '#E7E6E2';
 const SHAPE: Record<number, [number, number][]> = {
   1: [[0, 0]],
@@ -43,7 +46,7 @@ const nameOf = (t: RoomPulseTeam) => teamStyle(t.id, teamIndexFromLabel(t.label)
 // members lock, with the clock, the locked count, the newest locks and, with a bounty, the paid spots as they're taken.
 export function Stage({ pulse, round, controls }: { pulse: RoomPulse; round: Round; controls: ReactNode }) {
   const { width, height } = useWindowDimensions();
-  const u = Math.min(width / 1920, height / 1080);
+  const u = Math.min(width / 1920, (height - STRIP) / 1080);
   const open = pulse.phase === 'question';
   const { now } = useServerNow(pulse.serverNow, open);
   const [hover, setHover] = useState<string | null>(null);
@@ -112,12 +115,21 @@ export function Stage({ pulse, round, controls }: { pulse: RoomPulse; round: Rou
           return (
             <Pressable
               key={t.id}
-              accessibilityLabel={nameOf(t) + ': ' + t.memberFirstNames.join(', ')}
+              accessibilityLabel={nameOf(t) + ': ' + joinNames(t.memberFirstNames)}
               onHoverIn={() => setHover(t.id)}
               onHoverOut={() => setHover((h) => (h === t.id ? null : h))}
               onPressIn={() => setHover(t.id)}
               onPressOut={() => setHover(null)}
               style={[styles.abs, { left: c.x * u - (pitch / 2) * u, top: c.y * u - (pitch / 2) * u, width: pitch * u, height: pitch * u }]}>
+              <Txt
+                numberOfLines={1}
+                style={[
+                  styles.muted,
+                  styles.label,
+                  { top: (pitch / 2 + 0.75 * d) * u, fontSize: Math.min(22, d * 0.45) * u, lineHeight: Math.min(28, d * 0.6) * u },
+                ]}>
+                {nameOf(t).replace(/^Team /, '')}
+              </Txt>
               {Array.from({ length: size }, (_, m) => {
                 const [ox, oy] = offsetOf(size, m);
                 return (
@@ -128,7 +140,7 @@ export function Stage({ pulse, round, controls }: { pulse: RoomPulse; round: Rou
                     off={off}
                     style={{
                       left: (pitch / 2 + ox * d * 1.2 - d / 2) * u,
-                      top: (pitch / 2 + oy * d * 1.2 - d / 2) * u,
+                      top: (pitch / 2 + oy * d * 1.2 - d / 2 - 0.25 * d) * u,
                       width: d * u,
                       height: d * u,
                       borderRadius: (d / 2) * u,
@@ -156,10 +168,15 @@ export function Stage({ pulse, round, controls }: { pulse: RoomPulse; round: Rou
               },
             ]}>
             <Txt style={[styles.strong, { fontSize: 24 * u, lineHeight: 30 * u }]}>{nameOf(pulse.teams[hovered])}</Txt>
-            <Txt style={[styles.muted, { fontSize: 24 * u, lineHeight: 30 * u }]}>{pulse.teams[hovered].memberFirstNames.join(', ')}</Txt>
+            <Txt style={[styles.muted, { fontSize: 24 * u, lineHeight: 30 * u }]}>{joinNames(pulse.teams[hovered].memberFirstNames)}</Txt>
           </Animated.View>
         ) : null}
-        <View style={[styles.abs, styles.controls, { right: 120 * u, bottom: 40 * u, width: 520 * u }]}>{controls}</View>
+      </View>
+      <View style={[styles.strip, { width: 1920 * u, height: STRIP }]}>
+        <Txt variant="caption" color={Palette.paperMuted} style={styles.flex}>
+          Host only. Crop this strip out of your stream capture.
+        </Txt>
+        <View style={styles.controls}>{controls}</View>
       </View>
     </View>
   );
@@ -203,7 +220,7 @@ function Readout({ locked, u, top }: { locked: RoomPulseTeam[]; u: number; top: 
           </Txt>
           {i === 0 ? (
             <Txt style={[styles.muted, { fontSize: 22 * u, lineHeight: 28 * u }]} numberOfLines={1}>
-              {t.memberFirstNames.join(', ')}
+              {joinNames(t.memberFirstNames)}
             </Txt>
           ) : null}
         </Animated.View>
@@ -246,11 +263,14 @@ function Bounty({ spots, locked, opensAt, u }: { spots: number; locked: RoomPuls
 
 const styles = StyleSheet.create({
   root: { backgroundColor: Palette.ink, alignItems: 'center', justifyContent: 'center' },
+  flex: { flex: 1 },
+  strip: { flexDirection: 'row', alignItems: 'center', gap: 24, paddingHorizontal: 24, borderTopWidth: 1, borderColor: Palette.hairline },
+  label: { position: 'absolute', left: 0, right: 0, textAlign: 'center' },
   abs: { position: 'absolute' },
   right: { alignItems: 'flex-end' },
   baseline: { flexDirection: 'row', alignItems: 'baseline' },
   bounty: { flexDirection: 'row' },
-  controls: { flexDirection: 'row', alignItems: 'center', gap: 24 },
+  controls: { flexDirection: 'row', alignItems: 'center', gap: 24, width: 420 },
   num: { fontVariant: ['tabular-nums'] },
   display: { fontFamily: FontFamily.uiSemi, color: Palette.paper },
   strong: { fontFamily: FontFamily.uiSemi, color: Palette.paper },
