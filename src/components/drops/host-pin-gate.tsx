@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { StyleSheet, TextInput } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import { Screen } from '@/components/signal/backdrop';
+import { InkInput } from '@/components/signal/ink-input';
 import { Button } from '@/components/signal/primitives';
 import { Txt } from '@/components/signal/txt';
 import { FontFamily, Palette, Radius, Space } from '@/constants/signal';
@@ -13,28 +14,27 @@ export const HOST_UNLOCKED_KEY = 'signal.hostUnlocked';
 export function HostPinGate({ onUnlock }: { onUnlock: () => void }) {
   const [pin, setPin] = useState('');
   const [wrong, setWrong] = useState(false);
-  const submit = () => {
-    if (pin === HOST_PIN) return onUnlock();
+  const submit = (value: string) => {
+    if (value === HOST_PIN) return onUnlock();
     setWrong(true);
     setPin('');
   };
   return (
-    <Screen footer={<Button title="Unlock" variant="accent" disabled={pin.length !== 4} onPress={submit} />}>
+    <Screen footer={<Button title="Unlock" variant="primary" disabled={pin.length !== 4} onPress={() => submit(pin)} />}>
       <Txt style={styles.title}>Host PIN</Txt>
-      <TextInput
+      <InkInput
         value={pin}
         onChangeText={(t) => {
+          const next = t.replace(/\D/g, '').slice(0, 4);
           setWrong(false);
-          setPin(t.replace(/\D/g, '').slice(0, 4));
+          setPin(next);
+          if (next.length === 4) submit(next);
         }}
-        onSubmitEditing={pin.length === 4 ? submit : undefined}
+        onSubmitEditing={pin.length === 4 ? () => submit(pin) : undefined}
         keyboardType="number-pad"
         secureTextEntry
         autoFocus
         maxLength={4}
-        placeholder="••••"
-        placeholderTextColor={Palette.paperFaint}
-        selectionColor={Palette.ember}
         accessibilityLabel="Host PIN"
         style={styles.input}
       />
