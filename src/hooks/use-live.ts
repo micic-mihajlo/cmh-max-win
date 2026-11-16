@@ -1,5 +1,6 @@
 import { api } from '@convex/_generated/api';
-import { useMutation, useQuery } from 'convex/react';
+import { useMutation } from 'convex/react';
+import { useQuery } from 'convex-helpers/react/cache/hooks';
 import { useCallback } from 'react';
 
 import { useDeviceToken } from '@/hooks/use-device-token';
@@ -24,9 +25,12 @@ export const useLockEntries: UseLockEntries = (challengeId) => {
 
 export const useStartLive: UseStartLive = (challengeId) => {
   const start = useMutation(l.startLive);
-  return useCallback(async () => {
-    await start({ deviceToken: await getDeviceToken(), challengeId });
-  }, [start, challengeId]);
+  return useCallback(
+    async (options?: { openFirst?: boolean }) => {
+      await start({ deviceToken: await getDeviceToken(), challengeId, ...(options?.openFirst ? { openFirst: true } : {}) });
+    },
+    [start, challengeId],
+  );
 };
 
 export const useRunHostAction: UseRunHostAction = (challengeId) => {

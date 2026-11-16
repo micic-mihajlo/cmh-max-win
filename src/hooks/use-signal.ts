@@ -1,6 +1,7 @@
 import { api } from '@convex/_generated/api';
 import { usePresence } from '@convex-dev/presence/react-native';
-import { useConvex, useConvexConnectionState, useMutation, useQuery } from 'convex/react';
+import { useConvex, useConvexConnectionState, useMutation } from 'convex/react';
+import { useQuery } from 'convex-helpers/react/cache/hooks';
 import { useCallback } from 'react';
 
 import { useDeviceToken } from '@/hooks/use-device-token';

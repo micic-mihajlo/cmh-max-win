@@ -1,5 +1,6 @@
 import { api } from '@convex/_generated/api';
-import { useMutation, useQuery } from 'convex/react';
+import { useMutation } from 'convex/react';
+import { useQuery } from 'convex-helpers/react/cache/hooks';
 import { useCallback, useMemo } from 'react';
 
 import { useDeviceToken } from '@/hooks/use-device-token';

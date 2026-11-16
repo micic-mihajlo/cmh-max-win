@@ -5,7 +5,7 @@ import { convexTest } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { api, internal } from './_generated/api';
-import { STARTING_LEAD_MS } from './feed';
+import { distinctFirstNames, squadmatesFor, STARTING_LEAD_MS } from './feed';
 import { EXPO_RECEIPTS_URL, EXPO_SEND_URL, RECEIPT_DELAY_MS } from './push';
 import schema from './schema';
 
@@ -314,6 +314,27 @@ describe('squadmates on the 2-minute ping', () => {
     await flushAt(t, startsAt - STARTING_LEAD_MS - Date.now());
     expect(sent).toHaveLength(1);
     expect(sent[0].data).toEqual({ kind: 'starting', dropId, joinCode: expect.any(String), streamerId });
+  });
+});
+
+describe('first names that stay apart', () => {
+  test('a shared first name takes the last initial, else a number; unique names stay first-name-only', () => {
+    expect(distinctFirstNames(['Chris', 'Chris Bell', 'Bot Priya', 'Bot Theo', 'Chris', 'Demo · Danny Ruiz', 'Kayla'])).toEqual([
+      'Chris',
+      'Chris B.',
+      'Bot P.',
+      'Bot T.',
+      'Chris 2',
+      'Danny',
+      'Kayla',
+    ]);
+    expect(distinctFirstNames(['Chris Bell', 'chris brown', 'Player 1', 'Player 2', ''])).toEqual(['Chris B.', 'chris B. 2', 'Player', 'Player 2', '']);
+  });
+
+  test('two waiting players with one first name both show', () => {
+    const people = ['Bot Priya', 'Bot Theo', 'Chris'].map((name, i) => ({ deviceToken: 'd' + i, name }));
+    expect(squadmatesFor(people, 'd2')).toEqual(['Bot P.', 'Bot T.']);
+    expect(squadmatesFor(people, 'd0')).toEqual(['Bot', 'Chris']);
   });
 });
 

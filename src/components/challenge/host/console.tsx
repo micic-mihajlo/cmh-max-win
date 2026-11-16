@@ -152,7 +152,7 @@ function Console({ id, host, live }: { id: string; host: HostConsoleView; live: 
         title="Start"
         accent
         disabled={host.entrantCount === 0}
-        onPress={() => commit({ phase: 'live', round: quiz ? lobbyRound(questionCount) : null }, start)}
+        onPress={() => commit({ phase: 'live', round: quiz ? advance(lobbyRound(questionCount), questions, questionCount) : null }, () => start({ openFirst: quiz }))}
       />
     );
     secondary =

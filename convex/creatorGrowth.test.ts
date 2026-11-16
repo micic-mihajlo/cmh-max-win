@@ -84,7 +84,7 @@ async function seeded() {
 
 describe('challenge growth recap', () => {
   test('counts match the seeded challenge exactly', async () => {
-    const { t, challengeId, teams } = await seeded();
+    const { t, challengeId, teams, players } = await seeded();
     expect(teams.map((x) => x.members.length)).toEqual([3, 2, 2]);
     const recap = await t.query(api.creatorGrowth.challengeGrowth, { deviceToken: HOST, challengeId });
     expect(recap).toMatchObject({
@@ -96,12 +96,23 @@ describe('challenge growth recap', () => {
       winners: 5,
       paidCents: 1668 + 1500,
       payoutAdapter: 'concept',
-      newWhopMembers: 2,
+      newWhopMembers: null,
     });
     const entries = await t.run((ctx) => ctx.db.query('challengeEntries').collect());
-    const inOrder = entries.sort((a, b) => a.joinedAt - b.joinedAt);
-    expect(recap!.playerNames).toEqual(inOrder.map((e) => e.name.split(' ')[0]));
+    expect(entries.sort((a, b) => a.joinedAt - b.joinedAt).map((e) => e.name)).toEqual(players.map((_, i) => 'Player ' + (i + 1)));
+    expect(recap!.playerNames).toEqual(['Player', 'Player 2', 'Player 3', 'Player 4', 'Player 5', 'Player 6', 'Player 7']);
     for (const e of entries) expect(JSON.stringify(recap)).not.toContain(e.deviceToken);
+  });
+
+  test('players who share a first name stay apart, first name first', async () => {
+    const t = newTest();
+    const { challengeId, joinCode } = await published(t, {});
+    const names = ['Chris', 'Bot Priya', 'Chris Bell', 'Bot Theo', 'Chris'];
+    for (const [i, name] of names.entries()) await t.action(api.challenges.joinChallenge, { deviceToken: 'dup-device-secret-' + i, code: joinCode, name });
+    await t.mutation(api.challenges.endChallenge, { deviceToken: HOST, challengeId });
+    const recap = (await t.query(api.creatorGrowth.challengeGrowth, { deviceToken: HOST, challengeId }))!;
+    expect(recap.playerNames).toEqual(['Chris', 'Bot P.', 'Chris B.', 'Bot T.', 'Chris 2']);
+    expect(JSON.stringify(recap)).not.toContain('dup-device-secret');
   });
 
   test('only the creator reads it, and drafts have none', async () => {
@@ -145,7 +156,7 @@ describe('creator history', () => {
     const stats = (await t.query(api.creatorGrowth.creatorStats, { deviceToken: HOST }))!;
     expect(stats.challenges.map((c) => [c.title, c.players, c.completions, c.winners, c.paidCents, c.newWhopMembers])).toEqual([
       ['Members night', 2, 0, 0, 0, 2],
-      ['Friday race', 7, 5, 5, 3168, 2],
+      ['Friday race', 7, 5, 5, 3168, null],
     ]);
     expect(stats.challenges[1].challengeId).toBe(challengeId);
     expect(stats.totals).toEqual({ challenges: 2, players: 9, completions: 5, winners: 5, paidCents: 3168, newWhopMembers: 3 });
@@ -158,7 +169,7 @@ describe('creator history', () => {
     await join(t, joinCode, players);
     await t.mutation(api.challenges.cancelChallenge, { deviceToken: HOST, challengeId, reason: 'Stream dropped' });
     const recap = await t.query(api.creatorGrowth.challengeGrowth, { deviceToken: HOST, challengeId });
-    expect(recap).toMatchObject({ status: 'cancelled', players: 3, completions: 0, winners: 0, paidCents: 0, newWhopMembers: 0 });
+    expect(recap).toMatchObject({ status: 'cancelled', players: 3, completions: 0, winners: 0, paidCents: 0, newWhopMembers: null });
   });
 
   test('no profile, no stats', async () => {

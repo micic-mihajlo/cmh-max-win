@@ -1,36 +1,48 @@
-import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/signal/backdrop';
 import { Button } from '@/components/signal/primitives';
 import { Txt } from '@/components/signal/txt';
-import { Palette, Radius, Space } from '@/constants/signal';
+import { FontFamily, Palette, Radius, Space } from '@/constants/signal';
 import type { LiveLeaderboardRow, MyPayoutView } from '@/lib/contract';
-import { Enter, Haptic, useReduced } from '@/motion';
+import { teamIndexFromLabel, teamStyle } from '@/lib/teams';
+import { Enter, Haptic } from '@/motion';
 
+import { useCount } from './count';
 import { money, ordinal, points } from './format';
+import { Takeover } from './takeover';
 
-// The rank climbs from the back of the field to your place, eased out over 600ms: the one count allowed past 300ms.
-function useClimb(to: number | null, from: number | null) {
-  const reduced = useReduced();
-  const [shown, setShown] = useState<number | null>(null);
+const styleOf = (label: string) => teamStyle(label, teamIndexFromLabel(label));
+
+// The payout as its own beat: the amount counts up on paper, then the sheet drops to the full result.
+function PayoutBeat({ cents, place, maths, label, onDone }: { cents: number; place: number | null; maths: string | null; label: string; onDone: () => void }) {
+  const shown = useCount(cents, 0);
   useEffect(() => {
-    if (to === null || from === null || reduced || from <= to) return;
-    const start = performance.now();
-    let frame = requestAnimationFrame(function step(now) {
-      const t = Math.min(1, (now - start) / 600);
-      setShown(Math.round(from - (from - to) * (1 - (1 - t) ** 3)));
-      if (t < 1) frame = requestAnimationFrame(step);
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [to, from, reduced]);
-  return to === null ? null : (shown ?? (reduced || from === null || from <= to ? to : from));
+    Haptic.success();
+  }, []);
+  return (
+    <Takeover holdMs={1600} onDone={onDone}>
+      {place ? (
+        <Txt variant="label" color={Palette.paperMuted}>
+          {`${ordinal(place)} place`}
+        </Txt>
+      ) : null}
+      <Text maxFontSizeMultiplier={1.2} style={styles.amount}>
+        {money(shown ?? cents)}
+      </Text>
+      <Txt variant="small" color={Palette.paperMuted}>
+        {[maths, label].filter(Boolean).join(' · ')}
+      </Txt>
+    </Takeover>
+  );
 }
 
 export function ResultScreen({
   title,
   teamLabel,
   solo,
+  teamSize,
   totalPoints,
   ended,
   teamCount,
@@ -46,6 +58,7 @@ export function ResultScreen({
   title: string;
   teamLabel: string | null;
   solo: boolean;
+  teamSize: number;
   totalPoints: number | null;
   ended: boolean;
   teamCount: number | null;
@@ -60,14 +73,14 @@ export function ResultScreen({
 }) {
   const mine = leaderboard?.find((r) => r.label === teamLabel) ?? null;
   const place = payout?.place ?? mine?.place ?? null;
-  const shownPlace = useClimb(ended ? place : null, teamCount);
+  const shownPlace = useCount(ended ? place : null, teamCount);
   const sent = payout?.adapter === 'whop' && payout.status === 'sent';
-  const announced = useRef(false);
-  useEffect(() => {
-    if (!sent || announced.current) return;
-    announced.current = true;
-    Haptic.success();
-  }, [sent]);
+  const members = mine?.memberNames.length || teamSize;
+  const cents = payout?.cents ?? (teamCents !== null ? Math.floor(teamCents / Math.max(1, members)) : 0);
+  const maths = !solo && teamCents !== null && members > 1 ? `${money(teamCents)} ÷ ${members} players` : null;
+  const payoutLabel = sent ? 'Sent to your Whop balance' : (payout?.adapter ?? (conceptPool ? 'concept' : 'whop')) === 'concept' ? 'Concept payout' : (payout?.label ?? '');
+  const [beat, setBeat] = useState<'pending' | 'on' | 'done'>('pending');
+  if (beat === 'pending' && ended && cents > 0) setBeat('on');
   const footer =
     payout?.needsWhopSignIn && onClaim ? (
       <Button title={claiming ? 'Opening Whop' : 'Claim with Whop'} disabled={claiming} onPress={onClaim} />
@@ -76,7 +89,9 @@ export function ResultScreen({
     );
 
   return (
-    <Screen footer={footer}>
+    <Screen
+      footer={footer}
+      overlay={beat === 'on' ? <PayoutBeat cents={cents} place={place} maths={maths} label={payoutLabel} onDone={() => setBeat('done')} /> : null}>
       <View style={styles.top}>
         <Enter index={0}>
           <Txt variant="label" color={Palette.paperMuted} numberOfLines={1}>
@@ -102,16 +117,15 @@ export function ResultScreen({
 
       {payout || teamCents ? (
         <Enter index={3} style={styles.payout}>
-          <Txt variant="title">{money(payout?.cents ?? teamCents ?? 0)}</Txt>
+          <Txt variant="title">{money(cents)}</Txt>
           <Txt variant="caption" color={Palette.paperMuted}>
-            {[
-              !payout && !solo ? 'Team share' : null,
-              sent ? 'Sent to your Whop balance' : (payout?.adapter ?? (conceptPool ? 'concept' : 'whop')) === 'concept' ? 'Concept payout' : payout?.label,
-              payout ? null : `waiting for ${host} to approve`,
-            ]
-              .filter(Boolean)
-              .join(' · ')}
+            {[maths, payoutLabel].filter(Boolean).join(' · ')}
           </Txt>
+          {payout ? null : (
+            <Txt variant="caption" color={Palette.paperMuted}>
+              {`Waiting for ${host} to approve`}
+            </Txt>
+          )}
         </Enter>
       ) : null}
 
@@ -124,8 +138,9 @@ export function ResultScreen({
                 <Txt variant="time" color={Palette.paperMuted} style={styles.place}>
                   {ordinal(row.place)}
                 </Txt>
+                {solo ? null : <View style={[styles.marker, { backgroundColor: styleOf(row.label).ink }]} />}
                 <Txt variant={me ? 'smallStrong' : 'small'} numberOfLines={1} style={styles.names}>
-                  {solo ? row.memberNames.join(', ') : `${row.label} · ${row.memberNames.join(', ')}`}
+                  {solo ? row.memberNames.join(', ') : `${styleOf(row.label).name} · ${row.memberNames.join(', ')}`}
                 </Txt>
                 {me ? (
                   <View style={styles.you}>
@@ -138,6 +153,11 @@ export function ResultScreen({
               </View>
             );
           })}
+          {teamCount && teamCount > leaderboard.length ? (
+            <Txt variant="caption" color={Palette.paperMuted} style={styles.rest}>
+              {`${teamCount - leaderboard.length} more ${solo ? 'player' : 'team'}${teamCount - leaderboard.length === 1 ? '' : 's'} without points`}
+            </Txt>
+          ) : null}
         </Enter>
       ) : null}
     </Screen>
@@ -152,5 +172,8 @@ const styles = StyleSheet.create({
   place: { width: 40 },
   names: { flex: 1 },
   you: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  rest: { marginTop: Space.s },
+  marker: { width: 10, height: 10, borderRadius: Radius.pill },
+  amount: { fontFamily: FontFamily.uiBold, fontSize: 88, lineHeight: 96, letterSpacing: -3, color: Palette.paper, fontVariant: ['tabular-nums'] },
   dot: { width: 8, height: 8, borderRadius: Radius.pill, backgroundColor: Palette.ember },
 });
