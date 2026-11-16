@@ -65,9 +65,9 @@ export const Reveal: RevealView = {
   ],
   why: 'An anonymous message promised the seed would be “kept safe on Earth” if she left it in the galley cold store before the shuttle docked.',
   credits: [
-    { role: 'hacker', memberName: 'Ravi', cleared: 'theo', line: 'Badge held at the docking ring 21:38–21:47. The door opened at 21:42, and the walk takes 6 minutes.' },
-    { role: 'witness', memberName: 'Lena', cleared: 'priya', line: 'At the Go board 21:30–21:50. Neither of them got up until the alarm.' },
-    { role: 'detective', memberName: 'Maya', cleared: 'ines', line: 'Inside a one-door room. The tamper strip stayed intact from 21:15 to 21:53.' },
+    { role: 'hacker', memberName: 'Ryan', cleared: 'theo', line: 'Badge held at the docking ring 21:38–21:47. The door opened at 21:42, and the walk takes 6 minutes.' },
+    { role: 'witness', memberName: 'Emily', cleared: 'priya', line: 'At the Go board 21:30–21:50. Neither of them got up until the alarm.' },
+    { role: 'detective', memberName: 'Ashley', cleared: 'ines', line: 'Inside a one-door room. The tamper strip stayed intact from 21:15 to 21:53.' },
   ],
   teaser: {
     title: 'Episode 02 · The Second Seed',

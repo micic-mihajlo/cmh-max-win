@@ -10,7 +10,7 @@ import { sampleStudio } from '@/components/studio/sample';
 import { splitPieces } from '@/components/showcase/validate';
 import { Enter } from '@/motion';
 
-const members = ['Kit', 'Lou', 'Ana'];
+const members = ['Chris', 'Sarah', 'Jen'];
 
 function PlayerPreview() {
   const draft = draftStore.get();

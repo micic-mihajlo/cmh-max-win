@@ -5,9 +5,9 @@ import type { MemberView, NudgeView, RevealView, SuspectId } from '@/lib/contrac
 export const LAB_ROOM_CODE = 'K7QX';
 
 export const labCrew: MemberView[] = [
-  { memberId: 'm-maya', name: 'Maya', role: 'detective', roles: ['detective'], presence: 'reviewing', isHost: true, isMe: true },
-  { memberId: 'm-ravi', name: 'Ravi', role: 'hacker', roles: ['hacker'], presence: 'reviewing', isHost: false, isMe: false },
-  { memberId: 'm-lena', name: 'Lena', role: 'witness', roles: ['witness'], presence: 'reviewing', isHost: false, isMe: false },
+  { memberId: 'm-ashley', name: 'Ashley', role: 'detective', roles: ['detective'], presence: 'reviewing', isHost: true, isMe: true },
+  { memberId: 'm-ryan', name: 'Ryan', role: 'hacker', roles: ['hacker'], presence: 'reviewing', isHost: false, isMe: false },
+  { memberId: 'm-emily', name: 'Emily', role: 'witness', roles: ['witness'], presence: 'reviewing', isHost: false, isMe: false },
 ];
 
 export const labSuspects: { id: SuspectId; name: string; job: string }[] = [
@@ -23,7 +23,7 @@ export const LAB_MOCK_ANSWER: SuspectId = 'priya';
 export const labNudge = (wrongPick: SuspectId, revision: number): NudgeView => ({
   wrongPick,
   forRole: 'witness',
-  text: 'Lab fixture: Lena, read the doorway line again. Who could have walked past at that time?',
+  text: 'Lab fixture: Emily, read the doorway line again. Who could have walked past at that time?',
   revision,
   holder: null,
 });
@@ -37,9 +37,9 @@ export const labReveal: RevealView = {
   ],
   why: 'Lab fixture. The real reveal only ever comes from the server.',
   credits: [
-    { role: 'hacker', memberName: 'Ravi', cleared: 'theo', line: "Ravi's systems log ruled out Theo." },
-    { role: 'witness', memberName: 'Lena', cleared: 'jun', line: "Lena's statement ruled out Jun." },
-    { role: 'detective', memberName: 'Maya', cleared: 'ines', line: "Maya's scene notes ruled out Ines." },
+    { role: 'hacker', memberName: 'Ryan', cleared: 'theo', line: "Ryan's systems log ruled out Theo." },
+    { role: 'witness', memberName: 'Emily', cleared: 'jun', line: "Emily's statement ruled out Jun." },
+    { role: 'detective', memberName: 'Ashley', cleared: 'ines', line: "Ashley's scene notes ruled out Ines." },
   ],
   teaser: { title: 'Episode 02 — The Second Seed', text: 'Your crew picks up where you left off.' },
 };
