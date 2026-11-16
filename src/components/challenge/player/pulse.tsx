@@ -8,6 +8,7 @@ import type { RoomPulse, RoomPulseTeam } from '@/lib/contract-pulse';
 import { THINKING, teamIndexFromLabel, teamStyle } from '@/lib/teams';
 import { Haptic, useReduced } from '@/motion';
 
+const TIP_H = 44;
 const styleOf = (t: RoomPulseTeam) => teamStyle(t.label, teamIndexFromLabel(t.label));
 const SHAPE: Record<number, [number, number][]> = {
   1: [[0, 0]],
@@ -119,9 +120,9 @@ export function RoomPulseField({
           x: px + ox * d * 1.2,
           y: py + oy * d * 1.2,
           d,
-          base: me ? Palette.ember : THINKING,
+          base: THINKING,
           color: Palette.ember,
-          lit: me || i <= lit - (meLocked ? 1 : 0),
+          lit: me ? meLocked : i <= lit - (meLocked ? 1 : 0),
           dim: reveal && mine.correct === false,
           letter: names[i]?.[0]?.toUpperCase(),
         });
@@ -185,21 +186,27 @@ export function RoomPulseField({
             style={[styles.hit, { left: h.x - h.r, top: h.y - h.r, width: h.r * 2, height: h.r * 2, borderRadius: h.r }]}
           />
         ))}
+        {team && capTop !== null ? (
+          <Txt variant="caption" color={Palette.paperMuted} numberOfLines={1} style={[styles.pinCap, { top: capTop, width: Math.min(96, (box?.w ?? 0) * 0.28) }]}>
+            {team}
+          </Txt>
+        ) : null}
         {held && box ? (
           <Animated.View
             entering={FadeIn.duration(120)}
             exiting={FadeOut.duration(120)}
             pointerEvents="none"
-            style={[styles.tip, { left: Math.max(0, Math.min(box.w - 200, held.x - 100)), bottom: box.h - held.y + held.r + 4 }]}>
+            style={[
+              styles.tip,
+              {
+                left: Math.max(0, Math.min(box.w - 240, held.x - 120)),
+                top: held.y + held.r + TIP_H + 4 <= box.h ? held.y + held.r + 4 : Math.max(0, held.y - held.r - TIP_H - 4),
+              },
+            ]}>
             <Txt variant="caption" color={Palette.paper} numberOfLines={2} style={styles.tipText}>
               {solo ? held.names : `${styleOf(held.team).name} · ${held.names}`}
             </Txt>
           </Animated.View>
-        ) : null}
-        {team && capTop !== null ? (
-          <Txt variant="caption" color={Palette.paperMuted} numberOfLines={1} style={[styles.pinCap, { top: capTop, width: Math.min(96, (box?.w ?? 0) * 0.28) }]}>
-            {team}
-          </Txt>
         ) : null}
       </View>
       <View style={styles.whisper}>
@@ -252,7 +259,9 @@ function useWhisper(pulse: RoomPulse, mine: RoomPulseTeam | null, solo: boolean)
   if (pulse.phase === 'reveal') {
     const right = pulse.teams.filter((t) => t.correct).sort((a, b) => (a.lockedAt ?? Infinity) - (b.lockedAt ?? Infinity));
     const rank = mine ? right.findIndex((t) => t.id === mine.id) + 1 : 0;
-    if (rank > 0) return `${solo ? 'You were' : 'Your team was'} the ${ordinal(rank)} fastest of ${right.length}.`;
+    const you = solo ? 'You were' : 'Your team was';
+    if (rank === 1) return `${you} fastest of ${right.length}.`;
+    if (rank > 1) return `${you} ${ordinal(rank)} of ${right.length} to get it.`;
     return right.length ? `Fastest: ${name(right[0])}.` : 'Nobody got this one.';
   }
   return live && line?.q === q ? line.text : null;
@@ -273,7 +282,7 @@ const styles = StyleSheet.create({
   dot: { position: 'absolute', left: 0, top: 0, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   letter: { fontFamily: FontFamily.uiSemi, color: Palette.onAccent },
   hit: { position: 'absolute' },
-  tip: { position: 'absolute', width: 200, alignItems: 'center' },
+  tip: { position: 'absolute', width: 240, alignItems: 'center' },
   tipText: { backgroundColor: Palette.card, borderRadius: 10, paddingHorizontal: Space.m, paddingVertical: Space.s, overflow: 'hidden', boxShadow: '0 4px 16px rgba(22,21,19,0.10)' },
   pinCap: { position: 'absolute', left: 0, textAlign: 'center' },
   whisper: { height: 17 },
