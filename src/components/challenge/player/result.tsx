@@ -119,14 +119,13 @@ export function ResultScreen({
         <Enter index={3} style={styles.payout}>
           <Txt variant="title">{money(cents)}</Txt>
           <Txt variant="caption" color={Palette.paperMuted}>
-            {[
-              maths,
-              payoutLabel,
-              payout ? null : `waiting for ${host} to approve`,
-            ]
-              .filter(Boolean)
-              .join(' · ')}
+            {[maths, payoutLabel].filter(Boolean).join(' · ')}
           </Txt>
+          {payout ? null : (
+            <Txt variant="caption" color={Palette.paperMuted}>
+              {`Waiting for ${host} to approve`}
+            </Txt>
+          )}
         </Enter>
       ) : null}
 
