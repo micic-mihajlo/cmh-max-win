@@ -98,17 +98,16 @@ describe('web', () => {
     expect(JSON.parse(store.get('whop-sign-in-pending')!)).toMatchObject({ purpose: 'join', returnPath: '/c/K7QM?ref=qr' });
   });
 
-  test('a narrow window redirects too; a wide desktop window without touch keeps the popup', async () => {
+  test('every web window redirects in the tab, a wide desktop window without touch included', async () => {
     const narrow = web('https://signal-app-wine.vercel.app/host', { width: 500 });
     void openWhopSignIn(AUTHORIZE, whopReturnUrl('host'), complete, 'host');
     await Promise.resolve();
     expect(narrow.win.location.assign).toHaveBeenCalled();
     const desktop = web('https://signal-app-wine.vercel.app/host', { width: 1440 });
-    expect(whopReturnUrl('host')).toBe('exp://192.168.1.5:8081/--/host');
-    returning('https://signal-app-wine.vercel.app/host?whop=link&code=pop');
-    expect(await openWhopSignIn(AUTHORIZE, 'https://signal-app-wine.vercel.app/host', complete, 'host')).toBe('linked');
-    expect(desktop.win.location.assign).not.toHaveBeenCalled();
-    expect(complete).toHaveBeenCalledWith('pop');
+    expect(whopReturnUrl('host')).toBe('https://signal-app-wine.vercel.app/host');
+    void openWhopSignIn(AUTHORIZE, whopReturnUrl('host'), complete, 'host');
+    await Promise.resolve();
+    expect(desktop.win.location.assign).toHaveBeenCalled();
   });
 
   test('back from the redirect: redeems the code once, cleans the URL and clears the pending record', async () => {
