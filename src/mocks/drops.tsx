@@ -1,6 +1,6 @@
 import { BountyResultScreen } from '@/components/drops/bounty-result';
 import { RACE_REVEAL_MS, type DossierView, type DropView, type LeaderboardRow, type LeaderboardView, type PassphrasePieceView, type SquadAwardView } from '@/lib/contract';
-import { CHALLENGES, CreatorSetupScreen, POTS } from '@/components/drops/creator-setup';
+import { CHALLENGES, CreatorSetupScreen, MIN_PLAYERS, POTS } from '@/components/drops/creator-setup';
 import { JoinChooser } from '@/components/drops/join-chooser';
 import { PassphraseScreen } from '@/components/drops/passphrase';
 import { DropEntryScreen } from '@/components/drops/drop-entry';
@@ -182,7 +182,7 @@ export const DropStates: MockState[] = [
       />
     ),
   },
-  { id: '10-creator-card', ref: 'beat 2', section: 'Drops', title: 'Creator · prefilled drop card', render: () => <CreatorSetupScreen drop={{ ...danny, title: 'Split Passphrase' }} challenge={CHALLENGES[0]} onChallenge={() => {}} pot={POTS[0]} onPot={() => {}} /> },
+  { id: '10-creator-card', ref: 'beat 2', section: 'Drops', title: 'Creator · prefilled drop card', render: () => <CreatorSetupScreen drop={{ ...danny, title: 'Split Passphrase' }} challenge={CHALLENGES[0]} onChallenge={() => {}} pot={POTS[0]} onPot={() => {}} minPlayers={MIN_PLAYERS[0]} onMinPlayers={() => {}} /> },
   {
     id: '10-creator-real',
     ref: 'beat 2',

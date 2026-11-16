@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 
-import { CHALLENGES, CreatorSetupScreen, POTS, potFits, winnerSlotsFor } from '@/components/drops/creator-setup';
+import { CHALLENGES, CreatorSetupScreen, MIN_PLAYERS, POTS, potFits, winnerSlotsFor } from '@/components/drops/creator-setup';
 import { NameEntryScreen } from '@/components/screens/name-entry';
 import { useHostDrop, useRealPayoutStatus } from '@/hooks/use-drops';
 import { usePlayerName } from '@/hooks/use-player-name';
@@ -16,6 +16,7 @@ export default function HostNewRoute() {
   const [draft, setDraft] = useState('');
   const [pot, setPot] = useState(POTS[0]);
   const [challenge, setChallenge] = useState(CHALLENGES[0]);
+  const [minPlayers, setMinPlayers] = useState(MIN_PLAYERS[0]);
   const [opening, setOpening] = useState(false);
   const [error, setError] = useState<string | null>(null);
   if (name === undefined) return null;
@@ -31,6 +32,8 @@ export default function HostNewRoute() {
         setPot(p);
         setError(null);
       }}
+      minPlayers={minPlayers}
+      onMinPlayers={setMinPlayers}
       error={error}
       onOpen={
         opening || !potFits(pot, real)
@@ -39,7 +42,7 @@ export default function HostNewRoute() {
               setOpening(true);
               setError(null);
               try {
-                const { dropId } = await hostDrop({ title: challenge.title, totalCents: pot.totalCents, winnerSlots: winnerSlotsFor(pot), creatorName: name, template: challenge.template, payoutMode: pot.concept ? 'concept' : 'real' });
+                const { dropId } = await hostDrop({ title: challenge.title, totalCents: pot.totalCents, winnerSlots: winnerSlotsFor(pot), creatorName: name, template: challenge.template, payoutMode: pot.concept ? 'concept' : 'real', minPlayers: minPlayers.value } as Parameters<typeof hostDrop>[0]);
                 router.replace({ pathname: '/drop/[id]/host', params: { id: dropId } });
               } catch (e) {
                 setError(toSignalError(e)?.message ?? 'That didn’t go through. Try again.');

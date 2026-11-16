@@ -34,7 +34,8 @@ export function HostScreen({
   if (view.squads.length) return wide ? <HostBoard view={view} /> : <PhoneBoard view={view} />;
   const qr = wide ? 260 : Math.min(width - Space.xl * 2 - Space.m * 2, 280);
   const server = view as HostView & { minToDeal?: number; needMore?: number };
-  const need = server.needMore ?? Math.max(0, (server.minToDeal ?? minToDeal) - view.entrantCount);
+  const min = server.minToDeal ?? minToDeal;
+  const need = server.needMore ?? Math.max(0, min - view.entrantCount);
   const canDeal = !need && !dealing;
   return (
     <Screen
@@ -75,7 +76,7 @@ export function HostScreen({
         </Txt>
       </View>
       <View style={styles.here}>
-        <Txt variant="title">{`${view.entrantCount} here`}</Txt>
+        <Txt variant="title">{need ? `${view.entrantCount} of ${min} needed` : `${view.entrantCount} here`}</Txt>
         <View style={styles.chips}>
           {view.entrants.slice(-NEWEST).map((e) => (
             <Enter key={`${e.name}-${e.joinedAt}`} from={0}>

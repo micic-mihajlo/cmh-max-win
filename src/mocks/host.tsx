@@ -59,6 +59,7 @@ export const HostStates: MockState[] = [
   { id: '22-host-squads-34', ref: 'scale', section: 'Scale', title: 'Host · 34 squads dealt', render: () => <HostScreen hostName="Danny" view={scale(0)} /> },
   { id: '22-host-race-34', ref: 'scale', section: 'Scale', title: 'Host · 34 squads, 3 winners + 2 solved', render: () => <HostScreen hostName="Danny" view={scale(5)} /> },
   { id: '20-host-empty', ref: 'host.md', section: 'Host', title: 'Host · code, nobody here yet', render: () => <HostScreen hostName="Danny" view={view(0)} /> },
+  { id: '20-host-min-20', ref: 'CAP-86', section: 'Host', title: 'Host · 12 of 20 needed', render: () => <HostScreen hostName="Danny" view={view(12)} minToDeal={20} /> },
   { id: '20-host-three', ref: 'host.md', section: 'Host', title: 'Host · 3 here (deal disabled)', render: () => <HostScreen hostName="Danny" view={view(3)} /> },
   {
     id: '20-host-ready',
