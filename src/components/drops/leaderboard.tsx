@@ -16,7 +16,7 @@ export type RacingSquad = { pick: string | null; locked: number; size: number; n
 
 const squadNames = (names: string[]) => (names.length > 1 ? `${names.slice(0, -1).join(', ')} & ${names[names.length - 1]}` : names.join(''));
 
-// Only our row carries a time; other squads are dimmed labels.
+// Solved squads carry their time; other squads are dimmed labels.
 function Row({ row }: { row: LeaderboardRow }) {
   return (
     <View style={styles.row}>
@@ -36,7 +36,13 @@ function Row({ row }: { row: LeaderboardRow }) {
           {row.isMine ? ' · you' : ''}
         </Txt>
       )}
-      {row.isMine ? <Txt variant="time">{row.status === 'solving' ? 'Racing' : short(row.solveMs ?? 0)}</Txt> : null}
+      {row.isMine ? (
+        <Txt variant="time">{row.status === 'solving' ? 'Racing' : short(row.solveMs ?? 0)}</Txt>
+      ) : row.solveMs !== null ? (
+        <Txt variant="time" color={Palette.paperMuted}>
+          {short(row.solveMs)}
+        </Txt>
+      ) : null}
     </View>
   );
 }
