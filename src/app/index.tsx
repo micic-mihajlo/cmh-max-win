@@ -84,6 +84,7 @@ function Cover() {
       on={{
         onJoinDrop: () => router.push('/join'),
         onHostDrop: () => router.push('/host'),
+        onStreamers: () => router.push('/showcase/streamers'),
         onStart: () => {
           setJoin(null);
           start(name);

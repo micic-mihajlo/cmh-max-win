@@ -51,6 +51,7 @@ export type CoverActions = {
   onTakeSeat?: (role: Role) => void;
   onJoinDrop?: () => void;
   onHostDrop?: () => void;
+  onStreamers?: () => void;
 };
 
 export function CoverScreen({
@@ -104,6 +105,7 @@ export function CoverScreen({
         <View style={styles.cta}>
           <Button title="Join a drop" disabled={creating} onPress={on.onJoinDrop} />
           <Button title="Host a drop" variant="ghost" disabled={creating} onPress={on.onHostDrop} />
+          <Button title="Streamers" variant="ghost" disabled={creating} onPress={on.onStreamers} />
         </View>
       }>
       <Wordmark />

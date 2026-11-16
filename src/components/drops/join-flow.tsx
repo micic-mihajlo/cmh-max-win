@@ -1,4 +1,4 @@
-import { Redirect } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 
 import { JoinCodeScreen, type JoinPhase } from '@/components/drops/join-code';
@@ -53,6 +53,7 @@ export function JoinFlow({ initial }: { initial: string | null }) {
         if (phase === 'error') setPhase('typing');
       }}
       onSubmit={submit}
+      onScan={() => router.push('/scan')}
     />
   );
 }
