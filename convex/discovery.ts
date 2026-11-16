@@ -3,7 +3,7 @@ import { ConvexError, v } from 'convex/values';
 import type { Doc, Id } from './_generated/dataModel';
 import { mutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
 import { paidPlaceCount } from './challenges';
-import { isHiddenStreamer, squadmatesFor } from './feed';
+import { isHiddenStreamer, isRehearsalHost, isRehearsalName, isTestLabel, squadmatesFor } from './feed';
 import { resolveIdentity, type ResolvedIdentity } from './whopAuth';
 import { findCreatorByHandle, normalizeHandle } from './handles';
 import type {
@@ -11,7 +11,9 @@ import type {
   ChallengePhase,
   ChallengeReminderView,
   CreatorPageView,
+  DiscoveryHomeView,
   PastChallengeCardView,
+  ResolvedCodeView,
   PrizePoolView,
   SharePreviewView,
   SignalErrorCode,
@@ -290,6 +292,116 @@ export const shareLink = query({
       prizePool: prizePool(c),
       joinCode: open ? (c.joinCode ?? null) : null,
       slug: slugOf(creator?.handle ?? '', c.config.title, c.joinCode ?? null),
+      serverNow: Date.now(),
+    };
+  },
+});
+
+// ---------- Home screen (CMHM-56) ----------
+
+// The home screen's code tiles: a challenge or drop code in any case, or a challenge slug. Only open games answer.
+export const resolveCode = query({
+  args: { code: v.string() },
+  handler: async (ctx, { code: ref }): Promise<ResolvedCodeView | null> => {
+    const { code, handle } = parseShareRef(ref);
+    if (!code) return null;
+    const challenges = await ctx.db
+      .query('challenges')
+      .withIndex('by_joinCode', (q) => q.eq('joinCode', code))
+      .collect();
+    const creator = handle ? await findCreatorByHandle(ctx, handle) : null;
+    if (challenges.some((c) => (c.status === 'published' || c.status === 'live') && (!handle || c.creatorToken === creator?.deviceToken))) {
+      return { kind: 'challenge', code, path: '/c/' + code };
+    }
+    if (handle) return null;
+    const drops = await ctx.db
+      .query('drops')
+      .withIndex('by_joinCode', (q) => q.eq('joinCode', code))
+      .collect();
+    return drops.some((d) => d.status !== 'ended') ? { kind: 'drop', code, path: '/join/' + code } : null;
+  },
+});
+
+const HOME_ROW = 10;
+const HOME_SCAN = 50;
+
+// "On now" (open and live) and "Coming up" (timed soonest first, then live mode): followed creators first, test,
+// QA and rehearsal hosts left out.
+export const home = query({
+  args: { deviceToken: v.string() },
+  handler: async (ctx, { deviceToken }): Promise<DiscoveryHomeView> => {
+    const me = await resolveIdentity(ctx, deviceToken);
+    const follows = [
+      ...(await ctx.db
+        .query('follows')
+        .withIndex('by_device', (q) => q.eq('deviceToken', me.deviceToken))
+        .collect()),
+      ...(me.whopUserId
+        ? await ctx.db
+            .query('follows')
+            .withIndex('by_whop_user', (q) => q.eq('whopUserId', me.whopUserId))
+            .collect()
+        : []),
+    ];
+    const followedHosts = new Set<string>();
+    for (const streamerId of new Set(follows.map((f) => f.streamerId))) {
+      const streamer = await ctx.db.get(streamerId);
+      if (streamer) followedHosts.add(streamer.hostToken);
+    }
+
+    const byStatus = (status: 'published' | 'live', startMode?: Challenge['config']['startMode']) =>
+      ctx.db
+        .query('challenges')
+        .withIndex('by_status', (q) => (startMode ? q.eq('status', status).eq('config.startMode', startMode) : q.eq('status', status)))
+        .take(HOME_SCAN);
+    const pool = new Map<string, Challenge>();
+    const lists = await Promise.all([
+      byStatus('live'),
+      byStatus('published', 'window'),
+      byStatus('published', 'scheduled'),
+      byStatus('published', 'live'),
+      ...[...followedHosts].map((token) =>
+        ctx.db
+          .query('challenges')
+          .withIndex('by_creator', (q) => q.eq('creatorToken', token))
+          .collect(),
+      ),
+    ]);
+    for (const c of lists.flat()) if (phaseOf(c)) pool.set(c._id, c);
+
+    const creators = new Map<string, Creator | null>();
+    const visibleCreator = async (token: string) => {
+      if (!creators.has(token)) {
+        const creator = await ctx.db
+          .query('creators')
+          .withIndex('by_token', (q) => q.eq('deviceToken', token))
+          .first();
+        const streamer = await ctx.db
+          .query('streamers')
+          .withIndex('by_host', (q) => q.eq('hostToken', token))
+          .first();
+        const hidden =
+          !creator || isTestLabel(creator.displayName) || isRehearsalName(creator.displayName) || (!!streamer && (isHiddenStreamer(streamer) || isRehearsalHost(streamer)));
+        creators.set(token, hidden ? null : creator);
+      }
+      return creators.get(token)!;
+    };
+
+    const followedFirst = (a: Challenge, b: Challenge) => Number(followedHosts.has(b.creatorToken)) - Number(followedHosts.has(a.creatorToken));
+    const newest = (c: Challenge) => c.firstDealtAt ?? c.publishedAt ?? 0;
+    const row = async (phases: ChallengePhase[], order: (a: Challenge, b: Challenge) => number) => {
+      const picked: ChallengeCardView[] = [];
+      const candidates = [...pool.values()].filter((c) => phases.includes(phaseOf(c)!) && !isTestLabel(c.config.title)).sort((a, b) => followedFirst(a, b) || order(a, b));
+      for (const c of candidates) {
+        if (picked.length === HOME_ROW) break;
+        const creator = await visibleCreator(c.creatorToken);
+        if (creator) picked.push(await cardOf(ctx, c, creator));
+      }
+      return picked;
+    };
+    return {
+      onNow: await row(['open', 'live'], (a, b) => newest(b) - newest(a)),
+      comingUp: await row(['upcoming'], byStart),
       serverNow: Date.now(),
     };
   },

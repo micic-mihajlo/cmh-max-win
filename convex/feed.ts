@@ -38,7 +38,8 @@ export const isHiddenStreamer = (s: Doc<'streamers'>) => !!s.hidden || isTestLab
 // Rehearsal and QA hosts by name ("Capy QA", "PP Host", "Rehearsal Nova"): kept out of Find streamers and the following
 // feed only. Pages, follows and the cron still treat them as real.
 const REHEARSAL_NAME = /\b(capy|qa|test|pp host|rehearsal)\b/i;
-export const isRehearsalHost = (s: Doc<'streamers'>) => REHEARSAL_NAME.test(s.name);
+export const isRehearsalName = (name: string) => REHEARSAL_NAME.test(name);
+export const isRehearsalHost = (s: Doc<'streamers'>) => isRehearsalName(s.name);
 export const normalizedName = (name: string) => name.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
 // scripts/demo/seed-streamers.mjs hosts as 'seed-host-…' device tokens.
 const isSeeded = (s: Doc<'streamers'>) => s.hostToken.startsWith('seed-host-');

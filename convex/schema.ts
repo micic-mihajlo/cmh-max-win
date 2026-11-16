@@ -242,7 +242,8 @@ export default defineSchema({
     finishedCount: v.number(),
   })
     .index('by_creator', ['creatorToken'])
-    .index('by_joinCode', ['joinCode']),
+    .index('by_joinCode', ['joinCode'])
+    .index('by_status', ['status', 'config.startMode', 'config.startsAt']), // discovery:home's rows
   challengeEntries: defineTable({
     challengeId: v.id('challenges'),
     deviceToken: v.string(),
