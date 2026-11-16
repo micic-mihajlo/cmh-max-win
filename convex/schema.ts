@@ -434,4 +434,41 @@ export default defineSchema({
     challengeId: v.id('challenges'),
     capacity: v.number(),
   }).index('by_challenge', ['challengeId']),
+  // ---------- Room pulse (CAP-82): convex/roomPulse.ts ----------
+  // One per engine-session challenge, rewritten at the deal, each question advance and each reveal; never on a lock.
+  roomPulses: defineTable({
+    challengeId: v.id('challenges'),
+    joined: v.number(),
+    phase: v.union(v.literal('lobby'), v.literal('question'), v.literal('reveal'), v.literal('finished')),
+    questionIndex: v.union(v.number(), v.null()),
+    questionCount: v.number(),
+    deadline: v.union(v.number(), v.null()),
+    teams: v.array(
+      v.object({
+        id: v.id('challengeTeams'),
+        label: v.string(),
+        memberFirstNames: v.array(v.string()),
+        memberCount: v.number(), // locks the team needs
+        correct: v.union(v.boolean(), v.null()),
+      }),
+    ),
+  }).index('by_challenge', ['challengeId']),
+  // One row per player lock on one question, so concurrent locks never write a shared doc. In per-player quiz play it
+  // also holds the answer until its question closes and folds into the team session (teamSessions.withOpenAnswers).
+  // Server-only: choice and points never leave the server through the pulse.
+  pulseLocks: defineTable({
+    challengeId: v.id('challenges'),
+    questionIndex: v.number(),
+    teamId: v.id('challengeTeams'),
+    playerId: v.string(), // the entry id, as in the engine session
+    lockedAt: v.number(),
+    choice: v.optional(v.number()),
+    points: v.optional(v.number()),
+  }).index('by_question', ['challengeId', 'questionIndex', 'teamId', 'playerId']),
+  // The lobby head count, sharded by device token so concurrent joins rarely touch the same doc.
+  pulseJoinShards: defineTable({
+    challengeId: v.id('challenges'),
+    shard: v.number(),
+    joined: v.number(),
+  }).index('by_challenge', ['challengeId', 'shard']),
 });

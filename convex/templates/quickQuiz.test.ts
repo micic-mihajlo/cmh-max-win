@@ -16,7 +16,7 @@ import {
   wakeTimes,
   type Session,
 } from './engine';
-import { QUIZ_DEFAULT_TIME_MS, quickQuizTemplate, type QuizConfig, type QuizSharedView, type QuizState } from './quickQuiz';
+import { QUIZ_DEFAULT_TIME_MS, quickQuizTemplate, type QuizConfig, type QuizPrivateView, type QuizSharedView, type QuizState } from './quickQuiz';
 import type { Team } from './types';
 
 const SEEDS = Array.from({ length: 40 }, (_, i) => `challenge-1:team${i}`);
@@ -104,13 +104,13 @@ describe('quick-quiz on stream (host pacing)', () => {
     const open = board([fast, slow, wrong]);
     expect(open.round).toMatchObject({ phase: 'question', index: 0, correctText: null });
     expect(open.rows.map((r) => [r.label, r.points, r.answeredCurrent, r.rank])).toEqual([
-      ['Fast', 0, true, 1],
-      ['Slow', 0, true, 1],
-      ['Wrong', 0, true, 1],
+      ['Fast', 0, false, 1],
+      ['Slow', 0, false, 1],
+      ['Wrong', 0, false, 1],
     ]);
     expect(JSON.stringify(open)).not.toContain('Mars');
     expect(quizView(fast).points).toBe(0);
-    expect(quizView(fast).questions[0]).toMatchObject({ answer: { choice: correctIndex(fast, 0) }, correctChoice: null, points: null });
+    expect(quizView(fast).questions[0]).toMatchObject({ answer: null, lockedBy: [fast.players[0].playerId], correctChoice: null, points: null });
 
     const closeAt = opened + 18_000;
     [fast, slow, wrong] = [fast, slow, wrong].map((s) => hostAdvance(s, closeAt));
@@ -133,7 +133,7 @@ describe('quick-quiz on stream (host pacing)', () => {
     expect(await errorCode(() => act(s, p, { type: 'answer', questionIndex: 0, choice: 7 }, opened))).toBe('BAD_CHOICE');
     expect(await errorCode(() => act(s, p, { type: 'answer', questionIndex: 0, choice: 0 }, opened + 20_000))).toBe('CLOSED');
     const answered = act(s, p, { type: 'answer', questionIndex: 0, choice: 0 }, opened + 1).session;
-    expect(await errorCode(() => act(answered, s.players[1].playerId, { type: 'answer', questionIndex: 0, choice: 1 }, opened + 2))).toBe('ALREADY_ANSWERED');
+    expect(await errorCode(() => act(answered, p, { type: 'answer', questionIndex: 0, choice: 1 }, opened + 2))).toBe('ALREADY_ANSWERED');
     expect(await errorCode(() => act(hostAdvance(s, opened + 5), p, { type: 'answer', questionIndex: 0, choice: 0 }, opened + 6))).toBe('CLOSED');
     expect(wakeTimes(lobby)).toEqual([]);
     expect(wakeTimes(s)).toEqual([opened + 20_000]);
@@ -178,6 +178,49 @@ describe('quick-quiz on stream (host pacing)', () => {
       }
     }
     expect(misses).toBeGreaterThan(20);
+  });
+
+  test('every player answers for themselves: a teammate never locks you, and the team scores the sum', () => {
+    const opened = T0 + 30_000;
+    let s = hostAdvance(quizSession(SEEDS[0]), opened);
+    const [p1, p2] = s.players.map((p) => p.playerId);
+    const right = correctIndex(s, 0);
+    s = act(s, p1, { type: 'answer', questionIndex: 0, choice: right }, opened + 1_000).session;
+
+    const mine2 = viewsFor(s, p2).mine as QuizPrivateView;
+    expect(mine2).toMatchObject({ answeredByMe: [], myChoices: [null, null, null], myPoints: [null, null, null] });
+    expect(viewsFor(s, p1).mine).toMatchObject({ answeredByMe: [0], myChoices: [right, null, null], myPoints: [null, null, null] });
+    const shared = viewsFor(s, p2).shared as QuizSharedView;
+    expect(shared.questions[0]).toMatchObject({ answer: null, lockedBy: [p1] });
+    expect(shared.players!.map((p) => p.playerId)).toEqual([p1, p2]);
+    expect(JSON.stringify(shared)).not.toContain('"choice"');
+    expect(publicBoard('quick-quiz', [{ label: 'T', session: s }]).rows[0].answeredCurrent).toBe(false);
+
+    s = act(s, p2, { type: 'answer', questionIndex: 0, choice: (right + 1) % 4 }, opened + 3_000).session;
+    expect(publicBoard('quick-quiz', [{ label: 'T', session: s }]).rows[0].answeredCurrent).toBe(true);
+    s = act(hostAdvance(hostAdvance(s, opened + 5_000), opened + 6_000), p2, { type: 'answer', questionIndex: 1, choice: correctIndex(s, 1) }, opened + 7_000).session;
+    s = hostAdvance(s, opened + 8_000);
+    expect(viewsFor(s, p1).mine).toMatchObject({ myPoints: [975, 0, null] });
+    expect(viewsFor(s, p2).mine).toMatchObject({ myPoints: [0, 950, null] });
+    expect(pointsOf(s)).toBe(975 + 950);
+    expect(quizView(s).questions.map((q) => q.points)).toEqual([975, 950]);
+  });
+
+  test('a session dealt before per-player play still plays and reads as one team answer', async () => {
+    const opened = T0 + 30_000;
+    const fresh = quizSession(SEEDS[1]);
+    const { byPlayer: _dropped, ...legacy } = fresh.state as QuizState;
+    let s: Session = hostAdvance({ ...fresh, state: legacy }, opened);
+    const [p1, p2] = s.players.map((p) => p.playerId);
+    s = act(s, p1, { type: 'answer', questionIndex: 0, choice: correctIndex(s, 0) }, opened + 1_000).session;
+    expect(await errorCode(() => act(s, p2, { type: 'answer', questionIndex: 0, choice: 0 }, opened + 2_000))).toBe('ALREADY_ANSWERED');
+    expect(quizView(s).questions[0]).toMatchObject({ answer: { choice: correctIndex(s, 0), by: p1 } });
+    expect(quizView(s).questions[0].lockedBy).toBeUndefined();
+    expect(publicBoard('quick-quiz', [{ label: 'T', session: s }]).rows[0].answeredCurrent).toBe(true);
+    for (let now = opened + 5_000; !quizView(s).finished; now += 1_000) s = hostAdvance(s, now);
+    expect(quizView(s)).toMatchObject({ finished: true, points: 975 });
+    expect(viewsFor(s, p1).mine).toMatchObject({ answeredByMe: [0], myPoints: [975, 0, 0] });
+    expect(checkSession(s)).toEqual({ solved: true, correct: true });
   });
 
   test('final placement ranks by points, then finish time', () => {
