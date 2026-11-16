@@ -19,6 +19,7 @@ export default function HostRoute() {
   const deal = useDealSquads(id);
   const [dealing, setDealing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [minToDeal, setMinToDeal] = useState<number>();
   if (view === undefined) {
     return (
       <View style={styles.loading}>
@@ -33,13 +34,17 @@ export default function HostRoute() {
         view={view}
         hostName={name ?? 'Danny'}
         dealing={dealing}
+        minToDeal={minToDeal}
         onDeal={async () => {
           setDealing(true);
           setError(null);
           try {
             await deal();
           } catch (e) {
-            setError(toSignalError(e)?.code === 'NOT_ENOUGH_PLAYERS' ? 'Wait for 4 players.' : 'That didn’t go through. Try again.');
+            const err = toSignalError(e);
+            const least = err?.code === 'NOT_ENOUGH_PLAYERS' ? Number(err.message.match(/at least (\d+)/)?.[1]) : NaN;
+            if (least) setMinToDeal(least);
+            else setError(err?.code === 'NOT_ENOUGH_PLAYERS' ? 'Not enough players to deal yet.' : 'That didn’t go through. Try again.');
           } finally {
             setDealing(false);
           }

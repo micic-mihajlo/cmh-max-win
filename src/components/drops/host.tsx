@@ -16,20 +16,34 @@ const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL;
 
 // The shared big screen before the deal: the code is the hero, the QR is the way in. On a phone the QR takes the
 // full width so the room can scan it at arm's length or off an AirPlay mirror.
-export function HostScreen({ view, hostName, dealing, onDeal }: { view: HostView; hostName: string; dealing?: boolean; onDeal?: () => void }) {
+export function HostScreen({
+  view,
+  hostName,
+  dealing,
+  onDeal,
+  minToDeal = MIN_TO_DEAL,
+}: {
+  view: HostView;
+  hostName: string;
+  dealing?: boolean;
+  onDeal?: () => void;
+  minToDeal?: number;
+}) {
   const { width } = useWindowDimensions();
   const wide = width >= 768;
   if (view.squads.length) return wide ? <HostBoard view={view} /> : <PhoneBoard view={view} />;
   const qr = wide ? 260 : Math.min(width - Space.xl * 2 - Space.m * 2, 280);
-  const canDeal = view.entrantCount >= MIN_TO_DEAL && !dealing;
+  const server = view as HostView & { minToDeal?: number; needMore?: number };
+  const need = server.needMore ?? Math.max(0, (server.minToDeal ?? minToDeal) - view.entrantCount);
+  const canDeal = !need && !dealing;
   return (
     <Screen
       footer={
-        <View style={styles.footer}>
-          <Pot view={view} style={styles.flex} />
+        <View style={[styles.footer, !wide && styles.footerStack]}>
+          <Pot view={view} style={wide && styles.flex} />
           <PressScale disabled={!canDeal} onPress={onDeal} haptic="tap" style={[styles.deal, !canDeal && styles.dealOff]}>
-            <Txt variant="button" color={canDeal ? Palette.onAccent : Palette.disabledText}>
-              {dealing ? 'Dealing…' : 'Deal squads'}
+            <Txt variant="button" color={canDeal ? Palette.onAccent : Palette.paperMuted}>
+              {dealing ? 'Dealing…' : need ? `Need ${need} more player${need === 1 ? '' : 's'} to deal` : 'Deal squads'}
             </Txt>
           </PressScale>
         </View>
@@ -286,6 +300,7 @@ const styles = StyleSheet.create({
   more: { backgroundColor: 'transparent' },
   chip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: Radius.pill, backgroundColor: Palette.paperShade },
   footer: { flexDirection: 'row', alignItems: 'center', gap: Space.l },
+  footerStack: { flexDirection: 'column', alignItems: 'stretch', gap: Space.m },
   deal: { height: 54, paddingHorizontal: Space.xl, borderRadius: 16, backgroundColor: Palette.ember, alignItems: 'center', justifyContent: 'center' },
   dealOff: { backgroundColor: Palette.inkDeep },
 });
