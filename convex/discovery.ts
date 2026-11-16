@@ -4,7 +4,7 @@ import type { Doc, Id } from './_generated/dataModel';
 import { mutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
 import { paidPlaceCount } from './challenges';
 import { isHiddenStreamer, isRehearsalHost, isRehearsalName, isTestLabel, squadmatesFor } from './feed';
-import { resolveIdentity, type ResolvedIdentity } from './whopAuth';
+import { linkedDeviceTokens, resolveIdentity, type ResolvedIdentity } from './whopAuth';
 import { findCreatorByHandle, normalizeHandle } from './handles';
 import type {
   ChallengeCardView,
@@ -136,10 +136,17 @@ async function streamerOf(ctx: QueryCtx, creator: Creator) {
 }
 
 async function followRows(ctx: QueryCtx, me: ResolvedIdentity, streamerId: Id<'streamers'>) {
-  const byDevice = await ctx.db
-    .query('follows')
-    .withIndex('by_device', (q) => q.eq('deviceToken', me.deviceToken).eq('streamerId', streamerId))
-    .collect();
+  const tokens = await linkedDeviceTokens(ctx, me.deviceToken);
+  const byDevice = (
+    await Promise.all(
+      tokens.map((t) =>
+        ctx.db
+          .query('follows')
+          .withIndex('by_device', (q) => q.eq('deviceToken', t).eq('streamerId', streamerId))
+          .collect(),
+      ),
+    )
+  ).flat();
   const byWhop = me.whopUserId
     ? await ctx.db
         .query('follows')
@@ -449,11 +456,19 @@ export const cancelChallengeReminder = mutation({
 export const upcomingReminders = query({
   args: { deviceToken: v.string() },
   handler: async (ctx, { deviceToken }): Promise<ChallengeReminderView[]> => {
-    const rows = await ctx.db
-      .query('challengeReminders')
-      .withIndex('by_device', (q) => q.eq('deviceToken', deviceToken))
-      .collect();
-    const challenges = (await Promise.all(rows.map((r) => ctx.db.get(r.challengeId)))).filter((c): c is Challenge => !!c && remindable(c));
+    const tokens = await linkedDeviceTokens(ctx, deviceToken);
+    const rows = (
+      await Promise.all(
+        tokens.map((t) =>
+          ctx.db
+            .query('challengeReminders')
+            .withIndex('by_device', (q) => q.eq('deviceToken', t))
+            .collect(),
+        ),
+      )
+    ).flat();
+    const ids = [...new Set(rows.map((r) => r.challengeId))];
+    const challenges = (await Promise.all(ids.map((id) => ctx.db.get(id)))).filter((c): c is Challenge => !!c && remindable(c));
     return Promise.all(
       challenges.sort(byStart).map(async (c) => {
         const [creator, entries] = await Promise.all([

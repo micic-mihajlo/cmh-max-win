@@ -9,23 +9,29 @@ import { NudgeEntrance, Stagger } from '@/motion';
 import { RACE_REVEAL_MS, type DropView, type LeaderboardRow, type LeaderboardView, type Role } from '@/lib/contract';
 
 import { useServerClock } from './clock';
-import { short } from './ui';
+import { names, short } from './ui';
 
 // RoomView-derived state for the bottom card while the squad is racing.
 export type RacingSquad = { pick: string | null; locked: number; size: number; nudge: string | null; cooldownUntil: number | null; agreed?: string[]; meLocked?: boolean };
 
-const squadNames = (names: string[]) => (names.length > 1 ? `${names.slice(0, -1).join(', ')} & ${names[names.length - 1]}` : names.join(''));
+// Your own squad in the passphrase head's words: "Lou, you and Ana".
+const squadNames = (list: string[], me: string | null) => {
+  const at = me ? list.indexOf(me) : -1;
+  return names(at < 0 ? list : list.map((n, i) => (i === at ? 'you' : n)));
+};
 
-// Solved squads carry their time; other squads are dimmed labels.
-function Row({ row }: { row: LeaderboardRow }) {
+// Every squad shows its first names; solved squads carry their time. Other squads are dimmed.
+function Row({ row, me }: { row: LeaderboardRow; me: string | null }) {
   return (
     <View style={styles.row}>
       <Txt variant="bodyStrong" color={row.isMine ? Palette.ember : Palette.paperMuted} style={styles.rank}>
         {row.rank ?? ''}
       </Txt>
-      {row.isMine && row.memberNames.length ? (
+      {row.memberNames.length ? (
         <View style={styles.flex}>
-          <Txt variant="bodyStrong">{squadNames(row.memberNames)}</Txt>
+          <Txt variant="bodyStrong" color={row.isMine ? Palette.paper : Palette.paperMuted} numberOfLines={1}>
+            {squadNames(row.memberNames, row.isMine ? me : null)}
+          </Txt>
           <Txt variant="caption" color={Palette.paperMuted}>
             {row.squadLabel}
           </Txt>
@@ -133,7 +139,7 @@ export function LeaderboardScreen({
       <View style={styles.list}>
         <Stagger>
           {shown.map((r) => (
-            <Row key={r.squadLabel} row={r} />
+            <Row key={r.squadLabel} row={r} me={drop.me.name} />
           ))}
         </Stagger>
       </View>

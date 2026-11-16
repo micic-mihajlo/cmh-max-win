@@ -4,7 +4,7 @@ import { useQuery } from 'convex-helpers/react/cache/hooks';
 import { useCallback, useEffect } from 'react';
 
 import { useDeviceToken } from '@/hooks/use-device-token';
-import type { UseLinkForClaim, UseSignInToJoin, UseSignOutWhop, UseWhopAccount, WhopSignInResult } from '@/lib/contract';
+import type { UseLinkForClaim, UseSignInToJoin, UseSignInWithWhop, UseSignOutWhop, UseWhopAccount, WhopSignInResult } from '@/lib/contract';
 import { getDeviceToken } from '@/lib/device';
 import { finishWhopRedirect, openWhopSignIn, whopReturnUrl } from '@/lib/whop-auth';
 
@@ -48,6 +48,19 @@ export const useSignInToJoin: UseSignInToJoin = (code, returnPath) => {
     if (result.reason) return result.reason;
     return openWhopSignIn(result.url, returnUrl, (linkCode) => complete({ deviceToken, linkCode }), 'join');
   }, [code, complete, deviceToken, returnPath, start]);
+};
+
+export const useSignInWithWhop: UseSignInWithWhop = (returnPath) => {
+  const start = useAction(api.whopAuth.startSignIn);
+  const complete = useMutation(api.whopAuth.completeSignIn);
+  useFinishWhopRedirect();
+  return useCallback(async (): Promise<WhopSignInResult> => {
+    const deviceToken = await getDeviceToken();
+    const returnUrl = whopReturnUrl(returnPath);
+    const result = await start({ deviceToken, purpose: 'account', returnUrl });
+    if (result.reason) return result.reason;
+    return openWhopSignIn(result.url, returnUrl, (linkCode) => complete({ deviceToken, linkCode }), 'account');
+  }, [complete, returnPath, start]);
 };
 
 export const useSignOutWhop: UseSignOutWhop = () => {

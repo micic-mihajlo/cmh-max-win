@@ -37,6 +37,18 @@ export async function resolveIdentity(ctx: Pick<QueryCtx, 'db'>, deviceToken: st
   return identity ? { deviceToken, whopUserId: identity.whopUserId, name: identity.name } : { deviceToken };
 }
 
+// Every device signed in to this device's Whop account, this one first; only this one when it isn't signed in.
+// Account reads (follows, reminders, challenges, hosted drops, payouts) union over these. Seats stay per device.
+export async function linkedDeviceTokens(ctx: Pick<QueryCtx, 'db'>, deviceToken: string): Promise<string[]> {
+  const { whopUserId } = await resolveIdentity(ctx, deviceToken);
+  if (!whopUserId) return [deviceToken];
+  const rows = await ctx.db
+    .query('identities')
+    .withIndex('by_whop_user', (q) => q.eq('whopUserId', whopUserId))
+    .collect();
+  return [deviceToken, ...rows.map((r) => r.deviceToken).filter((t) => t !== deviceToken)];
+}
+
 export async function checkWhopAccess(
   whopUserId: string,
   resourceId: string,
@@ -113,6 +125,7 @@ export const account = query({
         ? {
             whopUserId: identity.whopUserId,
             name: identity.name,
+            displayName: identity.name,
             username: identity.username ?? null,
             avatarUrl: identity.avatarUrl ?? null,
             environment: identity.environment,
@@ -183,7 +196,7 @@ export const startSignIn = action({
     deviceToken: v.string(),
     claimCode: v.optional(v.string()),
     returnUrl: v.optional(v.string()),
-    purpose: v.optional(v.union(v.literal('join'), v.literal('host'))),
+    purpose: v.optional(v.union(v.literal('join'), v.literal('host'), v.literal('account'))),
     challengeCode: v.optional(v.string()),
   },
   handler: async (
@@ -192,8 +205,8 @@ export const startSignIn = action({
   ): Promise<{ url: string; reason: null } | { url: null; reason: 'unavailable' | 'not_winner' | 'no_profile' | 'not_required' }> => {
     const clientId = process.env.WHOP_OAUTH_CLIENT_ID;
     if (!clientId) return { url: null, reason: 'unavailable' };
-    if (purpose === 'host') {
-      // Any device may host, so there is nothing to gate.
+    if (purpose === 'host' || purpose === 'account') {
+      // Any device may host or sign in to its account, so there is nothing to gate.
     } else if (purpose === 'join') {
       if (!challengeCode || !(await ctx.runQuery(internal.whopAuth.joinNeedsWhop, { challengeCode }))) return { url: null, reason: 'not_required' };
     } else if (claimCode === undefined) {

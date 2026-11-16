@@ -7,6 +7,7 @@ import { useEffect } from 'react';
 
 import { Enter, Haptic, PressScale, Stagger } from '@/motion';
 
+import { names as joinNames } from './ui';
 import { RACE_REVEAL_MS, type DossierView, type DropView, type MemberView } from '@/lib/contract';
 
 export type SquadMemberView = Pick<MemberView, 'memberId' | 'name' | 'role' | 'roles' | 'isMe'>;
@@ -17,18 +18,20 @@ export function SquadRevealScreen({
   members,
   pieces,
   play = true,
+  cta = 'Open the case',
   onOpen,
 }: {
   drop: DropView;
   members: SquadMemberView[];
   pieces: DossierView[] | undefined;
   play?: boolean;
+  cta?: string;
   onOpen?: () => void;
 }) {
   const squad = drop.me.squad;
   const ordered = [...members].sort((a, b) => Number(b.isMe) - Number(a.isMe));
   const names = ordered.map((m) => m.name);
-  const hero = names.length > 1 ? `${names.slice(0, -1).join(', ')} & ${names[names.length - 1]}` : (names[0] ?? 'Your squad');
+  const hero = joinNames(names) || 'Your squad';
   useEffect(() => {
     if (!play) return;
     const card = setTimeout(Haptic.success, 900);
@@ -45,7 +48,7 @@ export function SquadRevealScreen({
           <View style={styles.footer}>
             <PressScale style={styles.cta} onPress={onOpen}>
               <Txt variant="button" color={Palette.ink}>
-                Open the case
+                {cta}
               </Txt>
             </PressScale>
           </View>
@@ -54,14 +57,12 @@ export function SquadRevealScreen({
       <Enter play={play} delay={900}>
         <View style={styles.card}>
           <View style={styles.cardHead}>
-            <Txt variant="title" style={styles.flex}>
-              {hero}
-            </Txt>
             {squad ? (
-              <Txt variant="caption" color={Palette.paperMuted}>
+              <Txt variant="caption" color={Palette.paperMuted} numberOfLines={1}>
                 {squad.label}
               </Txt>
             ) : null}
+            <Txt variant="title">{hero}</Txt>
           </View>
           <View style={styles.members}>
             <Stagger play={play} delay={900}>
@@ -102,7 +103,7 @@ const styles = StyleSheet.create({
   footer: { gap: Space.s },
   cta: { height: 52, borderRadius: 16, backgroundColor: Palette.paper, alignItems: 'center', justifyContent: 'center' },
   card: { padding: 18, borderRadius: 16, backgroundColor: Palette.panel, borderWidth: StyleSheet.hairlineWidth, borderColor: Palette.hairline },
-  cardHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: Space.m },
+  cardHead: { gap: 2 },
   members: { gap: 10, marginTop: 14 },
   mem: { flexDirection: 'row', alignItems: 'center', gap: Space.m },
   avatar: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
