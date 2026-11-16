@@ -4,7 +4,7 @@
   "installCommand": "",
   "outputDirectory": ".",
   "cleanUrls": true,
-  "redirects": [{ "source": "/video", "destination": "https://api.capy.ai/pr-assets/v_ePL8Jzn_Wh9Mcvl8mdffOm0h765ZdYrgbCMZgp1F5zM.mp4", "permanent": false }],
+  "redirects": [{ "source": "/video", "destination": "https://api.capy.ai/pr-assets/v_dVS031jmz2oH-Q_2ixeHVN3vP8dES6yb5iuR9zF0fKU.mp4", "permanent": false }],
   "rewrites": [
     { "source": "/assets/node_modules/:path*", "destination": "/assets/nm/:path*" },
     { "source": "/:path*", "destination": "/" }
