@@ -5,8 +5,9 @@ import { Button } from '@/components/signal/primitives';
 import { Txt } from '@/components/signal/txt';
 import { Palette, Radius, Space } from '@/constants/signal';
 import type { AwardPayoutView, BountyView, SquadAwardView } from '@/lib/contract';
-import { Enter, PressScale } from '@/motion';
+import { Enter } from '@/motion';
 
+import { HostFollow, type HostFollowProps } from './host-follow';
 import { Brass, money, money2 } from './ui';
 
 const failures: Record<string, string> = {
@@ -15,8 +16,8 @@ const failures: Record<string, string> = {
 };
 
 function payoutLine(p: AwardPayoutView) {
+  if (p.status === 'sign_in_required') return `Sign in with Whop to receive ${money2(p.amountCents)}`;
   if (p.message) return p.message;
-  if (p.status === 'sign_in_required') return `Sign in with Whop to receive ${money2(p.amountCents)}.`;
   if (p.status === 'sending') return 'Sending to your Whop balance…';
   if (p.status === 'sent') return 'Sent to your Whop balance.';
   if (p.status === 'failed') return failures[p.failureCode ?? ''] ?? 'Whop couldn’t send it. Nothing was charged, and your share is still yours.';
@@ -34,7 +35,7 @@ export function BountyResultScreen({
   award: SquadAwardView;
   bounty: BountyView;
   signingIn?: boolean;
-  host?: { name: string; following: boolean; onFollow?: () => void };
+  host?: HostFollowProps;
   on?: { onSignIn?: () => void; onContinue?: () => void };
 }) {
   const p = award.myPayout;
@@ -97,15 +98,9 @@ export function BountyResultScreen({
       </Enter>
       {host ? (
         <Enter from={8} delay={160}>
-          {host.following ? (
-            <Txt variant="body" color={Palette.paperMuted} style={styles.host}>
-              See you Friday
-            </Txt>
-          ) : (
-            <PressScale accessibilityRole="link" haptic="tap" onPress={host.onFollow} style={styles.host}>
-              <Txt variant="bodyStrong">{`Follow ${host.name} for next Friday`}</Txt>
-            </PressScale>
-          )}
+          <View style={styles.host}>
+            <HostFollow {...host} />
+          </View>
         </Enter>
       ) : null}
     </Screen>
@@ -119,6 +114,6 @@ const styles = StyleSheet.create({
   concept: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: Brass, backgroundColor: 'transparent' },
   status: { flexDirection: 'row', alignItems: 'center', gap: Space.s },
   split: { paddingHorizontal: Space.xl },
-  host: { alignSelf: 'flex-start', paddingHorizontal: Space.xl, paddingVertical: Space.s },
+  host: { paddingHorizontal: Space.xl },
   row: { flexDirection: 'row', alignItems: 'center', gap: Space.m, height: 64 },
 });

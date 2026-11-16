@@ -391,6 +391,35 @@ export const DropStates: MockState[] = [
   { id: '16-payout-sending', ref: 'payout', section: 'Payout', title: 'Payout · sending', render: () => <BountyResultScreen award={paid({ status: 'sending' })} bounty={bounty} /> },
   { id: '16-payout-sent', ref: 'payout', section: 'Payout', title: 'Payout · sent', render: () => <BountyResultScreen award={paid({ status: 'sent', transferId: 'ctt_8kQ2mZ4hYw', message: 'Sent to your Whop balance' })} bounty={bounty} /> },
   {
+    id: '16-payout-follow',
+    ref: 'retention',
+    section: 'Payout',
+    title: 'Payout · sign in with Whop + Follow the host',
+    render: () => <BountyResultScreen award={paid({ status: 'sign_in_required', message: 'Sign in with Whop to receive $1' })} bounty={bounty} host={{ name: 'Danny', following: false, next: { startsAt: new Date(2026, 10, 20, 21).getTime(), reminded: false } }} />,
+  },
+  {
+    id: '16-payout-following',
+    ref: 'retention',
+    section: 'Payout',
+    title: 'Payout · following the host, Remind me',
+    render: () => (
+      <BountyResultScreen
+        award={paid({ status: 'sign_in_required', message: 'Sign in with Whop to receive $1' })}
+        bounty={bounty}
+        host={{ name: 'Danny', following: true, next: { startsAt: new Date(2026, 10, 20, 21).getTime(), reminded: false } }}
+      />
+    ),
+  },
+  {
+    id: '14-race-missed-follow',
+    ref: 'retention',
+    section: 'Drops',
+    title: 'Race · passphrase, missed the bounty + Follow the host',
+    render: () => (
+      <LeaderboardScreen offset={0} drop={{ ...live(3), template: 'split-passphrase' }} board={scaleMissed} host={{ name: 'Danny', following: false, next: null }} />
+    ),
+  },
+  {
     id: '16-payout-failed',
     ref: 'payout',
     section: 'Payout',

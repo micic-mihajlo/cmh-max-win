@@ -8,6 +8,7 @@ import { Txt } from '@/components/signal/txt';
 import { suspectById } from '@/constants/case01';
 import { Palette } from '@/constants/signal';
 import { useDrop, useLeaderboard, useServerOffset } from '@/hooks/use-drops';
+import { useHostFollow } from '@/hooks/use-host-follow';
 import { useRoom } from '@/hooks/use-signal';
 
 // A render error on the race used to leave a blank white page on web until a manual reload.
@@ -29,6 +30,7 @@ export default function RaceRoute() {
   const offset = useServerOffset();
   const code = drop?.me.squad?.code ?? null;
   const room = useRoom(code);
+  const host = useHostFollow(drop?.template ? id : null);
   if (!drop || !board) {
     return <Pending />;
   }
@@ -52,6 +54,7 @@ export default function RaceRoute() {
               }
             : undefined
         }
+        host={host}
         roles={room?.members.map((m) => m.role ?? m.roles[0]).filter((r) => r !== undefined)}
         on={{
           onCase: () => code && (drop.template ? router.replace({ pathname: '/drop/[id]', params: { id } }) : router.push({ pathname: '/room/[code]', params: { code } })),
