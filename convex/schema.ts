@@ -409,6 +409,8 @@ export default defineSchema({
   })
     .index('by_device', ['deviceToken'])
     .index('by_token', ['token']),
+  // The platform Whop ledger's last read available balance (bounty.saveBalance); caps realPayoutStatus.
+  whopBalanceCache: defineTable({ availableCents: v.number(), checkedAt: v.number() }),
   // Dedupe ledger: at most one push per device per drop (a drop has one streamer).
   pushSends: defineTable({
     deviceToken: v.string(),

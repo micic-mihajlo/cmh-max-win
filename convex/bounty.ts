@@ -2,8 +2,8 @@ import { ConvexError, v } from 'convex/values';
 
 import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
-import { internalAction, internalMutation, type MutationCtx, type QueryCtx } from './_generated/server';
-import { WHOP_TRANSFER_API_VERSION_DATE, whopApiBase, whopEnvironment, whopRequest } from './whop';
+import { internalAction, internalMutation, internalQuery, type MutationCtx, type QueryCtx } from './_generated/server';
+import { WHOP_API_VERSION_DATE, WHOP_TRANSFER_API_VERSION_DATE, whopApiBase, whopEnvironment, whopRequest } from './whop';
 
 type WhopClaimLink = {
   id: string;
@@ -167,6 +167,8 @@ export const recordAward = internalMutation({
 export const TRANSFER_LABEL = 'Paid by Whop transfer';
 const FAILED_TRANSFER_STATUSES = new Set(['failed', 'canceled', 'cancelled', 'reversed', 'rejected']);
 const MAX_TRANSFER_ATTEMPTS = 4;
+export const MIN_TRANSFER_CENTS = 100; // Whop refuses a transfer under $1 ("minimum amount you can pay is $1.00")
+export const SIGN_IN_RELEASE_MS = 30 * 60 * 1000; // an unclaimed share goes back to the real budget after this
 
 // Real transfers are capped per award (SIGNAL_REAL_PAYOUT_CAP_CENTS, default $10): anyone can host a drop
 // with any pool, so an award above the cap stays concept.
@@ -197,17 +199,27 @@ export async function realBudgetCommittedCents(ctx: Pick<QueryCtx, 'db'>) {
     .reduce((sum, r) => sum + r.cents, 0);
 }
 
-// What's left of SIGNAL_REAL_PAYOUT_BUDGET_CENTS; 0 when real payouts are off.
+// What's left of SIGNAL_REAL_PAYOUT_BUDGET_CENTS, and no more than the cached Whop balance can pay with the fee;
+// 0 when real payouts are off. Before the first balance read there is no cap; each transfer still checks the ledger.
 export async function realBudgetRemainingCents(ctx: Pick<QueryCtx, 'db'>) {
   if (process.env.SIGNAL_REAL_PAYOUTS !== 'on') return 0;
-  return Math.max(0, realPayoutBudgetCents() - (await realBudgetCommittedCents(ctx)));
+  const budget = Math.max(0, realPayoutBudgetCents() - (await realBudgetCommittedCents(ctx)));
+  const cached = await ctx.db.query('whopBalanceCache').first();
+  return cached ? Math.min(budget, Math.max(0, Math.floor(cached.availableCents / (1 + TRANSFER_FEE_RATE)))) : budget;
 }
 
-// A drop hosted with payoutMode 'concept' never moves real money, even with real payouts on.
-export async function awardModeWithBudget(ctx: Pick<QueryCtx, 'db'>, drop: Pick<Doc<'drops'>, 'conceptOnly' | 'payoutMode'>, awardCents: number) {
+// A drop hosted with payoutMode 'concept' never moves real money, even with real payouts on, and neither does an
+// award whose per-player share is under Whop's $1 minimum.
+export async function awardModeWithBudget(
+  ctx: Pick<QueryCtx, 'db'>,
+  drop: Pick<Doc<'drops'>, 'conceptOnly' | 'payoutMode'>,
+  awardCents: number,
+  perPlayerCents: number,
+) {
   if (drop.payoutMode === 'concept') return 'concept';
   const mode = awardMode(drop, awardCents);
   if (mode !== 'transfer') return mode;
+  if (perPlayerCents < MIN_TRANSFER_CENTS) return 'concept';
   return (await realBudgetCommittedCents(ctx)) + awardCents <= realPayoutBudgetCents() ? 'transfer' : 'concept';
 }
 
@@ -235,6 +247,10 @@ export async function createTransferRows(ctx: MutationCtx, awardId: Id<'bountyAw
     .query('members')
     .withIndex('by_room', (q) => q.eq('roomId', award.roomId))
     .collect();
+  const hosted = await ctx.db
+    .query('streamerDrops')
+    .withIndex('by_drop', (q) => q.eq('dropId', award.dropId))
+    .unique();
   for (const m of members) {
     const payoutId = await ctx.db.insert('bountyPayouts', {
       awardId,
@@ -251,9 +267,87 @@ export async function createTransferRows(ctx: MutationCtx, awardId: Id<'bountyAw
       .withIndex('by_token', (q) => q.eq('deviceToken', m.deviceToken))
       .unique();
     if (identity) await queueTransfer(ctx, payoutId, identity.whopUserId);
+    else if (hosted?.rehearsal) await releaseRows(ctx, [(await ctx.db.get(payoutId))!]);
   }
   await ctx.db.patch(awardId, { status: 'ready', label: TRANSFER_LABEL });
 }
+
+// An unclaimed share stops holding real budget: the row fails as sign_in_expired, which the budget doesn't count, and
+// a later Whop sign-in no longer pays it.
+async function releaseRows(ctx: MutationCtx, rows: Doc<'bountyPayouts'>[]) {
+  let cents = 0;
+  for (const row of rows) {
+    if (row.status !== 'sign_in_required') continue;
+    await ctx.db.patch(row._id, { status: 'failed', failureCode: 'sign_in_expired', error: 'Nobody signed in with Whop in time.', updatedAt: Date.now() });
+    cents += row.cents;
+  }
+  return cents;
+}
+
+// ---------- Whop balance guard ----------
+
+export const TRANSFER_FEE_RATE = 0.03;
+export const BALANCE_REFRESH_MS = 60_000;
+export const withFeeCents = (cents: number) => Math.ceil(cents * (1 + TRANSFER_FEE_RATE));
+
+// The platform ledger's available USD balance in cents, or null when Whop can't be read.
+async function readAvailableCents(apiKey: string, origin: string): Promise<number | null> {
+  try {
+    const response = await fetch(whopApiBase() + '/ledger_accounts/' + encodeURIComponent(origin), {
+      headers: { Authorization: `Bearer ${apiKey}`, 'Api-Version-Date': WHOP_API_VERSION_DATE },
+    });
+    if (!response.ok) return null;
+    const ledger = (await response.json()) as { balances?: { currency?: string; balance?: number }[] };
+    const usd = ledger.balances?.find((b) => b.currency === 'usd');
+    return typeof usd?.balance === 'number' ? Math.floor(usd.balance * 100) : null;
+  } catch {
+    return null;
+  }
+}
+
+export const saveBalance = internalMutation({
+  args: { availableCents: v.number() },
+  handler: async (ctx, { availableCents }) => {
+    const row = await ctx.db.query('whopBalanceCache').first();
+    if (row) await ctx.db.patch(row._id, { availableCents, checkedAt: Date.now() });
+    else await ctx.db.insert('whopBalanceCache', { availableCents, checkedAt: Date.now() });
+  },
+});
+
+export const cachedBalance = internalQuery({ args: {}, handler: (ctx) => ctx.db.query('whopBalanceCache').first() });
+
+// Cron, every minute while real payouts are on: refreshes the cached balance the host picker is capped by.
+export const refreshBalance = internalAction({
+  args: {},
+  handler: async (ctx) => {
+    const apiKey = process.env.WHOP_API_KEY;
+    const origin = process.env.WHOP_ACCOUNT_ID;
+    if (process.env.SIGNAL_REAL_PAYOUTS !== 'on' || !apiKey || !origin) return;
+    const cached = await ctx.runQuery(internal.bounty.cachedBalance, {});
+    if (cached && Date.now() - cached.checkedAt < BALANCE_REFRESH_MS) return;
+    const availableCents = await readAvailableCents(apiKey, origin);
+    if (availableCents !== null) await ctx.runMutation(internal.bounty.saveBalance, { availableCents });
+  },
+});
+
+// Cron (no dropId): releases shares still waiting on a Whop sign-in SIGN_IN_RELEASE_MS after they were awarded.
+// By hand (dropId): releases every waiting share of that drop now. Idempotent.
+export const releaseUnclaimed = internalMutation({
+  args: { dropId: v.optional(v.string()) },
+  handler: async (ctx, { dropId }) => {
+    let rows: Doc<'bountyPayouts'>[];
+    if (dropId) {
+      const awards = (await ctx.db.query('bountyAwards').collect()).filter((a) => a.dropId === dropId);
+      rows = [];
+      for (const award of awards) rows.push(...(await ctx.db.query('bountyPayouts').withIndex('by_award', (q) => q.eq('awardId', award._id)).collect()));
+    } else {
+      const cutoff = Date.now() - SIGN_IN_RELEASE_MS;
+      rows = (await ctx.db.query('bountyPayouts').collect()).filter((r) => r.status === 'sign_in_required' && r.updatedAt <= cutoff);
+    }
+    const waiting = rows.filter((r) => r.status === 'sign_in_required');
+    return { released: waiting.length, cents: await releaseRows(ctx, waiting) };
+  },
+});
 
 // Called when a device links Whop: its waiting transfers go out to the account it just linked.
 export async function releaseTransfersFor(ctx: MutationCtx, deviceToken: string, whopUserId: string) {
@@ -306,6 +400,10 @@ export const sendTransfer = internalAction({
   handler: async (ctx, { payoutId }) => {
     const job = await ctx.runMutation(internal.bounty.transferForSend, { payoutId });
     if (!job) return;
+    if (job.cents < MIN_TRANSFER_CENTS) {
+      await ctx.runMutation(internal.bounty.recordTransfer, { payoutId, status: 'failed', failureCode: 'below_minimum' });
+      return;
+    }
     const retry = async () => {
       if (job.attempt >= MAX_TRANSFER_ATTEMPTS) {
         await ctx.runMutation(internal.bounty.recordTransfer, { payoutId, status: 'failed', failureCode: 'retries_exhausted' });
@@ -317,6 +415,18 @@ export const sendTransfer = internalAction({
     const origin = process.env.WHOP_ACCOUNT_ID;
     if (!apiKey || !origin) {
       await ctx.runMutation(internal.bounty.recordTransfer, { payoutId, status: 'failed', failureCode: 'whop_not_configured' });
+      return;
+    }
+    // A transfer Whop refuses for funds risks a fraud hold, so the ledger must cover amount plus fee first.
+    const availableCents = await readAvailableCents(apiKey, origin);
+    if (availableCents === null) {
+      await retry();
+      return;
+    }
+    await ctx.runMutation(internal.bounty.saveBalance, { availableCents });
+    if (availableCents < withFeeCents(job.cents)) {
+      console.warn('REAL_FUNDS_LOW', { payoutId, cents: job.cents, availableCents });
+      await ctx.runMutation(internal.bounty.recordTransfer, { payoutId, status: 'failed', failureCode: 'REAL_FUNDS_LOW', error: `Whop balance ${availableCents}¢ is under ${withFeeCents(job.cents)}¢ with the fee.` });
       return;
     }
     let response: Response;

@@ -3,7 +3,7 @@ import { ConvexError, v } from 'convex/values';
 import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, mutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
-import { awardModeWithBudget, realBudgetRemainingCents, realPayoutBudgetCents, realPayoutCapCents } from './bounty';
+import { CONCEPT_LABEL, MIN_TRANSFER_CENTS, awardModeWithBudget, realBudgetRemainingCents, realPayoutBudgetCents, realPayoutCapCents } from './bounty';
 import { ROLES, type Role } from './case01';
 import { checkScheduledStart, noteHostedDrop } from './feed';
 import { dealPassphrase } from './passphrase';
@@ -141,7 +141,7 @@ export async function bountyView(ctx: Pick<QueryCtx, 'db'>, drop: Doc<'drops'>):
     currency: 'usd',
     winnerSlots: drop.bounty.winnerSlots,
     perSquadCents,
-    mode: award?.mode ?? (await awardModeWithBudget(ctx, drop, perSquadCents)),
+    mode: award?.mode ?? (await awardModeWithBudget(ctx, drop, perSquadCents, Math.floor(perSquadCents / drop.squadSize))),
   };
 }
 
@@ -564,8 +564,9 @@ export const serverTime = mutation({
 });
 
 // The claim link is a bearer secret: only members of the room that won it ever receive it.
-function payoutMessage(status: Doc<'bountyPayouts'>['status'], cents: number) {
+function payoutMessage(status: Doc<'bountyPayouts'>['status'], cents: number, failureCode?: string) {
   if (status === 'sent') return 'Sent to your Whop balance';
+  if (failureCode === 'sign_in_expired') return 'Nobody signed in with Whop in time, so this share went back.';
   if (status === 'sign_in_required') return `Sign in with Whop to receive ${dollars(cents)}`;
   if (status === 'sending') return 'Sending to your Whop balance…';
   return "The transfer didn't go through.";
@@ -601,13 +602,15 @@ export const myAward = query({
             .filter((q) => q.eq(q.field('memberId'), member._id))
             .first()
         : null;
-    const myPayout: AwardPayoutView = mine
+    const myPayout: AwardPayoutView = mine?.failureCode === 'REAL_FUNDS_LOW'
+      ? { status: 'concept', amountCents: mine.cents, failureCode: 'REAL_FUNDS_LOW', message: CONCEPT_LABEL }
+      : mine
       ? {
           status: mine.status,
           amountCents: mine.cents,
           ...(mine.failureCode ? { failureCode: mine.failureCode } : {}),
           ...(mine.transferId && mine.status === 'sent' ? { transferId: mine.transferId } : {}),
-          message: payoutMessage(mine.status, mine.cents),
+          message: payoutMessage(mine.status, mine.cents, mine.failureCode),
         }
       : { status: award.mode === 'transfer' ? 'sending' : 'concept', amountCents: award.perPlayerCents };
     return {
@@ -660,7 +663,7 @@ export const hostDrop = mutation({
   handler: async (ctx, { deviceToken, title, winnerSlots, totalCents, creatorName, startsAt, avatarUrl, template, rehearsal, payoutMode, minPlayers }) => {
     if (!deviceToken) fail('WRONG_STATUS', 'Missing device token.');
     await enforceRateLimit(ctx, 'hostDrop', deviceToken);
-    if (payoutMode === 'real') await requireRealBudget(ctx, totalCents ?? 30_000, winnerSlots ?? 3);
+    if (payoutMode === 'real') await requireRealBudget(ctx, totalCents ?? 30_000, winnerSlots ?? 3, HOSTED_SQUAD_SIZE);
     if (startsAt !== undefined) checkScheduledStart(startsAt, Date.now());
     const name = (creatorName ?? '').trim().slice(0, 24) || (await lastNameOf(ctx, deviceToken)) || 'Host';
     const { whopUserId } = await resolveIdentity(ctx, deviceToken);
@@ -668,7 +671,7 @@ export const hostDrop = mutation({
       dropId: `host-${Date.now().toString(36)}-${Math.floor(Math.random() * 46656).toString(36)}`,
       title: (title ?? 'The Aurora Seed').trim().slice(0, 60) || 'The Aurora Seed',
       creatorName: name,
-      squadSize: 3,
+      squadSize: HOSTED_SQUAD_SIZE,
       startsAt: startsAt ?? Date.now() + HOSTED_DROP_HOLD_MS,
       bounty: { totalCents: totalCents ?? 30_000, winnerSlots: winnerSlots ?? 3 },
       hostToken: deviceToken,
@@ -684,9 +687,17 @@ export const hostDrop = mutation({
 
 const dollars = (cents: number) => '$' + (cents / 100).toFixed(2).replace(/\.00$/, '');
 
-// A real-money pool must fit what's left of the real budget, and each squad's share the per-award cap.
-async function requireRealBudget(ctx: QueryCtx, totalCents: number, winnerSlots: number) {
+const HOSTED_SQUAD_SIZE = 3;
+
+// A real-money pool must give every winner at least Whop's $1 minimum, fit what's left of the real budget, and keep
+// each squad's share under the per-award cap.
+async function requireRealBudget(ctx: QueryCtx, totalCents: number, winnerSlots: number, squadSize: number) {
   if (process.env.SIGNAL_REAL_PAYOUTS !== 'on') fail('REAL_PAYOUTS_OFF', 'Real payouts are off on this server. Pick concept.');
+  const slots = Math.max(1, winnerSlots);
+  if (Math.floor(totalCents / slots / squadSize) < MIN_TRANSFER_CENTS) {
+    const smallest = MIN_TRANSFER_CENTS * slots * squadSize;
+    fail('REAL_SHARE_TOO_SMALL', `Each winner needs at least $1 in real money. With ${slots} winning squad${slots === 1 ? '' : 's'} of ${squadSize}, pick a pot of at least ${dollars(smallest)}, fewer winner slots, or concept.`);
+  }
   const remaining = await realBudgetRemainingCents(ctx);
   if (totalCents <= 0 || totalCents > remaining) {
     fail('REAL_BUDGET_EXCEEDED', `Real payouts have ${dollars(remaining)} left. Pick a pot up to ${dollars(remaining)}, or concept.`);
