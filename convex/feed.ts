@@ -685,15 +685,15 @@ export const renameStreamer = internalMutation({
   },
 });
 
-// Renames seeded players (exact name) in the given drops and challenges: entries, and a challenge's payout rows, so
-// recaps, results and "who's waiting" read the new names. Idempotent; returns how many rows it changed.
+// Renames seeded players (exact name) in the given drops and challenges: entries, squad and team members, and a
+// challenge's payout rows, so recaps, results (winner names) and "who's waiting" read the new names. Idempotent; returns how many rows it changed.
 export const renamePlayers = internalMutation({
   args: { names: v.array(v.object({ from: v.string(), to: v.string() })), dropIds: v.array(v.string()), challengeIds: v.array(v.id('challenges')) },
   handler: async (ctx, { names, dropIds, challengeIds }) => {
     const map = new Map(names.map((n) => [n.from, n.to.trim().slice(0, 24)]));
     const next = (name: string) => map.get(name) || null;
     let renamed = 0;
-    const rename = async (rows: { _id: Id<'dropEntries'> | Id<'challengeEntries'> | Id<'payouts'>; name: string }[]) => {
+    const rename = async (rows: { _id: Id<'dropEntries'> | Id<'challengeEntries'> | Id<'payouts'> | Id<'members'>; name: string }[]) => {
       for (const row of rows) {
         const name = next(row.name);
         if (!name || name === row.name) continue;
@@ -701,10 +701,17 @@ export const renamePlayers = internalMutation({
         renamed++;
       }
     };
-    for (const dropId of dropIds) await rename(await entriesOf(ctx, dropId));
+    const renameMembers = async (roomIds: Id<'rooms'>[]) => {
+      for (const roomId of roomIds) await rename(await ctx.db.query('members').withIndex('by_room', (q) => q.eq('roomId', roomId)).collect());
+    };
+    for (const dropId of dropIds) {
+      await rename(await entriesOf(ctx, dropId));
+      await renameMembers((await ctx.db.query('rooms').withIndex('by_drop', (q) => q.eq('dropId', dropId)).collect()).map((r) => r._id));
+    }
     for (const challengeId of challengeIds) {
       await rename(await ctx.db.query('challengeEntries').withIndex('by_challenge', (q) => q.eq('challengeId', challengeId)).collect());
       await rename(await ctx.db.query('payouts').withIndex('by_challenge', (q) => q.eq('challengeId', challengeId)).collect());
+      await renameMembers((await ctx.db.query('challengeTeams').withIndex('by_challenge', (q) => q.eq('challengeId', challengeId)).collect()).map((t) => t.roomId));
     }
     return { renamed };
   },

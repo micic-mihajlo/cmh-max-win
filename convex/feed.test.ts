@@ -394,6 +394,23 @@ describe('renamePlayers', () => {
     expect(await namesOf(dropId)).toEqual(['Jen', 'Omar', 'Sarah']);
     expect(await namesOf(other.dropId)).toEqual(['Ana', 'Lou', 'Omar']);
   });
+
+  test("renames a finished drop's squad members, so the winner names change", async () => {
+    const t = newTest();
+    const { dropId } = await host(t);
+    const roomId = await t.run(async (ctx) => {
+      const id = await ctx.db.insert('rooms', {
+        code: 'SQ01', hostToken: '', caseId: 'aurora01', dropId, status: 'resolved', theory: { culprit: null, revision: 0, lastEditedBy: null },
+        attempts: 1, lastNudge: null, checkedRevision: null, checkSeq: 0, lastCheck: null,
+      });
+      for (const name of ['Lou', 'Kit']) await ctx.db.insert('members', { roomId: id, deviceToken: name, name, role: 'detective', presence: 'online' });
+      return id;
+    });
+    const names = [{ from: 'Lou', to: 'Sarah' }, { from: 'Kit', to: 'Chris' }];
+    expect(await t.mutation(internal.feed.renamePlayers, { names, dropIds: [dropId], challengeIds: [] })).toEqual({ renamed: 2 });
+    const members = await t.run((ctx) => ctx.db.query('members').withIndex('by_room', (q) => q.eq('roomId', roomId)).collect());
+    expect(members.map((m) => m.name).sort()).toEqual(['Chris', 'Sarah']);
+  });
 });
 
 describe('showcase hygiene', () => {
