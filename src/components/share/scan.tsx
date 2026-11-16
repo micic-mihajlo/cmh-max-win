@@ -162,13 +162,9 @@ export function ManualCode({
             </Txt>
           )}
         </View>
-        {typing ? null : (
-          <>
-            {camera === 'ask' && onAllow ? <Button title="Allow camera" onPress={onAllow} /> : null}
-            {camera === 'denied' && onSettings ? <Button title="Open Settings" variant="secondary" onPress={onSettings} /> : null}
-            {camera === 'manual' && onScan ? <Button title="Scan instead" variant="secondary" onPress={onScan} /> : null}
-          </>
-        )}
+        {camera === 'ask' && onAllow ? <Button title="Allow camera" onPress={onAllow} /> : null}
+        {camera === 'denied' && onSettings ? <Button title="Open Settings" variant="secondary" onPress={onSettings} /> : null}
+        {camera === 'manual' && onScan ? <Button title="Scan instead" variant="secondary" onPress={onScan} /> : null}
         <View style={styles.enter}>
           <Txt variant="label" color={Palette.paperMuted} style={styles.center}>
             {camera === 'ask' || camera === 'denied' ? 'Or enter the code' : 'Code'}
@@ -196,7 +192,7 @@ export function ManualCode({
           onChangeText={type}
           onFocus={() => setTyping(true)}
           onBlur={() => setTyping(false)}
-          autoFocus={camera === 'manual' || camera === 'off'}
+          autoFocus={camera === 'off'}
           autoCapitalize="characters"
           autoCorrect={false}
           autoComplete="off"
