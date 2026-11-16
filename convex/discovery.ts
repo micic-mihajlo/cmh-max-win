@@ -59,7 +59,7 @@ export function prizePool(c: Challenge): PrizePoolView {
   };
 }
 
-// 'nova-friday-race-k7qm': the handle (no '-' in handles), title words, then the join code.
+// 'danny-friday-race-k7qm': the handle (no '-' in handles), title words, then the join code.
 export function slugOf(handle: string, title: string, code: string | null) {
   const words = title
     .normalize('NFKD')
@@ -91,6 +91,7 @@ async function cardOf(ctx: QueryCtx, c: Challenge, creator: Creator): Promise<Ch
     prizePool: prizePool(c),
     joinCode: c.joinCode ?? null,
     slug: slugOf(creator.handle, c.config.title, c.joinCode ?? null),
+    creator: { displayName: creator.displayName, handle: '@' + creator.handle },
     entrantCount: (await entriesOf(ctx, c._id)).length,
   };
 }
@@ -240,7 +241,7 @@ export const creatorPage = query({
 
 // ---------- Share links ----------
 
-// A code, a slug ('nova-friday-race-k7qm' or 'nova/K7QM'), a URL ending in a code, a slug or '@nova/K7QM' (or with
+// A code, a slug ('danny-friday-race-k7qm' or 'danny/K7QM'), a URL ending in a code, a slug or '@danny/K7QM' (or with
 // ?code=), or a challenge id. A slug's handle must match the challenge's creator.
 export function parseShareRef(raw: string): { code: string | null; handle: string | null; id: string } {
   let ref = raw.trim();
@@ -330,7 +331,9 @@ export const resolveCode = query({
 });
 
 const HOME_ROW = 10;
-const HOME_SCAN = 50;
+const HOME_SCAN = 100;
+// Harness and load-test hosts (scripts/harness): device tokens these scripts mint, never a real phone's.
+const BOT_TOKEN = /^(host|bot|load|qa)-/;
 
 // "On now" (open and live) and "Coming up" (timed soonest first, then live mode): followed creators first, test,
 // QA and rehearsal hosts left out.
@@ -398,7 +401,7 @@ export const home = query({
     const newest = (c: Challenge) => c.firstDealtAt ?? c.publishedAt ?? 0;
     const row = async (phases: ChallengePhase[], order: (a: Challenge, b: Challenge) => number) => {
       const picked: ChallengeCardView[] = [];
-      const candidates = [...pool.values()].filter((c) => phases.includes(phaseOf(c)!) && !isTestLabel(c.config.title)).sort((a, b) => followedFirst(a, b) || order(a, b));
+      const candidates = [...pool.values()].filter((c) => phases.includes(phaseOf(c)!) && !BOT_TOKEN.test(c.creatorToken) && !isTestLabel(c.config.title)).sort((a, b) => followedFirst(a, b) || order(a, b));
       for (const c of candidates) {
         if (picked.length === HOME_ROW) break;
         const creator = await visibleCreator(c.creatorToken);

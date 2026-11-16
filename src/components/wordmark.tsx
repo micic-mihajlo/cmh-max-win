@@ -12,7 +12,7 @@ const pieces = [
 
 export function SignalMark({ size = 24 }: { size?: number; mono?: boolean }) {
   return (
-    <Svg width={(size * 50) / 84} height={size} viewBox="25 8 50 84" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+    <Svg width={(size * 50) / 84} height={size} viewBox="25 8 50 84" aria-hidden>
       {pieces.map((d, i) => (
         <Path key={i} d={d} fill="none" stroke={Palette.inkOnPaper} strokeWidth={15} />
       ))}

@@ -1,6 +1,7 @@
 // Quick Quiz, the Kahoot-style anchor for live streams: the creator authors 3–10 multiple-choice questions, every
 // team gets each question at the same moment on the server clock, and a correct answer scores more the faster it
-// lands. Solo or dealt teams of up to 4. The streamer advances each question from the console, and a question
+// lands. Solo or dealt teams of up to 4, and every player answers for themselves: the team scores the sum of its
+// members' points, and a teammate's answer never locks yours. The streamer advances each question from the console, and a question
 // also closes on its own at its time limit. Choice order is shuffled per team (seeded), so "it's C" from another
 // team is useless, and the correct choice reaches a device or the overlay only after its question closes.
 import { ConvexError, v } from 'convex/values';
@@ -34,7 +35,11 @@ export type QuizState = {
   players: { playerId: string; name: string }[];
   startedAt: number;
   questions: DealtQuestion[];
+  // Sessions dealt before per-player play: one answer per question for the whole team. Per-player sessions keep
+  // these null and use byPlayer.
   answers: QuizAnswer[];
+  // Per-player play: each player's answer per question, keyed by playerId.
+  byPlayer?: Record<string, QuizAnswer[]>;
   // How many questions have opened and how many have closed, moved only by tick and the host's advance.
   opened: number;
   closed: number;
@@ -49,13 +54,25 @@ export type QuizQuestionView = {
   opensAt: number | null;
   closesAt: number | null;
   closed: boolean;
+  // Sessions dealt before per-player play only: the team's one answer. Null in per-player play, so a teammate's
+  // pick is never shown; the player's own pick is in the private view.
   answer: { choice: number; by: string } | null;
+  // Per-player play: who has locked this question (playerIds, no choices).
+  lockedBy?: string[];
   // Present only once the question has closed.
   correctChoice: number | null;
   points: number | null;
 };
-export type QuizSharedView = { questionCount: number; startedAt: number; questions: QuizQuestionView[]; points: number; finished: boolean };
-export type QuizPrivateView = { answeredByMe: number[] };
+export type QuizSharedView = {
+  questionCount: number;
+  startedAt: number;
+  questions: QuizQuestionView[];
+  points: number; // the team's, summed over members, closed questions only
+  finished: boolean;
+  players?: { playerId: string; name: string }[];
+};
+// myChoices[i]: this player's own pick for question i, or null. myPoints[i]: what that pick scored, once question i closed.
+export type QuizPrivateView = { answeredByMe: number[]; playerId?: string; myChoices?: (number | null)[]; myPoints?: (number | null)[] };
 
 // lobby: nothing open yet. question: one is open. leaderboard: between questions. finished: all closed.
 export type QuizPhase = 'lobby' | 'question' | 'leaderboard' | 'finished';
@@ -135,8 +152,56 @@ function advance(state: QuizState, now: number): QuizState {
   return { ...state, questions: state.questions.map((q, k) => (k === i ? { ...q, opensAt: now, closesAt: now + q.timeLimitMs } : q)), opened: i + 1 };
 }
 
-function totalPoints(state: QuizState) {
-  return state.answers.reduce((sum, a) => sum + (a?.points ?? 0), 0);
+// Every answer to question i: one per player in per-player play, the team's one answer before it.
+function answersTo(state: QuizState, i: number) {
+  const all = state.byPlayer ? state.players.map((p) => state.byPlayer![p.playerId]?.[i] ?? null) : [state.answers[i]];
+  return all.filter((a): a is NonNullable<QuizAnswer> => a !== null);
+}
+
+const questionPoints = (state: QuizState, i: number) => answersTo(state, i).reduce((sum, a) => sum + a.points, 0);
+
+function lockedBy(state: QuizState, i: number) {
+  return answersTo(state, i).map((a) => a.by);
+}
+
+// Per-player play: every member has answered. Before it: the team's one answer.
+export function teamLocked(state: QuizState, i: number) {
+  return lockedBy(state, i).length >= (state.byPlayer ? state.players.length : 1);
+}
+
+// The team scored on a closed question; null while it is open.
+export function questionCorrect(state: QuizState, i: number) {
+  return i < state.closed ? questionPoints(state, i) > 0 : null;
+}
+
+export function lockCounts(state: QuizState, i: number) {
+  return { lockedCount: lockedBy(state, i).length, memberCount: state.byPlayer ? state.players.length : 1 };
+}
+
+// The answer this player's lock recorded: their own in per-player play, the team's one answer before it.
+export function answerOf(state: QuizState, playerId: string, i: number) {
+  return (state.byPlayer ? state.byPlayer[playerId]?.[i] : state.answers[i]) ?? null;
+}
+
+// The open question while per-player answers to it may live outside the session; null otherwise.
+export const openQuestion = (state: QuizState) => (state.byPlayer && state.opened > state.closed ? state.closed : null);
+
+// Merges per-player answers kept outside the session (the live layer's pulseLocks rows) back into it.
+export function withAnswers(state: QuizState, answers: readonly { playerId: string; questionIndex: number; choice: number; at: number; points: number }[]): QuizState {
+  if (!state.byPlayer || !answers.length) return state;
+  const byPlayer = { ...state.byPlayer };
+  for (const a of answers) {
+    const mine = [...(byPlayer[a.playerId] ?? state.questions.map(() => null))];
+    mine[a.questionIndex] = { choice: a.choice, at: a.at, by: a.playerId, points: a.points };
+    byPlayer[a.playerId] = mine;
+  }
+  return { ...state, byPlayer };
+}
+
+function totalPoints(state: QuizState, upTo = state.questions.length) {
+  let sum = 0;
+  for (let i = 0; i < upTo; i++) sum += questionPoints(state, i);
+  return sum;
 }
 
 function check(state: QuizState): CheckResult {
@@ -150,7 +215,7 @@ function sharedView(state: QuizState): QuizSharedView {
     startedAt: state.startedAt,
     questions: state.questions.slice(0, state.opened).map((q, index) => {
       const closed = index < state.closed;
-      const a = state.answers[index];
+      const a = state.byPlayer ? null : state.answers[index];
       return {
         index,
         prompt: q.prompt,
@@ -159,12 +224,14 @@ function sharedView(state: QuizState): QuizSharedView {
         closesAt: q.closesAt,
         closed,
         answer: a ? { choice: a.choice, by: a.by } : null,
+        ...(state.byPlayer ? { lockedBy: lockedBy(state, index) } : {}),
         correctChoice: closed ? q.correct : null,
-        points: closed ? (a?.points ?? 0) : null,
+        points: closed ? questionPoints(state, index) : null,
       };
     }),
-    points: totalPoints({ ...state, answers: state.answers.map((a, i) => (i < state.closed ? a : null)) }),
+    points: totalPoints(state, state.closed),
     finished: state.closed === state.questions.length,
+    ...(state.byPlayer ? { players: state.players } : {}),
   };
 }
 
@@ -175,12 +242,14 @@ function progress(state: QuizState): Progress {
   return { value: state.closed / state.questions.length, stage: STAGES[i], stageIndex: i, stageCount: STAGES.length, solved: i === 2 };
 }
 
-function validateAnswer(state: QuizState, action: QuizAction, now: number): TemplateError | null {
+function validateAnswer(state: QuizState, playerId: string, action: QuizAction, now: number): TemplateError | null {
   const q = state.questions[action.questionIndex];
   if (!q) return { code: 'BAD_QUESTION', message: 'No such question.' };
   if (q.opensAt === null || q.closesAt === null || now < q.opensAt) return { code: 'NOT_OPEN', message: 'That question has not opened yet.' };
   if (now >= q.closesAt || action.questionIndex < state.closed) return { code: 'CLOSED', message: "Time's up on that question." };
-  if (state.answers[action.questionIndex]) return { code: 'ALREADY_ANSWERED', message: 'Your team already answered.' };
+  if (state.byPlayer ? state.byPlayer[playerId]?.[action.questionIndex] : state.answers[action.questionIndex]) {
+    return { code: 'ALREADY_ANSWERED', message: state.byPlayer ? 'You already locked in.' : 'Your team already answered.' };
+  }
   if (!Number.isInteger(action.choice) || action.choice < 0 || action.choice >= q.choices.length) return { code: 'BAD_CHOICE', message: 'No such choice.' };
   return null;
 }
@@ -219,27 +288,40 @@ export const quickQuizTemplate: ChallengeTemplate<QuizConfig, QuizState, QuizAct
       startedAt: ctx.now,
       questions,
       answers: questions.map(() => null),
+      byPlayer: Object.fromEntries(team.map((p) => [p.playerId, questions.map(() => null)])),
       opened: 0,
       closed: 0,
     };
     return { state, views: Object.fromEntries(team.map((p) => [p.playerId, { answeredByMe: [] }])) };
   },
 
-  privateView: (state, playerId) => ({ answeredByMe: state.answers.flatMap((a, i) => (a?.by === playerId ? [i] : [])) }),
+  privateView: (state, playerId) => {
+    const mine = state.byPlayer ? (state.byPlayer[playerId] ?? []) : state.answers.map((a) => (a?.by === playerId ? a : null));
+    return {
+      answeredByMe: mine.flatMap((a, i) => (a ? [i] : [])),
+      playerId,
+      myChoices: state.questions.map((_, i) => mine[i]?.choice ?? null),
+      myPoints: state.questions.map((_, i) => (i < state.closed ? (mine[i]?.points ?? 0) : null)),
+    };
+  },
   sharedView,
 
   actions: {
     answer: {
       args: v.object({ type: v.literal('answer'), questionIndex: v.number(), choice: v.number() }),
-      validate: (state, _playerId, action, ctx) => validateAnswer(state, action, ctx.now),
+      validate: (state, playerId, action, ctx) => validateAnswer(state, playerId, action, ctx.now),
     },
   },
 
   apply(state, playerId, action, ctx) {
     const q = state.questions[action.questionIndex];
     const points = action.choice === q.correct ? pointsFor(q, ctx.now) : 0;
-    const answers = state.answers.map((a, i) => (i === action.questionIndex ? { choice: action.choice, at: ctx.now, by: playerId, points } : a));
-    return { ...state, answers };
+    const answer = { choice: action.choice, at: ctx.now, by: playerId, points };
+    if (state.byPlayer) {
+      const mine = (state.byPlayer[playerId] ?? state.questions.map(() => null)).map((a, i) => (i === action.questionIndex ? answer : a));
+      return { ...state, byPlayer: { ...state.byPlayer, [playerId]: mine } };
+    }
+    return { ...state, answers: state.answers.map((a, i) => (i === action.questionIndex ? answer : a)) };
   },
 
   check,
@@ -256,7 +338,8 @@ export const quickQuizTemplate: ChallengeTemplate<QuizConfig, QuizState, QuizAct
   board: {
     round: roundView,
     // Closed questions only, so the overlay never shows who's ahead on an open question.
-    team: (state) => ({ points: sharedView(state).points, answeredCurrent: state.opened > state.closed && state.answers[state.closed] !== null }),
+    // answeredCurrent: every member has locked the open question.
+    team: (state) => ({ points: sharedView(state).points, answeredCurrent: state.opened > state.closed && teamLocked(state, state.closed) }),
   },
 
   scoring: {
@@ -266,7 +349,7 @@ export const quickQuizTemplate: ChallengeTemplate<QuizConfig, QuizState, QuizAct
   },
 
   necessity: {
-    // Solo by design: any member can answer for the team.
+    // Solo by design: any one member can score for the team.
     solvableBy: (_state, playerIds) => playerIds.length > 0,
   },
 };

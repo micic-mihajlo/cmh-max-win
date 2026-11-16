@@ -1,10 +1,8 @@
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { BountyResultScreen } from '@/components/drops/bounty-result';
-import { Atmosphere } from '@/components/signal/backdrop';
-import { Palette } from '@/constants/signal';
+import { Arrive, Pending } from '@/components/signal/backdrop';
 import { useDrop, useMyAward } from '@/hooks/use-drops';
 import { useHostFollow } from '@/hooks/use-host-follow';
 import { useLinkForClaim } from '@/hooks/use-whop-account';
@@ -20,35 +18,28 @@ export default function WinRoute() {
   const [signingIn, setSigningIn] = useState(false);
   const host = useHostFollow(drop?.template ? id : null);
   if (drop === undefined || award === undefined || room === undefined) {
-    return (
-      <View style={styles.loading}>
-        <Atmosphere />
-        <ActivityIndicator color={Palette.paper} />
-      </View>
-    );
+    return <Pending />;
   }
   if (!drop || !squad || !award || !room) return <Redirect href={{ pathname: '/drop/[id]/race', params: { id } }} />;
   return (
-    <BountyResultScreen
-      award={award}
-      bounty={drop.bounty}
-      signingIn={signingIn}
-      host={host}
-      on={{
-        onSignIn: async () => {
-          setSigningIn(true);
-          try {
-            await link();
-          } finally {
-            setSigningIn(false);
-          }
-        },
-        onContinue: () => (drop.template ? router.replace({ pathname: '/drop/[id]/race', params: { id } }) : router.push({ pathname: '/room/[code]', params: { code: squad.code, reveal: '1' } })),
-      }}
-    />
+    <Arrive>
+      <BountyResultScreen
+        award={award}
+        bounty={drop.bounty}
+        signingIn={signingIn}
+        host={host}
+        on={{
+          onSignIn: async () => {
+            setSigningIn(true);
+            try {
+              await link();
+            } finally {
+              setSigningIn(false);
+            }
+          },
+          onContinue: () => (drop.template ? router.replace({ pathname: '/drop/[id]/race', params: { id } }) : router.push({ pathname: '/room/[code]', params: { code: squad.code, reveal: '1' } })),
+        }}
+      />
+    </Arrive>
   );
 }
-
-const styles = StyleSheet.create({
-  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Palette.ink },
-});

@@ -240,7 +240,8 @@ describe('quick-quiz on the live layer', () => {
     await answer(a[0], 0, 'Paris');
     step();
     await answer(b[1], 0, 'Rome');
-    expect(await errorCode(answer(a[1], 0, 'Oslo'))).toBe('ALREADY_ANSWERED');
+    await answer(a[1], 0, 'Oslo');
+    expect(await errorCode(answer(a[1], 0, 'Paris'))).toBe('ALREADY_ANSWERED');
     let view = await board();
     expect(view).toMatchObject({ phase: 'live', hostActions: ['next'] });
     expect(JSON.stringify(view)).not.toMatch(/Paris|Rome|Oslo/);

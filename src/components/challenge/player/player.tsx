@@ -1,12 +1,13 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { JoinScreen } from './join';
 import { LobbyScreen } from './lobby';
 import { BlankScreen, NoticeScreen } from './notice';
-import { isQuizView } from './format';
+import { isQuizView, type QuizPrivateView } from './format';
 import { PlayScreen } from './play';
 import { ResultScreen } from './result';
+import { markResume, takeResume } from './resume';
 import {
   useChallengeByCode,
   useChallengeRecap,
@@ -17,7 +18,7 @@ import {
 } from '@/hooks/use-challenges';
 import { useLiveView, usePlayerAction, useTeamSessionView } from '@/hooks/use-live';
 import { usePlayerName } from '@/hooks/use-player-name';
-import { useLinkForClaim, useSignInToJoin } from '@/hooks/use-whop-account';
+import { useLinkForClaim, useSignInToJoin, useWhopAccount } from '@/hooks/use-whop-account';
 import { Button } from '@/components/signal/primitives';
 import type { SignalErrorCode } from '@/lib/contract';
 import { teamIndexFromLabel, teamStyle } from '@/lib/teams';
@@ -52,19 +53,18 @@ export function ChallengePlayer({ code: rawCode }: { code: string }) {
   const linkWhop = useLinkForClaim(challenge?.me.team?.roomCode ?? null, `c/${code}`);
   const claim = useClaimPayout(challengeId ?? '');
   const signInToJoin = useSignInToJoin(code || null, `c/${code}`);
+  const linked = !!useWhopAccount()?.account;
 
   const [joining, setJoining] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
-  const [refusal, setRefusal] = useState<Refusal | null>(null);
+  const [resume, setResume] = useState(() => takeResume(code));
+  const [refusal, setRefusal] = useState<Refusal | null>(resume === 'join' ? 'signin' : null);
   const [leaving, setLeaving] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [lastName, setLastName] = useState('');
   const [signingIn, setSigningIn] = useState(false);
+  const resumed = useRef(false);
 
-  if (challenge === undefined || name === undefined) return <BlankScreen />;
-  if (challenge === null) return <NoticeScreen eyebrow={code} title="No challenge with that code" />;
-
-  const host = challenge.creator.displayName;
   const onJoin = async (playerName: string) => {
     setJoining(true);
     setJoinError(null);
@@ -82,9 +82,36 @@ export function ChallengePlayer({ code: rawCode }: { code: string }) {
       setJoining(false);
     }
   };
+  const onClaim = async () => {
+    setClaiming(true);
+    try {
+      if (payout?.needsWhopSignIn) markResume(code, 'claim');
+      const result = payout?.needsWhopSignIn ? await linkWhop() : 'linked';
+      if (result === 'linked') await claim();
+    } catch {
+    } finally {
+      setClaiming(false);
+    }
+  };
+
+  const resuming =
+    !!resume && linked && !!challenge && name !== undefined && (resume === 'join' ? !challenge.me.entered : payout?.status === 'claim_pending_whop');
+  useEffect(() => {
+    if (!resuming || resumed.current) return;
+    resumed.current = true;
+    void Promise.resolve()
+      .then(() => (resume === 'join' ? onJoin(name || 'Player') : onClaim()))
+      .finally(() => setResume(null));
+  });
+
+  if (challenge === undefined || name === undefined) return <BlankScreen />;
+  if (challenge === null) return <NoticeScreen eyebrow={code} title="No challenge with that code" />;
+
+  const host = challenge.creator.displayName;
   const onSignIn = async () => {
     setSigningIn(true);
     try {
+      markResume(code, 'join');
       const result = await signInToJoin();
       if (result === 'linked' || result === 'not_required') await onJoin(lastName || name || 'Player');
     } finally {
@@ -100,8 +127,14 @@ export function ChallengePlayer({ code: rawCode }: { code: string }) {
       <NoticeScreen
         eyebrow={challenge.title}
         title="Members only"
-        text={`Sign in with the Whop account that has ${host}'s membership.`}
-        footer={<Button title={signingIn || joining ? 'Opening Whop' : 'Sign in with Whop'} disabled={signingIn || joining} onPress={onSignIn} />}
+        text={resume && linked ? 'Signed in with Whop' : `Sign in with the Whop account that has ${host}'s membership.`}
+        footer={
+          resume && linked ? (
+            <Button title="Joining" disabled onPress={onSignIn} />
+          ) : (
+            <Button title={signingIn || joining ? 'Opening Whop' : 'Sign in with Whop'} disabled={signingIn || joining} onPress={onSignIn} />
+          )
+        }
       />
     );
   }
@@ -121,19 +154,9 @@ export function ChallengePlayer({ code: rawCode }: { code: string }) {
   }
 
   const quiz = session && isQuizView(session.shared) ? session.shared : null;
-  const answeredByMe = (session?.mine as { answeredByMe?: number[] } | null)?.answeredByMe ?? [];
+  const mine = (session?.mine as QuizPrivateView | null) ?? { answeredByMe: [] };
 
   if (ended || quiz?.finished) {
-    const onClaim = async () => {
-      setClaiming(true);
-      try {
-        const linked = payout?.needsWhopSignIn ? await linkWhop() : 'linked';
-        if (linked === 'linked') await claim();
-      } catch {
-      } finally {
-        setClaiming(false);
-      }
-    };
     return (
       <ResultScreen
         title={challenge.title}
@@ -149,6 +172,7 @@ export function ChallengePlayer({ code: rawCode }: { code: string }) {
         conceptPool={challenge.payoutAdapter === 'concept'}
         host={host}
         claiming={claiming}
+        note={resume === 'claim' && linked ? 'Signed in with Whop' : null}
         onClaim={onClaim}
         onDone={() => router.replace('/')}
       />
@@ -165,7 +189,7 @@ export function ChallengePlayer({ code: rawCode }: { code: string }) {
       }
     };
     const team = challenge.teamSize > 1 ? teamStyle(session.teamLabel, teamIndexFromLabel(session.teamLabel)) : null;
-    return <PlayScreen quiz={quiz} answeredByMe={answeredByMe} serverNow={session.serverNow} team={team} onAnswer={onAnswer} />;
+    return <PlayScreen quiz={quiz} mine={mine} serverNow={session.serverNow} team={team} onAnswer={onAnswer} />;
   }
 
   const canLeave = challenge.status === 'published';

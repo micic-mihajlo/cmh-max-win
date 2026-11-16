@@ -140,6 +140,7 @@ export type SignalErrorCode =
   | 'BAD_ANSWER' // split passphrase: the answer doesn't have one word per slot
   | 'REAL_PAYOUTS_OFF' // hostDrop payoutMode 'real' while the server has real payouts off
   | 'REAL_BUDGET_EXCEEDED' // hostDrop payoutMode 'real' with a pot above the remaining real budget (or the per-squad cap)
+  | 'REAL_SHARE_TOO_SMALL' // hostDrop payoutMode 'real' where a winner's share would be under Whop's $1 minimum
   | 'NOT_CASE_ROOM' // a Case 01 call (setTheory, lockIn, claimRole, startCase, restart) on a split-passphrase squad
 
 export type SignalError = { code: SignalErrorCode; message: string };

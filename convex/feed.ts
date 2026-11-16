@@ -20,7 +20,7 @@ import type {
 // Follow feed, live status, scheduled drops and Remind me for hosted drops (signal/design/feed-notifications.md).
 // drops.hostDrop calls noteHostedDrop; everything else here reads drops, entries and solves through their indexes.
 
-export const STARTING_LEAD_MS = 2 * 60 * 1000; // "Nova's room opens in 2 minutes"
+export const STARTING_LEAD_MS = 2 * 60 * 1000; // "Danny's room opens in 2 minutes"
 export const MAX_SCHEDULE_AHEAD_MS = 30 * 24 * 60 * 60 * 1000;
 export const IDLE_MS = 20 * 60 * 1000; // an open drop with no entry, lock-in or solve this long stops counting as live
 export const STALE_DROP_MS = 2 * 60 * 60 * 1000; // expireStaleDrops ends test hosted drops older than this
@@ -35,7 +35,7 @@ export const isTestLabel = (label: string) => TEST_LABELS.some((p) => p.test(lab
 // Lists also skip flagged hosts and hostDrop's default name "Host" (a host that never set a name). Neither counts as a
 // test for the cron: a real live room can still be run by an unnamed host.
 export const isHiddenStreamer = (s: Doc<'streamers'>) => !!s.hidden || isTestLabel(s.name) || /^host$/i.test(s.name.trim());
-// Rehearsal and QA hosts by name ("Capy QA", "PP Host", "Rehearsal Nova"): kept out of Find streamers and the following
+// Rehearsal and QA hosts by name ("Capy QA", "PP Host", "Rehearsal Danny"): kept out of Find streamers and the following
 // feed only. Pages, follows and the cron still treat them as real.
 const REHEARSAL_NAME = /\b(capy|qa|test|pp host|rehearsal)\b/i;
 export const isRehearsalName = (name: string) => REHEARSAL_NAME.test(name);
@@ -79,7 +79,7 @@ export function distinctFirstNames(names: string[]): string[] {
   });
 }
 
-// "Lou and Ana are waiting": first names of up to MAX_SQUADMATES others already waiting with this device, or dealt into
+// "Sarah and Jen are waiting": first names of up to MAX_SQUADMATES others already waiting with this device, or dealt into
 // its squad (same group). Never this device or the host.
 export function squadmatesFor(
   people: { deviceToken: string; name: string; group?: string | null; out?: boolean }[],
@@ -682,6 +682,31 @@ export const renameStreamer = internalMutation({
     if (!streamer || !next) fail('DROP_NOT_FOUND', 'No such streamer, or an empty name.');
     if (streamer.name !== next) await ctx.db.patch(streamer._id, { name: next });
     return { streamerId, name: next };
+  },
+});
+
+// Renames seeded players (exact name) in the given drops and challenges: entries, and a challenge's payout rows, so
+// recaps, results and "who's waiting" read the new names. Idempotent; returns how many rows it changed.
+export const renamePlayers = internalMutation({
+  args: { names: v.array(v.object({ from: v.string(), to: v.string() })), dropIds: v.array(v.string()), challengeIds: v.array(v.id('challenges')) },
+  handler: async (ctx, { names, dropIds, challengeIds }) => {
+    const map = new Map(names.map((n) => [n.from, n.to.trim().slice(0, 24)]));
+    const next = (name: string) => map.get(name) || null;
+    let renamed = 0;
+    const rename = async (rows: { _id: Id<'dropEntries'> | Id<'challengeEntries'> | Id<'payouts'>; name: string }[]) => {
+      for (const row of rows) {
+        const name = next(row.name);
+        if (!name || name === row.name) continue;
+        await ctx.db.patch(row._id, { name });
+        renamed++;
+      }
+    };
+    for (const dropId of dropIds) await rename(await entriesOf(ctx, dropId));
+    for (const challengeId of challengeIds) {
+      await rename(await ctx.db.query('challengeEntries').withIndex('by_challenge', (q) => q.eq('challengeId', challengeId)).collect());
+      await rename(await ctx.db.query('payouts').withIndex('by_challenge', (q) => q.eq('challengeId', challengeId)).collect());
+    }
+    return { renamed };
   },
 });
 

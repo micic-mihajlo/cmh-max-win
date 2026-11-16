@@ -11,7 +11,7 @@ import { Duration, Enter, Haptic, useReduced } from '@/motion';
 import { AnswerTile, type TileState } from './answer-tile';
 import { useCount } from './count';
 import { DrainBar, Heartbeat, SecondsLeft } from './countdown';
-import { points, type QuizQuestionView, type QuizSharedView } from './format';
+import { points, type QuizPrivateView, type QuizQuestionView, type QuizSharedView } from './format';
 import { Takeover } from './takeover';
 import type { TeamStyle } from '@/lib/teams';
 
@@ -31,9 +31,9 @@ function verdict(q: QuizQuestionView, picked: number | null, mineIt: boolean) {
 }
 
 // The full-bleed result moment after a question closes: the verdict, the points counting up, and the right answer.
-function RevealBeat({ q, picked, mineIt, onDone }: { q: QuizQuestionView; picked: number | null; mineIt: boolean; onDone: () => void }) {
+function RevealBeat({ q, picked, mineIt, earned, onDone }: { q: QuizQuestionView; picked: number | null; mineIt: boolean; earned: number; onDone: () => void }) {
   const right = picked !== null && picked === q.correctChoice;
-  const gained = useCount(right ? (q.points ?? 0) : null, 0);
+  const gained = useCount(right ? earned : null, 0);
   return (
     <Takeover holdMs={1200} onDone={onDone}>
       <Txt variant="label" color={Palette.paperMuted}>
@@ -58,16 +58,24 @@ function RevealBeat({ q, picked, mineIt, onDone }: { q: QuizQuestionView; picked
   );
 }
 
+// "You locked in · waiting for Chris": the teammates who haven't locked this question yet.
+function waitingFor(quiz: QuizSharedView, q: QuizQuestionView, me: string | undefined) {
+  const names = (quiz.players ?? []).filter((p) => p.playerId !== me && !q.lockedBy?.includes(p.playerId)).map((p) => p.name.trim().split(/\s+/)[0]);
+  if (!names.length) return 'Locked in';
+  const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+  return `You locked in · waiting for ${list}`;
+}
+
 export function PlayScreen({
   quiz,
-  answeredByMe,
+  mine,
   serverNow,
   team,
   onAnswer,
 }: {
   quiz: QuizSharedView;
   team: TeamStyle | null;
-  answeredByMe: number[];
+  mine: QuizPrivateView;
   serverNow: number;
   onAnswer: (questionIndex: number, choice: number) => Promise<string | null>;
 }) {
@@ -80,10 +88,13 @@ export function PlayScreen({
 
   const error = refused?.index === q.index ? refused.message : null;
   const local = pending?.index === q.index ? pending.choice : null;
-  const picked = q.answer?.choice ?? local;
-  const mineIt = q.answer ? answeredByMe.includes(q.index) : local !== null;
+  const perPlayer = quiz.players !== undefined;
+  const picked = q.answer?.choice ?? mine.myChoices?.[q.index] ?? local;
+  const mineIt = perPlayer ? picked !== null : q.answer ? mine.answeredByMe.includes(q.index) : local !== null;
   const open = !q.closed;
   const right = q.closed && picked !== null && picked === q.correctChoice;
+  // Per-player play scores each player's own pick; before it, the team's one answer.
+  const gained = mine.myPoints?.[q.index] ?? q.points ?? 0;
 
   const [seen, setSeen] = useState({ index: q.index, closed: q.closed });
   const [beat, setBeat] = useState<number | null>(null);
@@ -106,13 +117,13 @@ export function PlayScreen({
     }
   };
 
-  const status = q.closed ? null : picked !== null ? (mineIt ? 'Locked in' : 'Your team locked in') : null;
+  const status = q.closed || picked === null ? null : perPlayer ? waitingFor(quiz, q, mine.playerId) : mineIt ? 'Locked in' : 'Your team locked in';
 
   return (
     <Screen
       scroll={false}
       contentStyle={styles.content}
-      overlay={beatOn ? <RevealBeat q={q} picked={picked} mineIt={mineIt} onDone={() => setBeat(null)} /> : null}>
+      overlay={beatOn ? <RevealBeat q={q} picked={picked} mineIt={mineIt} earned={gained} onDone={() => setBeat(null)} /> : null}>
       <View style={styles.head}>
         <View style={styles.row}>
           <View style={styles.where}>
@@ -144,7 +155,7 @@ export function PlayScreen({
         <View style={styles.status} accessibilityLiveRegion="polite">
           {q.closed ? (
             <Enter key={`verdict-${q.index}`} from={8}>
-              <Txt variant="name">{right ? `${verdict(q, picked, mineIt)} · +${points(q.points ?? 0)}` : verdict(q, picked, mineIt)}</Txt>
+              <Txt variant="name">{right ? `${verdict(q, picked, mineIt)} · +${points(gained)}` : verdict(q, picked, mineIt)}</Txt>
             </Enter>
           ) : error ? (
             <Txt variant="small" color={Palette.danger}>

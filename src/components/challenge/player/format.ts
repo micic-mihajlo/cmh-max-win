@@ -1,6 +1,6 @@
-import type { QuizQuestionView, QuizSharedView } from '@convex/templates/quickQuiz';
+import type { QuizPrivateView, QuizQuestionView, QuizSharedView } from '@convex/templates/quickQuiz';
 
-export type { QuizQuestionView, QuizSharedView };
+export type { QuizPrivateView, QuizQuestionView, QuizSharedView };
 
 export function ordinal(n: number) {
   const tens = n % 100;
