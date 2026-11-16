@@ -1,11 +1,9 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { LeaderboardScreen } from '@/components/drops/leaderboard';
-import { Atmosphere } from '@/components/signal/backdrop';
+import { Arrive, Pending } from '@/components/signal/backdrop';
 import { lockedIds } from '@/components/signal/room';
 import { suspectById } from '@/constants/case01';
-import { Palette } from '@/constants/signal';
 import { useDrop, useLeaderboard, useServerOffset } from '@/hooks/use-drops';
 import { useRoom } from '@/hooks/use-signal';
 
@@ -17,42 +15,35 @@ export default function RaceRoute() {
   const code = drop?.me.squad?.code ?? null;
   const room = useRoom(code);
   if (!drop || !board) {
-    return (
-      <View style={styles.loading}>
-        <Atmosphere />
-        <ActivityIndicator color={Palette.paper} />
-      </View>
-    );
+    return <Pending />;
   }
   const solving = !drop.template && room && room.status !== 'resolved';
   return (
-    <LeaderboardScreen
-      drop={drop}
-      board={board}
-      offset={offset}
-      racing={
-        solving
-          ? {
-              pick: room.theory.culprit ? suspectById(room.theory.culprit).name : null,
-              locked: room.lockIns.length,
-              size: room.squadSize,
-              nudge: room.lastNudge?.text ?? null,
-              cooldownUntil: room.cooldownUntil,
-              agreed: room.members.filter((m) => !m.isMe && lockedIds(room).has(m.memberId)).map((m) => m.name),
-              meLocked: !!room.me && lockedIds(room).has(room.me.memberId),
-            }
-          : undefined
-      }
-      roles={room?.members.map((m) => m.role ?? m.roles[0]).filter((r) => r !== undefined)}
-      on={{
-        onCase: () => code && (drop.template ? router.replace({ pathname: '/drop/[id]', params: { id } }) : router.push({ pathname: '/room/[code]', params: { code } })),
-        onShare: () => router.push({ pathname: '/drop/[id]/win', params: { id } }),
-        onReveal: () => code && router.push({ pathname: '/room/[code]', params: { code, reveal: '1' } }),
-      }}
-    />
+    <Arrive>
+      <LeaderboardScreen
+        drop={drop}
+        board={board}
+        offset={offset}
+        racing={
+          solving
+            ? {
+                pick: room.theory.culprit ? suspectById(room.theory.culprit).name : null,
+                locked: room.lockIns.length,
+                size: room.squadSize,
+                nudge: room.lastNudge?.text ?? null,
+                cooldownUntil: room.cooldownUntil,
+                agreed: room.members.filter((m) => !m.isMe && lockedIds(room).has(m.memberId)).map((m) => m.name),
+                meLocked: !!room.me && lockedIds(room).has(room.me.memberId),
+              }
+            : undefined
+        }
+        roles={room?.members.map((m) => m.role ?? m.roles[0]).filter((r) => r !== undefined)}
+        on={{
+          onCase: () => code && (drop.template ? router.replace({ pathname: '/drop/[id]', params: { id } }) : router.push({ pathname: '/room/[code]', params: { code } })),
+          onShare: () => router.push({ pathname: '/drop/[id]/win', params: { id } }),
+          onReveal: () => code && router.push({ pathname: '/room/[code]', params: { code, reveal: '1' } }),
+        }}
+      />
+    </Arrive>
   );
 }
-
-const styles = StyleSheet.create({
-  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Palette.ink },
-});

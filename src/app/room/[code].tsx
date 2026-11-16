@@ -1,6 +1,6 @@
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Share, StyleSheet, View } from 'react-native';
+import { Share, StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { AgreementScreen } from '@/components/screens/agreement';
@@ -10,12 +10,12 @@ import { IntroScreen } from '@/components/screens/intro';
 import { LobbyScreen } from '@/components/screens/lobby';
 import { OutcomeStage } from '@/components/screens/outcome-stage';
 import { RevealScreen, type RevealPage } from '@/components/screens/reveal';
-import { Atmosphere } from '@/components/signal/backdrop';
+import { Arrive, Pending } from '@/components/signal/backdrop';
 import { joinNames, lockedIds } from '@/components/signal/room';
 import type { SheetNotice } from '@/components/signal/theory-sheet';
 import { useToast } from '@/components/signal/use-toast';
 import { suspectById } from '@/constants/case01';
-import { Palette, RoleMeta } from '@/constants/signal';
+import { RoleMeta } from '@/constants/signal';
 import {
   useClaimRole,
   useConnection,
@@ -41,23 +41,18 @@ export default function RoomRoute() {
   const { code } = useLocalSearchParams<{ code: string }>();
   const room = useRoom(code);
   const drop = useDrop(room?.drop?.dropId ?? null);
-  if (room === undefined || (room?.drop && drop === undefined)) return <Loading />;
+  if (room === undefined || (room?.drop && drop === undefined)) return <Pending />;
   if (room === null || !room.me) return <ClosedScreen code={code} onNewCase={() => router.replace('/')} />;
   if (room.drop && drop?.template === 'split-passphrase') return <Redirect href={{ pathname: '/drop/[id]', params: { id: room.drop.dropId } }} />;
-  return <LiveRoom room={room} />;
+  return (
+    <Arrive>
+      <LiveRoom room={room} />
+    </Arrive>
+  );
 }
 
 function everyone(n: number) {
   return n === 2 ? 'both of you' : n === 3 ? 'all three' : n === 4 ? 'all four' : 'everyone';
-}
-
-function Loading() {
-  return (
-    <View style={styles.loading}>
-      <Atmosphere />
-      <ActivityIndicator color={Palette.paper} />
-    </View>
-  );
 }
 
 function LiveRoom({ room }: { room: RoomView }) {
@@ -343,6 +338,5 @@ function DropHandoff({ room, dropId }: { room: RoomView; dropId: string }) {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  loading: { flex: 1, backgroundColor: Palette.ink, alignItems: 'center', justifyContent: 'center' },
 });
 
