@@ -152,7 +152,11 @@ function Console({ id, host, live }: { id: string; host: HostConsoleView; live: 
         title="Start"
         accent
         disabled={host.entrantCount === 0}
-        onPress={() => commit({ phase: 'live', round: quiz ? advance(lobbyRound(questionCount), questions, questionCount) : null }, () => start({ openFirst: quiz }))}
+        onPress={() =>
+          commit({ phase: 'live', round: quiz ? advance(lobbyRound(questionCount), questions, questionCount) : null }, () =>
+            start({ openFirst: quiz }),
+          )
+        }
       />
     );
     secondary =
@@ -224,7 +228,7 @@ function Console({ id, host, live }: { id: string; host: HostConsoleView; live: 
       {phase === 'open' || phase === 'locked' ? <Lobby host={host} /> : null}
       {phase === 'live' ? (
         quiz && board ? (
-          <QuizBoard host={host} board={board} serverNow={live?.serverNow ?? null} />
+          <QuizBoard host={host} board={board} serverNow={live?.serverNow ?? null} questions={questions} />
         ) : (
           <TeamBoard host={host} />
         )
@@ -297,7 +301,17 @@ function Lobby({ host }: { host: HostConsoleView }) {
   );
 }
 
-function QuizBoard({ host, board, serverNow }: { host: HostConsoleView; board: Board; serverNow: number | null }) {
+function QuizBoard({
+  host,
+  board,
+  serverNow,
+  questions,
+}: {
+  host: HostConsoleView;
+  board: Board;
+  serverNow: number | null;
+  questions: QuizQuestion[];
+}) {
   const round = board.round;
   const open = round?.phase === 'question';
   const { now, read } = useServerNow(serverNow, open);
@@ -306,6 +320,7 @@ function QuizBoard({ host, board, serverNow }: { host: HostConsoleView; board: B
   const scored = board.rows.some((r) => r.points > 0);
   const n = round?.questionCount ?? 0;
   const position = round?.index !== null && round?.index !== undefined ? 'Question ' + (round.index + 1) + ' of ' + n : '';
+  const q = open && round?.index != null ? questions[round.index] : undefined;
   const left = open && round?.closesAt ? Math.max(0, Math.min(round.closesAt - now, round.closesAt - (round.opensAt ?? now))) : 0;
   return (
     <>
@@ -327,9 +342,12 @@ function QuizBoard({ host, board, serverNow }: { host: HostConsoleView; board: B
           </Txt>
         )}
         {open ? (
-          <Txt variant="small" color={Palette.paperMuted}>
-            {answered + ' of ' + board.rows.length + ' answered'}
-          </Txt>
+          <View style={styles.roundHead}>
+            <Txt variant="small" color={Palette.paperMuted} style={styles.flex}>
+              {answered + ' of ' + board.rows.length + ' answered'}
+            </Txt>
+            {q ? <Peek key={round?.index} answer={q.choices[q.correct]} /> : null}
+          </View>
         ) : round?.correctText ? (
           <Animated.View entering={FadeIn.duration(200)} style={styles.answer}>
             <Txt variant="small" color={Palette.paperMuted}>
@@ -354,6 +372,26 @@ function QuizBoard({ host, board, serverNow }: { host: HostConsoleView; board: B
         ))}
       </View>
     </>
+  );
+}
+
+// The answer stays off screen while a question is open, since the console may be on stream. Holding shows it to the
+// host for as long as the press lasts; releasing hides it again.
+function Peek({ answer }: { answer: string }) {
+  const [held, setHeld] = useState(false);
+  return (
+    <PressScale
+      accessibilityRole="button"
+      accessibilityLabel="Hold to see the answer"
+      scaleTo={0.98}
+      delayLongPress={0}
+      onPressIn={() => setHeld(true)}
+      onPressOut={() => setHeld(false)}
+      style={styles.peek}>
+      <Txt variant="label" color={held ? Palette.paper : Palette.paperMuted} numberOfLines={1}>
+        {held ? answer : 'Hold for answer'}
+      </Txt>
+    </PressScale>
   );
 }
 
@@ -575,6 +613,7 @@ const styles = StyleSheet.create({
   },
   fill: { flex: 1, backgroundColor: Palette.paper, transformOrigin: 'left' },
   answer: { flexDirection: 'row', alignItems: 'baseline', gap: Space.s },
+  peek: { minHeight: 36, justifyContent: 'center', maxWidth: 240 },
   rows: { gap: 2 },
   row: {
     flexDirection: 'row',
