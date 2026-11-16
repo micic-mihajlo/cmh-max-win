@@ -136,7 +136,7 @@ function HostBoard({ view }: { view: HostView }) {
 function Pot({ view, style }: { view: HostView; style?: StyleProp<ViewStyle> }) {
   return (
     <View style={style}>
-      <Txt variant="bodyStrong">{`${money(view.bounty.totalCents)} · first ${view.bounty.winnerSlots} squads`}</Txt>
+      <Txt variant="bodyStrong">{`${money(view.bounty.totalCents)} · ${view.bounty.winnerSlots === 1 ? 'first squad' : `first ${view.bounty.winnerSlots} squads`}`}</Txt>
       {view.bounty.mode === 'concept' ? (
         <Txt variant="label" color={Brass}>
           Concept · no real money moves
