@@ -127,6 +127,7 @@ export default defineSchema({
     conceptOnly: v.optional(v.boolean()), // hosted drops never take the sandbox payout path
     strictSquadSize: v.optional(v.boolean()), // demo controls: every squad is exactly squadSize, leftovers unmatched
     template: v.optional(v.literal('split-passphrase')), // hostDrop: squads play a split passphrase instead of the mystery
+    payoutMode: v.optional(v.union(v.literal('real'), v.literal('concept'))), // hostDrop's pick; absent: as before
     startsAt: v.number(),
     status: v.union(v.literal('scheduled'), v.literal('live'), v.literal('ended')),
     bounty: v.object({ totalCents: v.number(), currency: v.literal('usd'), winnerSlots: v.number() }),
@@ -191,6 +192,7 @@ export default defineSchema({
     whopUserId: v.optional(v.string()),
     attempts: v.number(),
     transferId: v.optional(v.string()),
+    transferStatus: v.optional(v.string()), // Whop's status on create ('succeeded'); the fee is never read from create
     failureCode: v.optional(v.string()),
     error: v.optional(v.string()),
     updatedAt: v.number(),

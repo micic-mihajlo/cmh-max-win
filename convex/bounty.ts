@@ -3,7 +3,7 @@ import { ConvexError, v } from 'convex/values';
 import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { internalAction, internalMutation, type MutationCtx, type QueryCtx } from './_generated/server';
-import { WHOP_API_VERSION_DATE, whopApiBase, whopEnvironment, whopRequest } from './whop';
+import { WHOP_TRANSFER_API_VERSION_DATE, whopApiBase, whopEnvironment, whopRequest } from './whop';
 
 type WhopClaimLink = {
   id: string;
@@ -165,6 +165,7 @@ export const recordAward = internalMutation({
 // transfer per squad member to their linked whopUserId. Off (the default) keeps today's behaviour exactly.
 
 export const TRANSFER_LABEL = 'Paid by Whop transfer';
+const FAILED_TRANSFER_STATUSES = new Set(['failed', 'canceled', 'cancelled', 'reversed', 'rejected']);
 const MAX_TRANSFER_ATTEMPTS = 4;
 
 // Real transfers are capped per award (SIGNAL_REAL_PAYOUT_CAP_CENTS, default $10): anyone can host a drop
@@ -190,13 +191,24 @@ export function awardMode(drop: Pick<Doc<'drops'>, 'conceptOnly'>, awardCents: n
 // The mode an award actually gets: a 'transfer' award that would push the cents already committed to real
 // transfers past the budget stays concept. Waiting, sending and sent rows count. A failed row releases its cents
 // only when Whop definitely refused it; retries_exhausted stays counted, since the last attempt may have landed.
-export async function awardModeWithBudget(ctx: Pick<QueryCtx, 'db'>, drop: Pick<Doc<'drops'>, 'conceptOnly'>, awardCents: number) {
-  const mode = awardMode(drop, awardCents);
-  if (mode !== 'transfer') return mode;
-  const committed = (await ctx.db.query('bountyPayouts').collect())
+export async function realBudgetCommittedCents(ctx: Pick<QueryCtx, 'db'>) {
+  return (await ctx.db.query('bountyPayouts').collect())
     .filter((r) => r.status !== 'failed' || r.failureCode === 'retries_exhausted')
     .reduce((sum, r) => sum + r.cents, 0);
-  return committed + awardCents <= realPayoutBudgetCents() ? 'transfer' : 'concept';
+}
+
+// What's left of SIGNAL_REAL_PAYOUT_BUDGET_CENTS; 0 when real payouts are off.
+export async function realBudgetRemainingCents(ctx: Pick<QueryCtx, 'db'>) {
+  if (process.env.SIGNAL_REAL_PAYOUTS !== 'on') return 0;
+  return Math.max(0, realPayoutBudgetCents() - (await realBudgetCommittedCents(ctx)));
+}
+
+// A drop hosted with payoutMode 'concept' never moves real money, even with real payouts on.
+export async function awardModeWithBudget(ctx: Pick<QueryCtx, 'db'>, drop: Pick<Doc<'drops'>, 'conceptOnly' | 'payoutMode'>, awardCents: number) {
+  if (drop.payoutMode === 'concept') return 'concept';
+  const mode = awardMode(drop, awardCents);
+  if (mode !== 'transfer') return mode;
+  return (await realBudgetCommittedCents(ctx)) + awardCents <= realPayoutBudgetCents() ? 'transfer' : 'concept';
 }
 
 async function queueTransfer(ctx: MutationCtx, payoutId: Id<'bountyPayouts'>, whopUserId: string) {
@@ -267,6 +279,7 @@ export const recordTransfer = internalMutation({
     payoutId: v.id('bountyPayouts'),
     status: v.union(v.literal('sent'), v.literal('failed')),
     transferId: v.optional(v.string()),
+    transferStatus: v.optional(v.string()),
     failureCode: v.optional(v.string()),
     error: v.optional(v.string()),
   },
@@ -312,7 +325,7 @@ export const sendTransfer = internalAction({
         method: 'POST',
         headers: {
           Authorization: `Bearer ${apiKey}`,
-          'Api-Version-Date': WHOP_API_VERSION_DATE,
+          'Api-Version-Date': WHOP_TRANSFER_API_VERSION_DATE,
           'Content-Type': 'application/json',
           'Idempotency-Key': job.idempotencyKey,
         },
@@ -343,7 +356,14 @@ export const sendTransfer = internalAction({
       });
       return;
     }
-    const transfer = JSON.parse(body) as { id?: string };
-    await ctx.runMutation(internal.bounty.recordTransfer, { payoutId, status: 'sent', transferId: transfer.id });
+    // status is the source of truth: succeeded_at can be null on a succeeded transfer, and fee is null on create
+    // (it only appears on a later GET or the webhook), so neither is read here.
+    const transfer = JSON.parse(body) as { id?: string; status?: string | null };
+    const status = transfer.status ?? undefined;
+    if (status && FAILED_TRANSFER_STATUSES.has(status)) {
+      await ctx.runMutation(internal.bounty.recordTransfer, { payoutId, status: 'failed', transferId: transfer.id, transferStatus: status, failureCode: 'transfer_' + status });
+      return;
+    }
+    await ctx.runMutation(internal.bounty.recordTransfer, { payoutId, status: 'sent', transferId: transfer.id, ...(status ? { transferStatus: status } : {}) });
   },
 });
