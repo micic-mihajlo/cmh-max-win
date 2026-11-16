@@ -46,7 +46,12 @@ function CodeEntry({ onCode }: { onCode: (code: string) => void }) {
           autoCorrect={false}
           maxLength={4}
           value={draft}
-          onChangeText={(t) => setDraft(t.replace(/[^a-z0-9]/gi, '').toUpperCase())}
+          onChangeText={(t) => {
+            const next = t.replace(/[^a-z0-9]/gi, '').toUpperCase();
+            setDraft(next);
+            const full = parseJoinCode(next);
+            if (full) onCode(full);
+          }}
           onSubmitEditing={() => code && onCode(code)}
           style={styles.hiddenInput}
         />
@@ -238,7 +243,7 @@ function Quiz({ view, team, quiz }: { view: PlayerChallengeView; team: string; q
                     q.closed && correct && styles.choiceCorrect,
                     pressed && styles.choicePressed,
                   ]}>
-                  <Txt variant="bodyStrong" color={picked && !q.closed ? Palette.onAccent : Palette.paper}>
+                  <Txt variant="bodyStrong" color={picked ? Palette.onAccent : Palette.paper}>
                     {choice}
                   </Txt>
                 </Pressable>
