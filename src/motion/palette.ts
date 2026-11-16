@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react';
 
+import { Palette } from '@/constants/signal';
 import type { Role } from '@/lib/contract';
 
 // Every primitive reads its colors from here, so a screen can swap the palette with one provider.
@@ -17,19 +18,19 @@ export type MotionColors = {
   owned: string;
 };
 
-// Paper & Type (DIRECTION.md, Nov 15): the default.
+// The app theme (src/constants/signal.ts): the default.
 export const PaperColors: MotionColors = {
-  canvas: '#F7F6F2',
-  card: '#FFFFFF',
-  ink: '#1A1916',
-  muted: '#6B675F',
-  faint: '#A29D93',
-  hairline: '#E6E3DC',
-  accent: '#E39B5B',
-  onAccent: '#1A1916',
-  accentSoft: '#FFF1E6',
-  onRole: '#FAFAF7',
-  owned: '#D9B26F',
+  canvas: Palette.ink,
+  card: Palette.card,
+  ink: Palette.paper,
+  muted: Palette.paperMuted,
+  faint: Palette.paperMuted,
+  hairline: Palette.hairline,
+  accent: Palette.ember,
+  onAccent: Palette.onAccent,
+  accentSoft: Palette.accentSoft,
+  onRole: Palette.card,
+  owned: Palette.paper,
 };
 
 // Midnight Editorial, kept so the dark build still works.
@@ -40,8 +41,8 @@ export const MidnightColors: MotionColors = {
   muted: '#94908A',
   faint: '#7E7B77',
   hairline: '#29292B',
-  accent: '#E39B5B',
-  onAccent: '#0E0F13',
+  accent: Palette.ember,
+  onAccent: Palette.onAccent,
   accentSoft: '#2A211A',
   onRole: '#0E0F13',
   owned: '#D9B26F',

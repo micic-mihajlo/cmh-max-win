@@ -252,11 +252,9 @@ function Pot({ view, style }: { view: HostView; style?: StyleProp<ViewStyle> }) 
   return (
     <View style={style}>
       <Txt variant="bodyStrong">{`${money(view.bounty.totalCents)} · ${view.bounty.winnerSlots === 1 ? 'first squad' : `first ${view.bounty.winnerSlots} squads`}`}</Txt>
-      {view.bounty.mode === 'concept' ? (
-        <Txt variant="label" color={Brass}>
-          Concept · no real money moves
-        </Txt>
-      ) : null}
+      <Txt variant="label" color={Brass}>
+        {view.bounty.mode === 'concept' ? 'Concept · no real money moves' : 'Real · paid via Whop'}
+      </Txt>
     </View>
   );
 }
@@ -317,6 +315,6 @@ const styles = StyleSheet.create({
   chip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: Radius.pill, backgroundColor: Palette.paperShade },
   footer: { flexDirection: 'row', alignItems: 'center', gap: Space.l },
   footerStack: { flexDirection: 'column', alignItems: 'stretch', gap: Space.m },
-  deal: { height: 54, paddingHorizontal: Space.xl, borderRadius: 16, backgroundColor: Palette.ember, alignItems: 'center', justifyContent: 'center' },
+  deal: { height: 52, paddingHorizontal: Space.xl, borderRadius: 16, backgroundColor: Palette.paper, alignItems: 'center', justifyContent: 'center' },
   dealOff: { backgroundColor: Palette.inkDeep },
 });

@@ -14,8 +14,17 @@ import { gallery } from '@/mocks/load';
 
 export default function Index() {
   if (gallery) return <Redirect href="/mocks" />;
-  if (Platform.OS === 'web') return <WebHomeScreen />;
+  if (Platform.OS === 'web') return <WebHome />;
   return <Cover />;
+}
+
+function WebHome() {
+  const active = useActiveRoom();
+  const activeDrop = useActiveDrop(active?.code ?? null);
+  const resume = active
+    ? () => (activeDrop ? router.push({ pathname: '/drop/[id]', params: { id: activeDrop.dropId } }) : router.push({ pathname: '/room/[code]', params: { code: active.code } }))
+    : undefined;
+  return <WebHomeScreen onResume={resume} />;
 }
 
 function Cover() {

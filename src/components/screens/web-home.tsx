@@ -11,14 +11,15 @@ import { Palette, Radius, Space } from '@/constants/signal';
 
 const APP_URL = 'https://signal-app-wine.vercel.app/';
 
-// Web landing: host or join in the browser, no name prompt. The QR opens this page on a phone, so nothing to install.
-export function WebHomeScreen() {
+// Web landing: host or join in the browser, no name prompt, plus a way back in while this browser holds a squad seat. The QR opens this page on a phone, so nothing to install.
+export function WebHomeScreen({ onResume }: { onResume?: () => void }) {
   const { width } = useWindowDimensions();
   return (
     <Screen
       footer={
         <>
-          <Button title="Start a game" onPress={() => router.push('/host')} />
+          {onResume ? <Button title="Back to your squad" onPress={onResume} /> : null}
+          <Button title="Start a game" variant={onResume ? 'secondary' : undefined} onPress={() => router.push('/host')} />
           <QuietLink title="Join with a code" onPress={() => router.push('/join')} />
           <QuietLink title="Create a challenge" onPress={() => router.push('/studio')} />
           <QuietLink title="Streamers" onPress={() => router.push('/showcase/streamers' as Href)} />

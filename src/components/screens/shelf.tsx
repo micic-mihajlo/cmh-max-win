@@ -122,7 +122,7 @@ export function ConceptPackCard() {
   return (
     <View style={styles.concept} accessibilityLabel="Concept. Season pack, not for sale yet.">
       <View style={styles.stamp}>
-        <Txt style={styles.stampText}>CONCEPT</Txt>
+        <Txt style={styles.stampText}>Concept</Txt>
       </View>
       <Label color={Palette.paperMuted}>Season pack · via Whop · concept</Label>
       <Txt variant="title" color={Palette.paperMuted}>
@@ -152,10 +152,10 @@ const styles = StyleSheet.create({
     boxShadow: '0 1px 2px rgba(26,25,22,0.04), 0 8px 24px rgba(26,25,22,0.05)',
   },
   realTitle: { fontFamily: FontFamily.displayBold, fontSize: 22, lineHeight: 28, color: Palette.paper },
-  buy: { minHeight: 56, borderRadius: Radius.m, backgroundColor: Palette.paper, alignItems: 'center', justifyContent: 'center', marginTop: Space.s },
+  buy: { minHeight: 52, borderRadius: Radius.m, backgroundColor: Palette.paper, alignItems: 'center', justifyContent: 'center', marginTop: Space.s },
   cancel: { alignSelf: 'flex-start', paddingVertical: Space.s },
   owned: {
-    minHeight: 56,
+    minHeight: 52,
     borderRadius: Radius.m,
     backgroundColor: Palette.paperShade,
     flexDirection: 'row',
@@ -184,5 +184,5 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     transform: [{ rotate: '-10deg' }],
   },
-  stampText: { fontFamily: FontFamily.uiBold, fontSize: 13, letterSpacing: 3, color: Palette.paperMuted },
+  stampText: { fontFamily: FontFamily.uiBold, fontSize: 13, color: Palette.paperMuted },
 });
