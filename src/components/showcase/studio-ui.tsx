@@ -12,7 +12,7 @@ import type { BuilderRole } from './validate';
 // SIGNAL token map (whop-design.md): sand surfaces, sand-12 ink, orange-9 only on the commit action.
 export const G = {
   bg: Palette.ink,
-  surface: Palette.panel,
+  surface: Palette.card,
   ink: Palette.paper,
   inkSoft: Palette.paperMuted,
   line: Palette.hairline,
@@ -21,9 +21,9 @@ export const G = {
   accent: Palette.ember,
   onAccent: Palette.onAccent,
   ok: Palette.ok,
-  okWash: '#EAF1EA',
+  okWash: Palette.paperShade,
   bad: Palette.danger,
-  badWash: '#F8E9E3',
+  badWash: Palette.paperShade,
   role: { detective: Palette.paperShade, hacker: Palette.paperShade, witness: Palette.paperShade } as Record<BuilderRole, string>,
 };
 

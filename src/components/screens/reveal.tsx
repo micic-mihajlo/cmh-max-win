@@ -159,13 +159,13 @@ function ChoiceCard({ title, text, selected, onPress }: { title: string; text: s
       accessibilityRole="radio"
       accessibilityState={{ selected }}
       onPress={onPress}
-      style={[styles.choice, selected && { borderColor: Palette.ember, backgroundColor: Palette.accentSoft }]}>
+      style={[styles.choice, selected && { borderColor: Palette.paper, backgroundColor: Palette.accentSoft }]}>
       <Txt variant="name">{title}</Txt>
       <Txt variant="small" color={Palette.paperMuted}>
         {text}
       </Txt>
       {selected ? (
-        <Txt variant="smallStrong" color={Palette.ember}>
+        <Txt variant="smallStrong" color={Palette.paper}>
           Your pick · a preview for now
         </Txt>
       ) : null}
