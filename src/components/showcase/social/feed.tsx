@@ -66,18 +66,22 @@ export function FeedScreen({
         ) : (
           <View>
             {view.upcoming.map((u) => (
-              <PressScale scaleTo={0.98} haptic="tap" key={u.dropId} style={[showcase.row, styles.row]} onPress={() => router.push(streamerHref(u.streamerId))}>
-                <Avatar initials={u.streamerName.slice(0, 1)} uri={avatar(u.streamerId)} size={40} />
+              <View key={u.dropId} style={[showcase.row, styles.row]}>
                 <View style={showcase.flex}>
-                  <Txt variant="bodyStrong" numberOfLines={1}>
-                    {u.streamerName}
-                  </Txt>
-                  <Txt variant="small" color={Palette.paperMuted} numberOfLines={1}>
-                    {dropTime(u.startsAt, view.serverNow)} · {u.title}
-                  </Txt>
+                  <PressScale scaleTo={0.98} haptic="tap" accessibilityRole="button" style={showcase.row} onPress={() => router.push(streamerHref(u.streamerId))}>
+                    <Avatar initials={u.streamerName.slice(0, 1)} uri={avatar(u.streamerId)} size={40} />
+                    <View style={showcase.flex}>
+                      <Txt variant="bodyStrong" numberOfLines={1}>
+                        {u.streamerName}
+                      </Txt>
+                      <Txt variant="small" color={Palette.paperMuted} numberOfLines={1}>
+                        {dropTime(u.startsAt, view.serverNow)} · {u.title}
+                      </Txt>
+                    </View>
+                  </PressScale>
                 </View>
                 <Remind row={u} />
-              </PressScale>
+              </View>
             ))}
           </View>
         )}

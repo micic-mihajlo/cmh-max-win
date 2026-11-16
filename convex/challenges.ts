@@ -211,11 +211,17 @@ export async function getChallenge(ctx: Ctx, id: string) {
   return cid ? ctx.db.get(cid) : null;
 }
 
+// The creator of a challenge: the device that made it, or any device signed in to the same Whop account as it.
+export async function isChallengeOwner(ctx: Ctx, c: Challenge, deviceToken: string): Promise<boolean> {
+  if (c.creatorToken === deviceToken) return true;
+  if (!deviceToken) return false;
+  return (await linkedDeviceTokens(ctx, deviceToken)).includes(c.creatorToken);
+}
+
 export async function requireOwned(ctx: Ctx, deviceToken: string, id: string) {
   const c = await getChallenge(ctx, id);
   if (!c) fail('CHALLENGE_NOT_FOUND', 'No such challenge.');
-  const me = await resolveIdentity(ctx, deviceToken);
-  if (c.creatorToken !== me.deviceToken) fail('NOT_CREATOR', 'Only the creator can do that.');
+  if (!(await isChallengeOwner(ctx, c, deviceToken))) fail('NOT_CREATOR', 'Only the creator can do that.');
   return c;
 }
 
@@ -483,6 +489,19 @@ export const createServerChallenge = internalMutation({
   handler: (ctx, { creatorToken, patch }) => insertDraft(ctx, creatorToken, (patch ?? {}) as Partial<ChallengeConfig>, true),
 });
 
+// Retitles a seeded challenge in any status (published configs are otherwise frozen). Idempotent.
+export const retitleChallenge = internalMutation({
+  args: { challengeId: v.id('challenges'), title: v.string(), blurb: v.optional(v.string()) },
+  handler: async (ctx, { challengeId, title, blurb }) => {
+    const c = await ctx.db.get(challengeId);
+    const next = title.trim().slice(0, 60);
+    if (!c || !next) fail('CHALLENGE_NOT_FOUND', 'No such challenge, or an empty title.');
+    const config = { ...c.config, title: next, ...(blurb !== undefined ? { blurb: blurb.trim().slice(0, 280) } : {}) };
+    if (config.title !== c.config.title || config.blurb !== c.config.blurb) await ctx.db.patch(c._id, { config });
+    return { challengeId: challengeId as string, title: next };
+  },
+});
+
 export const myChallenges = query({
   args: { deviceToken: v.string() },
   handler: async (ctx, { deviceToken }): Promise<ChallengeSummaryView[]> => {
@@ -498,7 +517,7 @@ export const challengeDraft = query({
   args: { deviceToken: v.string(), challengeId: v.string() },
   handler: async (ctx, { deviceToken, challengeId }): Promise<ChallengeDraftView | null> => {
     const c = await getChallenge(ctx, challengeId);
-    if (!c || c.creatorToken !== (await resolveIdentity(ctx, deviceToken)).deviceToken) return null;
+    if (!c || !(await isChallengeOwner(ctx, c, deviceToken))) return null;
     return {
       ...(await summaryView(ctx, c)),
       issues: c.status === 'draft' ? validateConfig(c.config, c.serverCreated, Date.now()) : [],
@@ -696,7 +715,7 @@ export const hostConsole = query({
   args: { deviceToken: v.string(), challengeId: v.string() },
   handler: async (ctx, { deviceToken, challengeId }): Promise<HostConsoleView | null> => {
     const c = await getChallenge(ctx, challengeId);
-    if (!c || c.creatorToken !== (await resolveIdentity(ctx, deviceToken)).deviceToken) return null;
+    if (!c || !(await isChallengeOwner(ctx, c, deviceToken))) return null;
     const now = Date.now();
     const [summary, entries, teams, funding] = await Promise.all([
       summaryView(ctx, c),
