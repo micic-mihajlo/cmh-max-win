@@ -92,6 +92,7 @@ async function main() {
       try {
         await p.c.action(F('challenges:joinChallenge'), { deviceToken: p.token, code: joinCode, name: p.name });
         timings.join.push(performance.now() - s);
+        p.joinedOk = true;
       } catch (e) {
         note('join', p.name, e);
       }
@@ -100,7 +101,9 @@ async function main() {
 
   // Every player and the host subscribe to the pulse.
   const lockSends = new Map(); // questionIndex:teamId -> send times of the team's locks, in send order
-  const subs = [...players, host];
+  // Only players whose join landed subscribe and lock; a failed join is already counted as an error.
+  const seated = players.filter((p) => p.joinedOk);
+  const subs = [...seated, host];
   host.seen = new Map();
   host.counted = new Map();
   const onError = (s) => (e) => note('subscribe', s.name ?? 'host', e);
@@ -152,8 +155,8 @@ async function main() {
       unShared();
     };
   }
-  const lobbyLeft = await waitAll(subs, (p) => p.joined === N);
-  log('Lobby: ' + (subs.length - lobbyLeft) + '/' + subs.length + ' subscribers see joined = ' + N + '.');
+  const lobbyLeft = await waitAll(subs, (p) => p.joined === seated.length);
+  log('Lobby: ' + (subs.length - lobbyLeft) + '/' + subs.length + ' subscribers see joined = ' + seated.length + '.');
 
   await host.c.mutation(F('live:startLive'), { deviceToken: host.token, challengeId });
   const dealtLeft = await waitAll(subs, (p) => p.teams.length > 0);
@@ -170,7 +173,7 @@ async function main() {
     timings.advanceSeen.push(performance.now() - advanceAt);
 
     // Every player locks their own answer, in random order, inside the spread window.
-    const order = players.filter((p) => p.pulse?.myTeamId).sort(() => Math.random() - 0.5);
+    const order = seated.filter((p) => p.pulse?.myTeamId).sort(() => Math.random() - 0.5);
     await Promise.all(
       order.map(async (p, i) => {
         await sleep((SPREAD_MS * i) / order.length);
@@ -198,7 +201,8 @@ async function main() {
     log('Q' + (q + 1) + ': ' + order.length + ' locks sent; ' + (subs.length - allLocked) + '/' + subs.length + ' subscribers see every lock.');
 
     const revealAt = performance.now();
-    await host.c.mutation(F('live:runHostAction'), { deviceToken: host.token, challengeId, action: 'next', payload: { expectedIndex: q, expectedPhase: 'question' } });
+    // A slow round can time out on its own first; the last one then ends the challenge, which refuses Next.
+    await host.c.mutation(F('live:runHostAction'), { deviceToken: host.token, challengeId, action: 'next', payload: { expectedIndex: q, expectedPhase: 'question' } }).catch((e) => note('reveal', 'host', e));
     const done = q === QUESTIONS - 1;
     const revealLeft = await waitAll(subs, (p) => p.questionIndex === q && (p.phase === 'reveal' || p.phase === 'finished') && p.teams.every((t) => t.correct !== null));
     timings.revealSeen.push(performance.now() - revealAt);
