@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { FadeIn, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 
 import { FontFamily, Palette, Radius, Space, Type } from '@/constants/signal';
 import { Duration, Ease, PressScale, useReduced } from '@/motion';
@@ -27,9 +27,28 @@ const border: Record<TileState, string> = {
 };
 
 // One choice. Scales on touch-down, commits on release; the fill morphs between states instead of swapping.
-export function AnswerTile({ label, state, note, onPress }: { label: string; state: TileState; note?: string | null; onPress?: () => void }) {
+// shake: bump it when the server refuses an optimistic lock-in; the tile rolls back with a quiet shake.
+export function AnswerTile({
+  label,
+  state,
+  note,
+  shake = 0,
+  onPress,
+}: {
+  label: string;
+  state: TileState;
+  note?: string | null;
+  shake?: number;
+  onPress?: () => void;
+}) {
   const reduced = useReduced();
   const scale = useSharedValue(1);
+  const nudge = useSharedValue(0);
+  useEffect(() => {
+    if (!shake || reduced) return;
+    const step = (to: number) => withTiming(to, { duration: 45, easing: Ease.out });
+    nudge.set(withSequence(step(-4), step(4), step(-2), step(0)));
+  }, [shake, reduced, nudge]);
   const was = useRef(state);
   useEffect(() => {
     const from = was.current;
@@ -40,14 +59,14 @@ export function AnswerTile({ label, state, note, onPress }: { label: string; sta
   const onDark = state === 'mine' || state === 'team' || state === 'correct';
   const color = onDark ? Palette.ink : state === 'missed' ? Palette.paperMuted : Palette.paper;
   const committed = state === 'mine' || state === 'team';
-  const ink = useAnimatedStyle(() => ({ color: committed ? color : withTiming(color, { duration: Duration.bleed, easing: Ease.out }) }));
+  const ink = useAnimatedStyle(() => ({ color: committed ? color : withTiming(color, { duration: Duration.swap, easing: Ease.out }) }));
   const animated = useAnimatedStyle(() => {
-    const t = { duration: Duration.bleed, easing: Ease.out };
+    const t = { duration: Duration.swap, easing: Ease.out };
     return {
       backgroundColor: committed ? fill[state] : withTiming(fill[state], t),
       borderColor: committed ? border[state] : withTiming(border[state], t),
       opacity: withTiming(state === 'dim' ? 0.4 : 1, t),
-      transform: [{ scale: scale.get() }],
+      transform: [{ translateX: nudge.get() }, { scale: scale.get() }],
     };
   });
   return (
@@ -60,7 +79,12 @@ export function AnswerTile({ label, state, note, onPress }: { label: string; sta
       scaleTo={0.96}
       onPress={onPress}>
       <Animated.View style={[styles.tile, animated]}>
-        <Animated.Text style={[styles.label, state === 'missed' && styles.struck, ink]} numberOfLines={3} maxFontSizeMultiplier={1.4}>
+        <Animated.Text
+          key={label}
+          entering={reduced ? undefined : FadeIn.duration(Duration.swap)}
+          style={[styles.label, state === 'missed' && styles.struck, ink]}
+          numberOfLines={3}
+          maxFontSizeMultiplier={1.4}>
           {label}
         </Animated.Text>
         {state === 'correct' ? (
