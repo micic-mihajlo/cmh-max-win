@@ -10,7 +10,9 @@ import type {
   UseRealPayoutStatus,
   UseDropByCode,
   UseEnterDropByCode,
+  UseHostAwardSquads,
   UseHostDrop,
+  UseHostEndDrop,
   UseHostView,
   UseDrops,
   UseEnterDrop,
@@ -49,6 +51,23 @@ export const useHostDrop: UseHostDrop = () => {
 };
 
 export const useRealPayoutStatus: UseRealPayoutStatus = () => useQuery(api.drops.realPayoutStatus, {});
+
+export const useHostEndDrop: UseHostEndDrop = (dropId) => {
+  const end = useMutation(api.drops.hostEndDrop);
+  return useCallback(async () => {
+    await end({ deviceToken: await getDeviceToken(), dropId });
+  }, [end, dropId]);
+};
+
+export const useHostAwardSquads: UseHostAwardSquads = (dropId) => {
+  const award = useMutation(api.drops.hostAwardSquads);
+  return useCallback(
+    async (squadIds: string[]) => {
+      await award({ deviceToken: await getDeviceToken(), dropId, squadIds });
+    },
+    [award, dropId],
+  );
+};
 
 export const useDealSquads: UseDealSquads = (dropId) => {
   const deal = useMutation(api.drops.dealSquads);

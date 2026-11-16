@@ -139,6 +139,9 @@ export type SignalErrorCode =
   | 'CHALLENGE_FULL' // a new device joining a challenge at capacity (contract-hardening.ts)
   | 'BAD_ANSWER' // split passphrase: the answer doesn't have one word per slot
   | 'REAL_PAYOUTS_OFF' // hostDrop payoutMode 'real' while the server has real payouts off
+  | 'DROP_NOT_LIVE' // hostEndDrop / hostAwardSquads before the race has started
+  | 'UNKNOWN_SQUAD' // hostAwardSquads: an id that isn't an unsolved squad of this drop
+  | 'TOO_MANY_WINNERS' // hostAwardSquads: more squads than winner slots left
   | 'REAL_BUDGET_EXCEEDED' // hostDrop payoutMode 'real' with a pot above the remaining real budget (or the per-squad cap)
   | 'REAL_SHARE_TOO_SMALL' // hostDrop payoutMode 'real' where a winner's share would be under Whop's $1 minimum
   | 'NOT_CASE_ROOM' // a Case 01 call (setTheory, lockIn, claimRole, startCase, restart) on a split-passphrase squad
@@ -351,6 +354,7 @@ export type HostView = {
   needMore?: number; // max(0, minToDeal - entrantCount): "Need N more" on the Deal button
   entrants: { name: string; joinedAt: number }[]; // join order
   squads: {
+    squadId?: string; // what hostAwardSquads takes
     squadLabel: string;
     memberNames: string[];
     status: 'solving' | 'solved' | 'winner';
@@ -377,6 +381,8 @@ export type UseHostDrop = () => (args: {
 // The host's pot picker: offer real presets ($3, $6) only while enabled and totalCents <= remainingCents.
 export type RealPayoutStatusView = { enabled: boolean; remainingCents: number; capPerSquadCents: number };
 export type UseRealPayoutStatus = () => RealPayoutStatusView | undefined;
+export type UseHostEndDrop = (dropId: string) => () => Promise<void>; // host only; DROP_NOT_LIVE before the race; no-op once ended
+export type UseHostAwardSquads = (dropId: string) => (squadIds: string[]) => Promise<void>; // host only; winners in order, then ends
 export type UseDealSquads = (dropId: string) => () => Promise<void>; // host only; NOT_ENOUGH_PLAYERS (with needMore) below HostView.minToDeal
 
 export type UseDropByCode = (code: string | null) => DropView | null | undefined; // null = no open drop with that code
