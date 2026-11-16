@@ -24,9 +24,12 @@ export const useLockEntries: UseLockEntries = (challengeId) => {
 
 export const useStartLive: UseStartLive = (challengeId) => {
   const start = useMutation(l.startLive);
-  return useCallback(async () => {
-    await start({ deviceToken: await getDeviceToken(), challengeId });
-  }, [start, challengeId]);
+  return useCallback(
+    async (options?: { openFirst?: boolean }) => {
+      await start({ deviceToken: await getDeviceToken(), challengeId, ...(options?.openFirst ? { openFirst: true } : {}) });
+    },
+    [start, challengeId],
+  );
 };
 
 export const useRunHostAction: UseRunHostAction = (challengeId) => {

@@ -291,6 +291,30 @@ describe('quick-quiz on the live layer', () => {
     expect(cents.reduce((x, y) => x + y, 0)).toBe(10_000);
   });
 
+  test('openFirst starts the clock in one press; without it the quiz waits in the lobby', async () => {
+    const round = async (t: T, joinCode: string) => ((await t.query(api.live.liveView, { code: joinCode }))!.view as { round: { phase: string; index: number | null; opensAt: number | null; closesAt: number | null } }).round;
+    const one = await published({ templateId: 'quick-quiz', teamSize: 1, templateConfig: QUIZ });
+    await join(one.t, one.joinCode, 'viewer-token-1');
+    await one.t.mutation(api.live.startLive, { deviceToken: HOST, challengeId: one.challengeId, openFirst: true });
+    const opened = await round(one.t, one.joinCode);
+    expect(opened).toMatchObject({ phase: 'question', index: 0 });
+    expect(opened.closesAt! - opened.opensAt!).toBe(10_000);
+    const q = ((await one.t.query(api.live.teamSessionView, { deviceToken: 'viewer-token-1', challengeId: one.challengeId }))!.shared as { questions: { closed: boolean }[] }).questions;
+    expect(q.map((x) => x.closed)).toEqual([false]);
+    await one.t.mutation(api.live.runHostAction, { deviceToken: HOST, challengeId: one.challengeId, action: 'next', payload: { expectedIndex: 0, expectedPhase: 'question' } });
+    expect(await round(one.t, one.joinCode)).toMatchObject({ phase: 'leaderboard', index: 0 });
+
+    const two = await published({ templateId: 'quick-quiz', teamSize: 1, templateConfig: QUIZ });
+    await join(two.t, two.joinCode, 'viewer-token-1');
+    await two.t.mutation(api.live.startLive, { deviceToken: HOST, challengeId: two.challengeId });
+    expect(await round(two.t, two.joinCode)).toMatchObject({ phase: 'lobby', index: null });
+
+    const mystery = await published();
+    for (const p of tokens(3)) await join(mystery.t, mystery.joinCode, p);
+    await mystery.t.mutation(api.live.startLive, { deviceToken: HOST, challengeId: mystery.challengeId, openFirst: true });
+    expect(await mystery.t.query(api.live.liveView, { code: mystery.joinCode })).toMatchObject({ phase: 'live', status: 'live' });
+  });
+
   test('a double tap on Next is a no-op once the round has moved on', async () => {
     const { t, challengeId, joinCode } = await published({ templateId: 'quick-quiz', teamSize: 1, templateConfig: QUIZ });
     await join(t, joinCode, 'viewer-token-1');
