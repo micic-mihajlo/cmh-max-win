@@ -260,6 +260,7 @@ function useWhisper(pulse: RoomPulse, mine: RoomPulseTeam | null, solo: boolean)
     const right = pulse.teams.filter((t) => t.correct).sort((a, b) => (a.lockedAt ?? Infinity) - (b.lockedAt ?? Infinity));
     const rank = mine ? right.findIndex((t) => t.id === mine.id) + 1 : 0;
     const you = solo ? 'You were' : 'Your team was';
+    if (rank === 1 && right.length === 1) return solo ? 'Only you got it.' : 'Only your team got it.';
     if (rank === 1) return `${you} fastest of ${right.length}.`;
     if (rank > 1) return `${you} ${ordinal(rank)} of ${right.length} to get it.`;
     return right.length ? `Fastest: ${name(right[0])}.` : 'Nobody got this one.';
