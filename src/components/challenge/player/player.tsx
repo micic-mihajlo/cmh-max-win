@@ -17,6 +17,7 @@ import {
   useMyPayout,
 } from '@/hooks/use-challenges';
 import { useLiveView, usePlayerAction, useTeamSessionView } from '@/hooks/use-live';
+import { useRoomPulse } from '@/hooks/use-room-pulse';
 import { usePlayerName } from '@/hooks/use-player-name';
 import { useLinkForClaim, useSignInToJoin, useWhopAccount } from '@/hooks/use-whop-account';
 import { Button } from '@/components/signal/primitives';
@@ -42,6 +43,7 @@ export function ChallengePlayer({ code: rawCode }: { code: string }) {
   const entered = !!challenge?.me.entered;
   const session = useTeamSessionView(entered ? challengeId : null);
   const live = useLiveView(entered ? code : null);
+  const pulse = useRoomPulse(entered ? code : null) ?? null;
   const ended = challenge?.status === 'ended';
   const payout = useMyPayout(ended ? challengeId : null);
   const recap = useChallengeRecap(ended ? challengeId : null);
@@ -189,7 +191,18 @@ export function ChallengePlayer({ code: rawCode }: { code: string }) {
       }
     };
     const team = challenge.teamSize > 1 ? teamStyle(session.teamLabel, teamIndexFromLabel(session.teamLabel)) : null;
-    return <PlayScreen quiz={quiz} mine={mine} serverNow={session.serverNow} team={team} onAnswer={onAnswer} />;
+    return (
+      <PlayScreen
+        quiz={quiz}
+        mine={mine}
+        serverNow={session.serverNow}
+        team={team}
+        pulse={pulse}
+        myName={challenge.me.name ?? null}
+        solo={challenge.teamSize === 1}
+        onAnswer={onAnswer}
+      />
+    );
   }
 
   const canLeave = challenge.status === 'published';
@@ -202,5 +215,5 @@ export function ChallengePlayer({ code: rawCode }: { code: string }) {
       setLeaving(false);
     }
   };
-  return <LobbyScreen challenge={challenge} onLeave={canLeave ? onLeave : undefined} leaving={leaving} />;
+  return <LobbyScreen challenge={challenge} pulse={pulse} onLeave={canLeave ? onLeave : undefined} leaving={leaving} />;
 }

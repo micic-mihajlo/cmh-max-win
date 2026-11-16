@@ -12,6 +12,9 @@ const TEAMS = [
   { name: 'Slate', tint: '#DDE1E5', ink: '#515C67' },
 ] as const;
 
+// Room pulse (prototype A): a dot that hasn't locked yet.
+export const THINKING = '#D3D1CC';
+
 export type TeamStyle = { name: string; tint: string; ink: string };
 
 function hash(id: string) {
