@@ -16,7 +16,7 @@ const FRAME = 248;
 const SYMBOLS = process.env.EXPO_OS === 'ios';
 const NOTICE_MS = 2200;
 
-// Full-bleed camera reading QR codes. A SIGNAL code joins on the frame it is read; anything else gets one quiet notice.
+// Full-bleed camera reading QR codes. A Signal code joins on the frame it is read; anything else gets one quiet notice.
 export function ScanCamera({ onCode, onClose, onManual }: { onCode: (code: string) => void; onClose: () => void; onManual: () => void }) {
   const insets = useSafeAreaInsets();
   const done = useRef(false);
@@ -60,7 +60,7 @@ export function ScanCamera({ onCode, onClose, onManual }: { onCode: (code: strin
       <View style={[styles.bottom, { paddingBottom: insets.bottom + Space.xl }]}>
         {notice ? (
           <Animated.View entering={FadeIn.duration(Duration.fade)} exiting={FadeOut.duration(Duration.exit)} style={styles.pill}>
-            <Txt variant="small">That QR isn’t a SIGNAL challenge</Txt>
+            <Txt variant="small">That QR isn’t a Signal challenge</Txt>
           </Animated.View>
         ) : null}
         <PressScale accessibilityRole="button" haptic="tap" onPress={onManual} style={styles.pillButton}>
@@ -84,8 +84,8 @@ function CloseButton({ onPress, style }: { onPress: () => void; style: StyleProp
 type CameraState = 'ask' | 'denied' | 'off' | 'manual';
 
 const COPY: Record<CameraState, { title: string; body: string }> = {
-  ask: { title: 'Scan to join', body: 'Point your camera at the QR on stream. SIGNAL only uses the camera to read the code.' },
-  denied: { title: 'Camera is off', body: 'Turn on camera access for SIGNAL in Settings to scan, or type the code on the screen.' },
+  ask: { title: 'Scan to join', body: 'Point your camera at the QR on stream. Signal only uses the camera to read the code.' },
+  denied: { title: 'Camera is off', body: 'Turn on camera access for Signal in Settings to scan, or type the code on the screen.' },
   off: { title: 'Join a challenge', body: 'This device has no camera to scan with. Type the code on the screen.' },
   manual: { title: 'Join a challenge', body: 'Type the four-letter code on the stream.' },
 };
@@ -178,7 +178,7 @@ export function ManualCode({
           </Animated.View>
         </PressScale>
         <Txt variant="small" color={error ? Palette.danger : Palette.paperMuted} style={styles.center}>
-          {error ? 'Codes skip I, O, 0 and 1. Check the screen.' : 'You can paste a SIGNAL link too.'}
+          {error ? 'Codes skip I, O, 0 and 1. Check the screen.' : 'You can paste a Signal link too.'}
         </Txt>
       </View>
       <TextInput

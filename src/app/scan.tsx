@@ -7,7 +7,7 @@ import { ManualCode, ScanCamera } from '@/components/share/scan';
 import { Palette } from '@/constants/signal';
 import { Haptic } from '@/motion';
 
-// Scan to join: a SIGNAL QR (share URL, cmhmaxwin://c/<CODE> or a bare code) lands in /c/<CODE>.
+// Scan to join: a Signal QR (share URL, cmhmaxwin://c/<CODE> or a bare code) lands in /c/<CODE>.
 // The camera is asked for only when the player taps Allow; a denied camera keeps manual entry one tap away.
 export default function ScanRoute() {
   const [permission, requestPermission] = useCameraPermissions();
