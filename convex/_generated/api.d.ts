@@ -29,6 +29,7 @@ import type * as pings from "../pings.js";
 import type * as presence from "../presence.js";
 import type * as push from "../push.js";
 import type * as rateLimits from "../rateLimits.js";
+import type * as roomPulse from "../roomPulse.js";
 import type * as signal from "../signal.js";
 import type * as teamSessions from "../teamSessions.js";
 import type * as templates_aurora from "../templates/aurora.js";
@@ -70,6 +71,7 @@ declare const fullApi: ApiFromModules<{
   presence: typeof presence;
   push: typeof push;
   rateLimits: typeof rateLimits;
+  roomPulse: typeof roomPulse;
   signal: typeof signal;
   teamSessions: typeof teamSessions;
   "templates/aurora": typeof templates_aurora;

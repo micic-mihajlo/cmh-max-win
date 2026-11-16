@@ -24,6 +24,7 @@ import { checkWhopAccess } from './whopAuth';
 import { challengeConfig } from './schema';
 import { releaseChallengeSeat, takeChallengeSeat } from './hardening';
 import { enforceRateLimit } from './rateLimits';
+import { countJoin } from './roomPulse';
 import { isSessionTemplate, placeTeamSessions, startTeamSessions } from './teamSessions';
 import { CODE_ALPHABET, generateCode } from './signal';
 import { WHOP_TRANSFER_API_VERSION_DATE, whopEnvironment, whopRequest } from './whop';
@@ -673,6 +674,7 @@ export const enterChallenge = internalMutation({
       waitingNextRound: false,
       ...(c.config.teamFormation === 'mixer' ? await mixerSeat(ctx, c) : {}),
     });
+    await countJoin(ctx, c._id, deviceToken, 1);
     if (c.config.teamFormation === 'dealt' && c.config.startMode === 'window') await formTeams(ctx, c, false);
     return { challengeId: c._id as string };
   },
@@ -687,6 +689,7 @@ export const leaveChallenge = mutation({
     if (mine.teamId) fail('CHALLENGE_CLOSED', 'Your team is already dealt.');
     await ctx.db.delete(mine._id);
     await releaseChallengeSeat(ctx, mine.challengeId, deviceToken);
+    await countJoin(ctx, mine.challengeId, deviceToken, -1);
   },
 });
 

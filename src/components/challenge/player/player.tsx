@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { JoinScreen } from './join';
 import { LobbyScreen } from './lobby';
 import { BlankScreen, NoticeScreen } from './notice';
-import { isQuizView } from './format';
+import { isQuizView, type QuizPrivateView } from './format';
 import { PlayScreen } from './play';
 import { ResultScreen } from './result';
 import { markResume, takeResume } from './resume';
@@ -154,7 +154,7 @@ export function ChallengePlayer({ code: rawCode }: { code: string }) {
   }
 
   const quiz = session && isQuizView(session.shared) ? session.shared : null;
-  const answeredByMe = (session?.mine as { answeredByMe?: number[] } | null)?.answeredByMe ?? [];
+  const mine = (session?.mine as QuizPrivateView | null) ?? { answeredByMe: [] };
 
   if (ended || quiz?.finished) {
     return (
@@ -189,7 +189,7 @@ export function ChallengePlayer({ code: rawCode }: { code: string }) {
       }
     };
     const team = challenge.teamSize > 1 ? teamStyle(session.teamLabel, teamIndexFromLabel(session.teamLabel)) : null;
-    return <PlayScreen quiz={quiz} answeredByMe={answeredByMe} serverNow={session.serverNow} team={team} onAnswer={onAnswer} />;
+    return <PlayScreen quiz={quiz} mine={mine} serverNow={session.serverNow} team={team} onAnswer={onAnswer} />;
   }
 
   const canLeave = challenge.status === 'published';
