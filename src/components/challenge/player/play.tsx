@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/signal/backdrop';
@@ -20,15 +20,10 @@ function tileState(q: QuizQuestionView, choice: number, picked: number | null, m
   return mineIt ? 'mine' : 'team';
 }
 
-function Verdict({ q, picked }: { q: QuizQuestionView; picked: number | null }) {
-  const right = picked !== null && picked === q.correctChoice;
-  useEffect(() => {
-    if (right) Haptic.success();
-  }, [right]);
-  if (right) {
-    return (
-      <Txt variant="name">{`Correct · +${points(q.points ?? 0)}`}</Txt>
-    );
+function Verdict({ q, picked, mineIt }: { q: QuizQuestionView; picked: number | null; mineIt: boolean }) {
+  if (picked !== null && picked === q.correctChoice) {
+    const gained = `+${points(q.points ?? 0)}`;
+    return <Txt variant="name">{mineIt ? `Correct · ${gained}` : `Your team got it · ${gained}`}</Txt>;
   }
   return <Txt variant="name">{picked === null ? 'No answer in time' : 'Not this one'}</Txt>;
 }
@@ -54,6 +49,14 @@ export function PlayScreen({
   const picked = q.answer?.choice ?? local;
   const mineIt = q.answer ? answeredByMe.includes(q.index) : local !== null;
   const open = !q.closed;
+  const right = q.closed && picked !== null && picked === q.correctChoice;
+
+  const watched = useRef<{ index: number; closed: boolean } | null>(null);
+  useEffect(() => {
+    const before = watched.current;
+    watched.current = { index: q.index, closed: q.closed };
+    if (right && before?.index === q.index && !before.closed) Haptic.success();
+  }, [q.index, q.closed, right]);
 
   const answer = async (choice: number) => {
     setPending({ index: q.index, choice });
@@ -94,7 +97,7 @@ export function PlayScreen({
         <View style={styles.status} accessibilityLiveRegion="polite">
           {q.closed ? (
             <Enter key={`verdict-${q.index}`} from={8}>
-              <Verdict q={q} picked={picked} />
+              <Verdict q={q} picked={picked} mineIt={mineIt} />
             </Enter>
           ) : error ? (
             <Txt variant="small" color={Palette.danger}>
