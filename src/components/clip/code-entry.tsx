@@ -21,10 +21,10 @@ export function ClipCodeEntry({ onCode }: { onCode: (code: string) => void }) {
     if (code) onCode(code);
   };
   return (
-    <Screen contentStyle={styles.center} footer={isAppClip ? <Button title="Get the full SIGNAL app" variant="ghost" onPress={promptFullApp} /> : null}>
+    <Screen contentStyle={styles.top} footer={isAppClip ? <Button title="Get the full Signal app" variant="ghost" onPress={promptFullApp} /> : null}>
       <Wordmark style={styles.brand} />
       <Txt variant="title" style={styles.text}>
-        Enter the code on stream
+        Enter the code
       </Txt>
       <Pressable accessibilityLabel="Challenge code">
         <CodeCells value={draft} />
@@ -32,6 +32,7 @@ export function ClipCodeEntry({ onCode }: { onCode: (code: string) => void }) {
           autoFocus
           autoCapitalize="characters"
           autoCorrect={false}
+          caretHidden
           maxLength={4}
           value={draft}
           onChangeText={change}
@@ -43,8 +44,8 @@ export function ClipCodeEntry({ onCode }: { onCode: (code: string) => void }) {
 }
 
 const styles = StyleSheet.create({
-  center: { flexGrow: 1, justifyContent: 'center', gap: Space.xl },
+  top: { paddingTop: Space.xxl, gap: Space.xl },
   brand: { alignSelf: 'center' },
   text: { textAlign: 'center' },
-  input: { ...StyleSheet.absoluteFill, opacity: 0.02, color: 'transparent' },
+  input: { ...StyleSheet.absoluteFill, opacity: 0.02, color: 'transparent', borderWidth: 0, outlineWidth: 0 },
 });
