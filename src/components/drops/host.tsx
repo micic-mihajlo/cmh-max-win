@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { StyleSheet, useWindowDimensions, View, type StyleProp, type ViewStyle } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 
@@ -13,6 +14,7 @@ import { Brass, money, short } from './ui';
 export const MIN_TO_DEAL = 4;
 const NEWEST = 3;
 // Past this many squads the board switches to one-line cells so 34 squads fit a 1280×720 projector.
+// Cells share one width per row so a short last row stays on the grid.
 const DENSE_AFTER = 12;
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL;
 
@@ -84,6 +86,10 @@ function HostBoard({ view }: { view: HostView }) {
   const order = [...view.squads].sort((a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity));
   const filled = Math.min(view.solves.length, view.bounty.winnerSlots);
   const dense = order.length > DENSE_AFTER;
+  const [boardWidth, setBoardWidth] = useState(0);
+  const basis = dense ? 220 : 280;
+  const columns = Math.max(1, Math.floor((boardWidth + Space.s) / (basis + Space.s)));
+  const cellWidth = boardWidth ? (boardWidth - Space.s * (columns - 1)) / columns : undefined;
   return (
     <Screen>
       <View style={styles.boardHead}>
@@ -103,8 +109,8 @@ function HostBoard({ view }: { view: HostView }) {
           </View>
         ))}
       </View>
-      <View style={styles.squads}>
-        <Stagger stagger={30} itemStyle={dense ? styles.squadCellDense : styles.squadCell}>
+      <View style={styles.squads} onLayout={(e) => setBoardWidth(e.nativeEvent.layout.width)}>
+        <Stagger stagger={30} itemStyle={cellWidth ? { width: cellWidth } : styles.squadCell}>
           {order.map((s) => {
             const solved = solve.get(s.squadLabel);
             return (
@@ -163,7 +169,6 @@ const styles = StyleSheet.create({
   barFill: { flex: 1, backgroundColor: Palette.ember },
   squads: { flexDirection: 'row', flexWrap: 'wrap', gap: Space.s },
   squadCell: { flexGrow: 1, flexBasis: 280 },
-  squadCellDense: { flexGrow: 1, flexBasis: 220 },
   squad: {
     gap: Space.s,
     padding: Space.l,
