@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { StyleSheet, useWindowDimensions, View, type StyleProp, type ViewStyle } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
@@ -26,16 +27,18 @@ export function HostScreen({
   dealing,
   onDeal,
   minToDeal = MIN_TO_DEAL,
+  controls,
 }: {
   view: HostView;
   hostName: string;
   dealing?: boolean;
   onDeal?: () => void;
   minToDeal?: number;
+  controls?: ReactNode;
 }) {
   const { width } = useWindowDimensions();
   const wide = width >= 768;
-  if (view.squads.length) return wide ? <HostBoard view={view} /> : <PhoneBoard view={view} />;
+  if (view.squads.length) return wide ? <HostBoard view={view} controls={controls} /> : <PhoneBoard view={view} controls={controls} />;
   const qr = wide ? 260 : Math.min(width - Space.xl * 2 - Space.m * 2, 280);
   const min = view.minToDeal ?? minToDeal;
   const need = view.needMore ?? Math.max(0, min - view.entrantCount);
@@ -95,12 +98,13 @@ export function HostScreen({
           ) : null}
         </View>
       </View>
+      {controls}
     </Screen>
   );
 }
 
 // After the deal: squads with their chips, then the race. Solved squads stamp in commit order and fill the bounty bars.
-function HostBoard({ view }: { view: HostView }) {
+function HostBoard({ view, controls }: { view: HostView; controls?: ReactNode }) {
   const solve = new Map(view.solves.map((s) => [s.squadLabel, s]));
   const order = [...view.squads].sort((a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity));
   const filled = Math.min(view.solves.length, view.bounty.winnerSlots);
@@ -163,13 +167,14 @@ function HostBoard({ view }: { view: HostView }) {
           })}
         </Stagger>
       </View>
+      {controls}
     </Screen>
   );
 }
 
 // Phone portrait: one compact row per squad, solved squads first in place order, winners revealed on top once
 // the bounty slots are full or the drop ends.
-function PhoneBoard({ view }: { view: HostView }) {
+function PhoneBoard({ view, controls }: { view: HostView; controls?: ReactNode }) {
   const solve = new Map(view.solves.map((s) => [s.squadLabel, s]));
   const order = [...view.squads].sort((a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity));
   const filled = Math.min(view.solves.length, view.bounty.winnerSlots);
@@ -179,7 +184,7 @@ function PhoneBoard({ view }: { view: HostView }) {
     <Screen>
       <View style={styles.boardHead}>
         <Txt variant="title" style={styles.flex}>
-          {done ? 'Winners' : view.solves.length ? 'Race' : 'Squads'}
+          {done ? (winners.length ? 'Winners' : 'Ended') : view.solves.length ? 'Race' : 'Squads'}
         </Txt>
         <Txt variant="bodyStrong" color={Palette.paperMuted}>{`${filled} of ${view.bounty.winnerSlots} slots`}</Txt>
       </View>
@@ -236,7 +241,7 @@ function PhoneBoard({ view }: { view: HostView }) {
                 </>
               ) : (
                 <Txt variant="small" color={Palette.paperMuted}>
-                  solving
+                  {view.status === 'ended' ? 'no solve' : 'solving'}
                 </Txt>
               )}
             </View>
@@ -244,6 +249,7 @@ function PhoneBoard({ view }: { view: HostView }) {
         })}
       </View>
       <Pot view={view} />
+      {controls}
     </Screen>
   );
 }
