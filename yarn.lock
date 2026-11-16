@@ -2600,6 +2600,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/emscripten@npm:^1.41.6":
+  version: 1.41.6
+  resolution: "@types/emscripten@npm:1.41.6"
+  checksum: 10c0/b51a730b6cb2848ac5e3f0536707bf656b6887be21f20e96b01e74a59ed52319dd0942f49b1072b1ca6d38df19e2d633f540df54d6ba1f7216be14af7373a41f
+  languageName: node
+  linkType: hard
+
 "@types/estree@npm:^1.0.0, @types/estree@npm:^1.0.6":
   version: 1.0.10
   resolution: "@types/estree@npm:1.0.10"
@@ -3492,6 +3499,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"barcode-detector@npm:^3.0.0":
+  version: 3.2.4
+  resolution: "barcode-detector@npm:3.2.4"
+  dependencies:
+    zxing-wasm: "npm:3.1.7"
+  checksum: 10c0/71999e91e72bc3484ec3cc72b2f78204523d21f0bdc8018e4f39f2271d1f6b4271534164919505e88b5686b5b432f1e829604012fae29a515a3ee032dfe90413
+  languageName: node
+  linkType: hard
+
 "base64-js@npm:^1.5.1":
   version: 1.5.1
   resolution: "base64-js@npm:1.5.1"
@@ -3787,7 +3803,9 @@ __metadata:
     eslint: "npm:^9.0.0"
     eslint-config-expo: "npm:~58.0.4"
     expo: "npm:~58.0.25"
+    expo-asset: "npm:~58.0.21"
     expo-audio: "npm:~58.0.12"
+    expo-camera: "npm:~58.0.14"
     expo-clipboard: "npm:~58.0.4"
     expo-constants: "npm:~58.0.16"
     expo-crypto: "npm:~58.0.8"
@@ -3796,6 +3814,7 @@ __metadata:
     expo-glass-effect: "npm:~58.0.5"
     expo-haptics: "npm:~58.0.8"
     expo-image: "npm:~58.0.18"
+    expo-keep-awake: "npm:~58.0.4"
     expo-linking: "npm:~58.0.17"
     expo-notifications: "npm:~58.1.9"
     expo-router: "npm:~58.0.31"
@@ -4956,6 +4975,23 @@ __metadata:
     react: "*"
     react-native: "*"
   checksum: 10c0/c1ffbe74fd80d752678b66ad8196c951e4ced452dd5f8d8d6e2885d083ae573075b5aa123feee5d5f18a78a576d4aaa8e55ab874c4ae4f54962025cdba7cf618
+  languageName: node
+  linkType: hard
+
+"expo-camera@npm:~58.0.14":
+  version: 58.0.14
+  resolution: "expo-camera@npm:58.0.14"
+  dependencies:
+    barcode-detector: "npm:^3.0.0"
+  peerDependencies:
+    expo: "*"
+    react: "*"
+    react-native: "*"
+    react-native-web: "*"
+  peerDependenciesMeta:
+    react-native-web:
+      optional: true
+  checksum: 10c0/a0bd03124f46d0a7b01beb37525cb775864e64468d570f4a663de0ba5e09c1e1d8800056d77afff21b02c9140bb5cfae7c64691bd66a583f8ed6cf69dffe7b52
   languageName: node
   linkType: hard
 
@@ -9139,6 +9175,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"tagged-tag@npm:^1.0.0":
+  version: 1.0.0
+  resolution: "tagged-tag@npm:1.0.0"
+  checksum: 10c0/91d25c9ffb86a91f20522cefb2cbec9b64caa1febe27ad0df52f08993ff60888022d771e868e6416cf2e72dab68449d2139e8709ba009b74c6c7ecd4000048d1
+  languageName: node
+  linkType: hard
+
 "tar@npm:^7.5.7":
   version: 7.5.23
   resolution: "tar@npm:7.5.23"
@@ -9299,6 +9342,15 @@ __metadata:
   version: 0.7.1
   resolution: "type-fest@npm:0.7.1"
   checksum: 10c0/ce6b5ef806a76bf08d0daa78d65e61f24d9a0380bd1f1df36ffb61f84d14a0985c3a921923cf4b97831278cb6fa9bf1b89c751df09407e0510b14e8c081e4e0f
+  languageName: node
+  linkType: hard
+
+"type-fest@npm:^5.10.0":
+  version: 5.10.0
+  resolution: "type-fest@npm:5.10.0"
+  dependencies:
+    tagged-tag: "npm:^1.0.0"
+  checksum: 10c0/313c5d0e37a3f1cc82e942f3228f897623c8b54a63a8a95532d0c2c21ab200793caa70bd8904a83fd713eb28d87ba32468b09b345ef6efa25cecb345b467226f
   languageName: node
   linkType: hard
 
@@ -10075,5 +10127,17 @@ __metadata:
   version: 4.6.7
   resolution: "zod@npm:4.6.7"
   checksum: 10c0/4ce2eb14034317b7254e347ca37b5ad591cf8333147030cf05b9b5d31692d45073f7f2747aa50cf8c6b29012194d2b22978cecc89969cf34a0d18e89d0ee7d7b
+  languageName: node
+  linkType: hard
+
+"zxing-wasm@npm:3.1.7":
+  version: 3.1.7
+  resolution: "zxing-wasm@npm:3.1.7"
+  dependencies:
+    "@types/emscripten": "npm:^1.41.6"
+    type-fest: "npm:^5.10.0"
+  peerDependencies:
+    "@types/emscripten": ">=1.39.6"
+  checksum: 10c0/766cb7ec8a1bda6eacfb942819e4b8f2a5313efdb75942a15ba9dfb7176a67d0e18bd60a97467b96faf5b28617649f6b6860339b3999492b99a68e3e0b3d9065
   languageName: node
   linkType: hard

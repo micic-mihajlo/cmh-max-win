@@ -67,7 +67,7 @@ export function LeaderboardScreen({
   const missed = mine?.status === 'solved';
   const title = inMoney || missed ? `You ${(mine?.memberNames.length || drop.squadSize) === 2 ? 'two' : 'three'} got #${mine?.rank}.` : 'Race';
   const sub = missed
-    ? `The bounty went to the first ${board.winnerSlots} squads.`
+    ? board.winnerSlots === 1 ? 'The bounty went to the first squad.' : `The bounty went to the first ${board.winnerSlots} squads.`
     : taken >= board.winnerSlots
       ? `All ${board.winnerSlots} bounty spots taken`
       : `${taken} of ${board.winnerSlots} bounty spots taken`;
@@ -97,16 +97,16 @@ export function LeaderboardScreen({
         ) : inMoney ? (
           <>
             <Txt variant="small" color={Palette.paperMuted} style={styles.center}>
-              {`Jun took the seed. ${(mine?.memberNames.length || drop.squadSize) === 2 ? 'Both pieces' : 'All three pieces'} counted.`}
+              {drop.template ? 'Every word in place.' : `Jun took the seed. ${(mine?.memberNames.length || drop.squadSize) === 2 ? 'Both pieces' : 'All three pieces'} counted.`}
             </Txt>
             <Button title="See your share" onPress={on?.onShare} />
           </>
         ) : (
           <>
             <Txt variant="small" color={Palette.paperMuted} style={styles.center}>
-              {`You solved it in ${short(mine?.solveMs ?? 0)} with ${mine?.attempts ?? 0} wrong guess${mine?.attempts === 1 ? '' : 'es'}. Jun took the seed.`}
+              {`You solved it in ${short(mine?.solveMs ?? 0)} with ${mine?.attempts ?? 0} wrong guess${mine?.attempts === 1 ? '' : 'es'}.${drop.template ? '' : ' Jun took the seed.'}`}
             </Txt>
-            <Button title="See the reveal" variant="secondary" onPress={on?.onReveal} />
+            {drop.template ? null : <Button title="See the reveal" variant="secondary" onPress={on?.onReveal} />}
           </>
         )
       }>
