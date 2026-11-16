@@ -7,22 +7,22 @@ import { Txt } from '@/components/signal/txt';
 import { Wordmark } from '@/components/wordmark';
 import { FontFamily, Palette, Radius, Space } from '@/constants/signal';
 
+// Expo Go only loads this project's updates for members of the owning Expo account, so it's a team-only path.
 const EXPO_GO_URL = 'exp://u.expo.dev/e7418053-b72f-4c96-9d50-d13174da4c76/--/join';
-const EXPO_GO_STORE = 'https://apps.apple.com/app/expo-go/id982107779';
+// Turn on once TestFlight Beta Review approves the public link.
+const TESTFLIGHT_URL: string | null = null;
 
-// Web landing for the host QR: the code big, the app first, the browser as the fallback.
+// Web landing for the host QR: the code big, the browser as the way in.
 export function JoinChooser({ code }: { code: string }) {
   return (
     <Screen
       contentStyle={styles.center}
       footer={
         <View style={styles.footer}>
-          <Button title="Open in the SIGNAL app" onPress={() => Linking.openURL(`${EXPO_GO_URL}/${code}?channel-name=expo-go`)} />
-          <Txt variant="small" color={Palette.paperMuted} style={styles.text} onPress={() => Linking.openURL(EXPO_GO_STORE)}>
-            No Expo Go? Get it free
-          </Txt>
-          <Txt variant="bodyStrong" style={styles.text} onPress={() => router.replace({ pathname: '/join', params: { code } })}>
-            Play in the browser instead
+          <Button title="Play in the browser" onPress={() => router.replace({ pathname: '/join', params: { code } })} />
+          {TESTFLIGHT_URL ? <Button title="Get the SIGNAL app (TestFlight)" variant="secondary" onPress={() => Linking.openURL(TESTFLIGHT_URL)} /> : null}
+          <Txt variant="small" color={Palette.paperMuted} style={styles.text} onPress={() => Linking.openURL(`${EXPO_GO_URL}/${code}?channel-name=expo-go`)}>
+            Team: open in Expo Go
           </Txt>
         </View>
       }>
