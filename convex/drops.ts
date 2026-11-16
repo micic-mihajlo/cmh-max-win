@@ -30,8 +30,8 @@ import type { HostedDropRow } from '../src/lib/contract-host';
 
 export const DEMO_DROP_ID = 'aurora-demo';
 
-function fail(code: SignalErrorCode, message: string): never {
-  throw new ConvexError({ code, message });
+function fail(code: SignalErrorCode, message: string, extra: Record<string, number> = {}): never {
+  throw new ConvexError({ code, message, ...extra });
 }
 
 // Squad sizes for n entrants in entry order. N = 3: remainder 2 -> one duo, remainder 1 -> two duos.
@@ -381,6 +381,7 @@ export async function insertDrop(
     hostWhopUserId?: string;
     template?: DropTemplateId;
     payoutMode?: 'real' | 'concept';
+    minPlayers?: number;
   },
 ) {
   const { totalCents, winnerSlots } = args.bounty;
@@ -400,6 +401,7 @@ export async function insertDrop(
     ...(args.hostToken && args.hostWhopUserId ? { hostWhopUserId: args.hostWhopUserId } : {}),
     ...(args.template ? { template: args.template } : {}),
     ...(args.payoutMode ? { payoutMode: args.payoutMode } : {}),
+    ...(args.minPlayers !== undefined ? { minPlayers: args.minPlayers } : {}),
     startsAt: args.startsAt,
     status: 'scheduled',
     bounty: { totalCents, currency: 'usd', winnerSlots },
@@ -638,8 +640,9 @@ export const hostDrop = mutation({
     // real: pay winners by Whop transfer (refused unless real payouts are on and the pool fits the remaining budget).
     // concept: never real money. Omitted: as before.
     payoutMode: v.optional(v.union(v.literal('real'), v.literal('concept'))),
+    minPlayers: v.optional(v.number()), // players dealSquads waits for, clamped to squadSize..DROP_CAPACITY; omitted: squadSize
   },
-  handler: async (ctx, { deviceToken, title, winnerSlots, totalCents, creatorName, startsAt, avatarUrl, template, rehearsal, payoutMode }) => {
+  handler: async (ctx, { deviceToken, title, winnerSlots, totalCents, creatorName, startsAt, avatarUrl, template, rehearsal, payoutMode, minPlayers }) => {
     if (!deviceToken) fail('WRONG_STATUS', 'Missing device token.');
     await enforceRateLimit(ctx, 'hostDrop', deviceToken);
     if (payoutMode === 'real') await requireRealBudget(ctx, totalCents ?? 30_000, winnerSlots ?? 3);
@@ -657,6 +660,7 @@ export const hostDrop = mutation({
       ...(whopUserId ? { hostWhopUserId: whopUserId } : {}),
       ...(template ? { template } : {}),
       ...(payoutMode ? { payoutMode } : {}),
+      ...(minPlayers !== undefined ? { minPlayers: clampMinPlayers(minPlayers, 3) } : {}),
     });
     await noteHostedDrop(ctx, { hostToken: deviceToken, name, dropId: hosted.dropId, scheduledFor: startsAt ?? null, avatarUrl, rehearsal });
     return hosted;
@@ -687,7 +691,11 @@ export const realPayoutStatus = query({
   }),
 });
 
-export const MIN_DEAL_ENTRANTS = 4;
+// One full squad can play, and a race always has at least two entrants, unless the host asked for more (minPlayers).
+export const minToDeal = (drop: Doc<'drops'>) => drop.minPlayers ?? Math.max(2, drop.squadSize);
+
+export const clampMinPlayers = (minPlayers: number, size: number) =>
+  Number.isFinite(minPlayers) ? Math.min(DROP_CAPACITY, Math.max(2, size, Math.floor(minPlayers))) : Math.max(2, size);
 
 // Host-only "Deal squads": starts the drop now and splits squads with the usual rules.
 export const dealSquads = mutation({
@@ -695,9 +703,8 @@ export const dealSquads = mutation({
   handler: async (ctx, { deviceToken, dropId }) => {
     const drop = await requireDrop(ctx, dropId);
     if (!(await isDropHost(ctx, drop, deviceToken))) fail('NOT_HOST', 'Only the host can deal squads.');
-    if ((await entriesOf(ctx, dropId)).length < MIN_DEAL_ENTRANTS) {
-      fail('NOT_ENOUGH_PLAYERS', `Deal squads needs at least ${MIN_DEAL_ENTRANTS} players.`);
-    }
+    const needMore = minToDeal(drop) - (await entriesOf(ctx, dropId)).length;
+    if (needMore > 0) fail('NOT_ENOUGH_PLAYERS', `Deal squads needs at least ${minToDeal(drop)} players.`, { needMore });
     await startDropNow(ctx, dropId);
   },
 });
@@ -740,6 +747,8 @@ export const hostView = query({
       status: drop.status,
       bounty: await bountyView(ctx, drop),
       entrantCount: entries.length,
+      minToDeal: minToDeal(drop),
+      needMore: Math.max(0, minToDeal(drop) - entries.length),
       entrants: entries.map((e) => ({ name: e.name, joinedAt: e._creationTime })),
       squads,
       solves: solves.map((s) => ({

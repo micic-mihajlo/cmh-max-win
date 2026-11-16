@@ -6,10 +6,13 @@ export function nameList(names: string[]) {
   return names.length < 2 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
 }
 
+const firstName = (name: string) => name.split(' ')[0];
+
 export function notificationCopy(n: InboxItem) {
-  if (n.kind === 'live') return { title: `${n.streamerName} is live · ${n.challenge}`, body: n.inProgress ? 'In progress.' : `Join with ${n.joinCode}.` };
+  const name = firstName(n.streamerName);
+  if (n.kind === 'live') return { title: `${name} is live · ${n.challenge}`, body: n.inProgress ? 'In progress.' : `Join with ${n.joinCode}.` };
   const waiting = n.squadmates?.length ? `${nameList(n.squadmates)} ${n.squadmates.length > 1 ? 'are' : 'is'} waiting.` : 'Your squad is waiting.';
-  return { title: `${n.streamerName}'s room opens in 2 minutes`, body: waiting };
+  return { title: `${name}'s room opens in 2 minutes`, body: waiting };
 }
 
 export function dropTime(ms: number, now: number) {

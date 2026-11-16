@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/signal/backdrop';
@@ -5,9 +6,26 @@ import { Button } from '@/components/signal/primitives';
 import { Txt } from '@/components/signal/txt';
 import { Palette, Radius, Space } from '@/constants/signal';
 import type { LiveLeaderboardRow, MyPayoutView } from '@/lib/contract';
-import { Enter } from '@/motion';
+import { Enter, Haptic, useReduced } from '@/motion';
 
 import { money, ordinal, points } from './format';
+
+// The rank climbs from the back of the field to your place, eased out over 600ms: the one count allowed past 300ms.
+function useClimb(to: number | null, from: number | null) {
+  const reduced = useReduced();
+  const [shown, setShown] = useState<number | null>(null);
+  useEffect(() => {
+    if (to === null || from === null || reduced || from <= to) return;
+    const start = performance.now();
+    let frame = requestAnimationFrame(function step(now) {
+      const t = Math.min(1, (now - start) / 600);
+      setShown(Math.round(from - (from - to) * (1 - (1 - t) ** 3)));
+      if (t < 1) frame = requestAnimationFrame(step);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [to, from, reduced]);
+  return to === null ? null : (shown ?? (reduced || from === null || from <= to ? to : from));
+}
 
 export function ResultScreen({
   title,
@@ -42,6 +60,14 @@ export function ResultScreen({
 }) {
   const mine = leaderboard?.find((r) => r.label === teamLabel) ?? null;
   const place = payout?.place ?? mine?.place ?? null;
+  const shownPlace = useClimb(ended ? place : null, teamCount);
+  const sent = payout?.adapter === 'whop' && payout.status === 'sent';
+  const announced = useRef(false);
+  useEffect(() => {
+    if (!sent || announced.current) return;
+    announced.current = true;
+    Haptic.success();
+  }, [sent]);
   const footer =
     payout?.needsWhopSignIn && onClaim ? (
       <Button title={claiming ? 'Opening Whop' : 'Claim with Whop'} disabled={claiming} onPress={onClaim} />
@@ -59,7 +85,7 @@ export function ResultScreen({
         </Enter>
         <Enter index={1}>
           <Txt variant="hero" accessibilityRole="header">
-            {!ended ? 'Final' : place ? ordinal(place) : 'Finished'}
+            {!ended ? 'Final' : shownPlace ? ordinal(shownPlace) : 'Finished'}
           </Txt>
         </Enter>
         <Enter index={2}>
@@ -80,7 +106,7 @@ export function ResultScreen({
           <Txt variant="caption" color={Palette.paperMuted}>
             {[
               !payout && !solo ? 'Team share' : null,
-              (payout?.adapter ?? (conceptPool ? 'concept' : 'whop')) === 'concept' ? 'Concept payout' : payout?.label,
+              sent ? 'Sent to your Whop balance' : (payout?.adapter ?? (conceptPool ? 'concept' : 'whop')) === 'concept' ? 'Concept payout' : payout?.label,
               payout ? null : `waiting for ${host} to approve`,
             ]
               .filter(Boolean)
