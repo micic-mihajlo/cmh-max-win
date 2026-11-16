@@ -112,12 +112,12 @@ function ProfileSetup() {
   return (
     <StudioScreen title="Your studio" footer={<PrimaryButton title={saving ? 'Saving…' : 'Continue'} disabled={!ready} onPress={submit} />}>
       <View style={studio.gap}>
-        <Field label="Name" value={name} onChange={setName} placeholder="Nova" autoFocus maxLength={40} />
+        <Field label="Name" value={name} onChange={setName} placeholder="Danny" autoFocus maxLength={40} />
         <Field
           label="Handle"
           value={handle}
           onChange={(t) => setHandle(t.replace(/\s/g, '').toLowerCase())}
-          placeholder="@nova"
+          placeholder="@danny"
           prefix="@"
           maxLength={21}
         />

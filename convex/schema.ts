@@ -124,6 +124,7 @@ export default defineSchema({
     squadSize,
     joinCode: v.optional(v.string()), // 4 chars, unique among drops that aren't ended; the QR payload
     hostToken: v.optional(v.string()), // drops:hostDrop: the device that runs the host screen and deals
+    hostWhopUserId: v.optional(v.string()), // hostDrop from a device signed in with Whop: any device on that account hosts it too
     conceptOnly: v.optional(v.boolean()), // hosted drops never take the sandbox payout path
     strictSquadSize: v.optional(v.boolean()), // demo controls: every squad is exactly squadSize, leftovers unmatched
     template: v.optional(v.literal('split-passphrase')), // hostDrop: squads play a split passphrase instead of the mystery
@@ -136,7 +137,8 @@ export default defineSchema({
   })
     .index('by_dropId', ['dropId'])
     .index('by_joinCode', ['joinCode'])
-    .index('by_status', ['status', 'startsAt']),
+    .index('by_status', ['status', 'startsAt'])
+    .index('by_host_whop', ['hostWhopUserId']),
   dropEntries: defineTable({
     dropId: v.string(),
     deviceToken: v.string(),
@@ -342,6 +344,19 @@ export default defineSchema({
     returnUrl: v.string(),
     createdAt: v.number(),
   }).index('by_state', ['state']),
+  // The callback's one-time link code (whopAuth:completeSignIn): Whop tokens wait here until the starting device redeems it.
+  whopPendingLinks: defineTable({
+    linkCode: v.string(),
+    deviceToken: v.string(),
+    whopUserId: v.string(),
+    name: v.string(),
+    username: v.optional(v.string()),
+    avatarUrl: v.optional(v.string()),
+    accessToken: v.string(),
+    refreshToken: v.optional(v.string()),
+    expiresAt: v.number(),
+    createdAt: v.number(),
+  }).index('by_code', ['linkCode']),
   whopOAuthTokens: defineTable({
     whopUserId: v.string(),
     accessToken: v.string(),

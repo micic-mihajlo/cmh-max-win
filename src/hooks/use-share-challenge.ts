@@ -25,7 +25,7 @@ export function useShareChallenge(code: string, shareUrl?: string | null) {
       setCopied(true);
       return;
     }
-    const message = `Join my SIGNAL challenge with code ${code.toUpperCase()}`;
+    const message = `Join my Signal challenge with code ${code.toUpperCase()}`;
     await Share.share(process.env.EXPO_OS === 'ios' ? { message, url } : { message: `${message}: ${url}` }).catch(() => {});
   }, [code, url]);
 

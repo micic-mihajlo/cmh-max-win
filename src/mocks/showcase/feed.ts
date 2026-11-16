@@ -11,21 +11,21 @@ const bounty = (dollars: number, slots: number): BountyView => ({
 });
 
 const cards: StreamerCardView[] = [
-  { streamerId: 'nova', name: 'Nova', followerCount: 12400, live: true, following: true },
-  { streamerId: 'pax', name: 'Pax', followerCount: 3200, live: true, following: true },
-  { streamerId: 'rook', name: 'Rook', followerCount: 8100, live: false, following: true },
-  { streamerId: 'juno', name: 'Juno', followerCount: 5600, live: false, following: true },
+  { streamerId: 'danny', name: 'Danny Ortiz', followerCount: 12400, live: true, following: true },
+  { streamerId: 'kevin', name: 'Kevin', followerCount: 3200, live: true, following: true },
+  { streamerId: 'brandon', name: 'Brandon', followerCount: 8100, live: false, following: true },
+  { streamerId: 'kayla', name: 'Kayla Brooks', followerCount: 5600, live: false, following: true },
 ];
 
 const live: FeedLiveRow[] = [
-  { streamerId: 'nova', streamerName: 'Nova', dropId: 'd-nova', title: 'The Aurora Seed', joinCode: 'K7QX', dropStatus: 'scheduled', entrantCount: 38, bounty: bounty(300, 3), liveSince: serverNow - 120_000 },
-  { streamerId: 'pax', streamerName: 'Pax', dropId: 'd-pax', title: 'Signal Fire', joinCode: 'MBRT', dropStatus: 'live', entrantCount: 21, bounty: bounty(100, 2), liveSince: serverNow - 3_600_000 },
+  { streamerId: 'danny', streamerName: 'Danny Ortiz', dropId: 'd-danny', title: 'The Aurora Seed', joinCode: 'K7QX', dropStatus: 'scheduled', entrantCount: 38, bounty: bounty(300, 3), liveSince: serverNow - 120_000 },
+  { streamerId: 'kevin', streamerName: 'Kevin', dropId: 'd-kevin', title: 'Signal Fire', joinCode: 'MBRT', dropStatus: 'live', entrantCount: 21, bounty: bounty(100, 2), liveSince: serverNow - 3_600_000 },
 ];
 
 const upcoming: FeedUpcomingRow[] = [
-  { streamerId: 'juno', streamerName: 'Juno', dropId: 'u-juno', title: 'The Cold Room', joinCode: 'COLD', startsAt: serverNow + 120_000, bounty: bounty(120, 2), reminded: true, squadmates: ['Lou', 'Ana'] },
-  { streamerId: 'rook', streamerName: 'Rook', dropId: 'u-rook', title: 'Glass Harbor II', joinCode: 'HRBR', startsAt: at(17, 20), bounty: bounty(150, 3), reminded: false },
-  { streamerId: 'nova', streamerName: 'Nova', dropId: 'u-nova', title: 'The Second Seed', joinCode: 'SEED', startsAt: at(20, 21), bounty: bounty(500, 5), reminded: false },
+  { streamerId: 'kayla', streamerName: 'Kayla Brooks', dropId: 'u-kayla', title: 'The Cold Room', joinCode: 'COLD', startsAt: serverNow + 120_000, bounty: bounty(120, 2), reminded: true, squadmates: ['Sarah', 'Jen'] },
+  { streamerId: 'brandon', streamerName: 'Brandon', dropId: 'u-brandon', title: 'Glass Harbor II', joinCode: 'HRBR', startsAt: at(17, 20), bounty: bounty(150, 3), reminded: false },
+  { streamerId: 'danny', streamerName: 'Danny Ortiz', dropId: 'u-danny', title: 'The Second Seed', joinCode: 'SEED', startsAt: at(20, 21), bounty: bounty(500, 5), reminded: false },
 ];
 
 const result = (streamerId: string, streamerName: string, title: string, day: number, squad: string, names: string[]): FeedResultRow => ({
@@ -40,10 +40,10 @@ const result = (streamerId: string, streamerName: string, title: string, day: nu
 });
 
 const past: Record<string, FeedResultRow[]> = {
-  nova: [result('nova', 'Nova', 'Orchard Lights', 8, 'Squad 3', ['Mae', 'Theo', 'Ivy']), result('nova', 'Nova', 'Night Ferry', 1, 'Squad 2', ['Lou', 'Ana', 'Rae'])],
-  pax: [result('pax', 'Pax', 'Blue Hour', 9, 'Squad 5', ['Kit', 'Mae'])],
-  rook: [result('rook', 'Rook', 'Glass Harbor', 10, 'Squad 9', ['Kit', 'Mae']), result('rook', 'Rook', 'Low Water', 3, 'Squad 1', ['Ivy', 'Theo'])],
-  juno: [result('juno', 'Juno', 'Paper Moon', 7, 'Squad 4', ['Ana', 'Lou', 'Rae'])],
+  danny: [result('danny', 'Danny Ortiz', 'Orchard Lights', 8, 'Squad 3', ['Mae', 'Theo', 'Megan']), result('danny', 'Danny Ortiz', 'Night Ferry', 1, 'Squad 2', ['Sarah', 'Jen', 'Rae'])],
+  kevin: [result('kevin', 'Kevin', 'Blue Hour', 9, 'Squad 5', ['Chris', 'Mae'])],
+  brandon: [result('brandon', 'Brandon', 'Glass Harbor', 10, 'Squad 9', ['Chris', 'Mae']), result('brandon', 'Brandon', 'Low Water', 3, 'Squad 1', ['Megan', 'Theo'])],
+  kayla: [result('kayla', 'Kayla Brooks', 'Paper Moon', 7, 'Squad 4', ['Jen', 'Sarah', 'Rae'])],
 };
 
 export const feed: FollowingFeedView = { following: cards, live, upcoming, results: Object.values(past).flat().slice(0, 5), serverNow };
