@@ -56,7 +56,7 @@ export function ProfileScreen() {
         </View>
       </Section>
 
-      <Account />
+      <Account bare />
     </Screen>
   );
 }
