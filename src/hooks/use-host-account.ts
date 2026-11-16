@@ -1,5 +1,5 @@
 import { api } from '@convex/_generated/api';
-import { useAction, useQuery } from 'convex/react';
+import { useAction, useMutation, useQuery } from 'convex/react';
 import { useCallback } from 'react';
 
 import { useDeviceToken } from '@/hooks/use-device-token';
@@ -10,12 +10,14 @@ import { openWhopSignIn, whopReturnUrl } from '@/lib/whop-auth';
 
 export const useSignInToHost: UseSignInToHost = (returnPath) => {
   const start = useAction(api.whopAuth.startSignIn);
+  const complete = useMutation(api.whopAuth.completeSignIn);
   return useCallback(async (): Promise<WhopSignInResult> => {
+    const deviceToken = await getDeviceToken();
     const returnUrl = whopReturnUrl(returnPath);
-    const result = await start({ deviceToken: await getDeviceToken(), purpose: 'host', returnUrl });
+    const result = await start({ deviceToken, purpose: 'host', returnUrl });
     if (result.reason) return result.reason;
-    return openWhopSignIn(result.url, returnUrl);
-  }, [returnPath, start]);
+    return openWhopSignIn(result.url, returnUrl, (linkCode) => complete({ deviceToken, linkCode }));
+  }, [complete, returnPath, start]);
 };
 
 export const useMyHostedDrops: UseMyHostedDrops = () => {

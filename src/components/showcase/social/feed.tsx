@@ -71,10 +71,10 @@ export function FeedScreen({
                 <Avatar initials={u.streamerName.slice(0, 1)} uri={avatar(u.streamerId)} size={40} />
                 <View style={showcase.flex}>
                   <Txt variant="bodyStrong" numberOfLines={1}>
-                    {u.streamerName} · {dropTime(u.startsAt, view.serverNow)}
+                    {u.streamerName}
                   </Txt>
                   <Txt variant="small" color={Palette.paperMuted} numberOfLines={1}>
-                    {u.title}
+                    {dropTime(u.startsAt, view.serverNow)} · {u.title}
                   </Txt>
                 </View>
                 <Remind row={u} />

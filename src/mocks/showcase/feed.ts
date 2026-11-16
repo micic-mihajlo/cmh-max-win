@@ -40,10 +40,10 @@ const result = (streamerId: string, streamerName: string, title: string, day: nu
 });
 
 const past: Record<string, FeedResultRow[]> = {
-  danny: [result('danny', 'Danny Ortiz', 'Orchard Lights', 8, 'Squad 3', ['Mae', 'Theo', 'Megan']), result('danny', 'Danny Ortiz', 'Night Ferry', 1, 'Squad 2', ['Sarah', 'Jen', 'Rae'])],
-  kevin: [result('kevin', 'Kevin', 'Blue Hour', 9, 'Squad 5', ['Chris', 'Mae'])],
-  brandon: [result('brandon', 'Brandon', 'Glass Harbor', 10, 'Squad 9', ['Chris', 'Mae']), result('brandon', 'Brandon', 'Low Water', 3, 'Squad 1', ['Megan', 'Theo'])],
-  kayla: [result('kayla', 'Kayla Brooks', 'Paper Moon', 7, 'Squad 4', ['Jen', 'Sarah', 'Rae'])],
+  danny: [result('danny', 'Danny Ortiz', 'Orchard Lights', 8, 'Squad 3', ['Nicole', 'Matt', 'Megan']), result('danny', 'Danny Ortiz', 'Night Ferry', 1, 'Squad 2', ['Sarah', 'Jen', 'Steph'])],
+  kevin: [result('kevin', 'Kevin', 'Blue Hour', 9, 'Squad 5', ['Chris', 'Nicole'])],
+  brandon: [result('brandon', 'Brandon', 'Glass Harbor', 10, 'Squad 9', ['Chris', 'Nicole']), result('brandon', 'Brandon', 'Low Water', 3, 'Squad 1', ['Megan', 'Matt'])],
+  kayla: [result('kayla', 'Kayla Brooks', 'Paper Moon', 7, 'Squad 4', ['Jen', 'Sarah', 'Steph'])],
 };
 
 export const feed: FollowingFeedView = { following: cards, live, upcoming, results: Object.values(past).flat().slice(0, 5), serverNow };

@@ -178,7 +178,10 @@ describe('host sign-in', () => {
     const { url, reason } = await t.action(api.whopAuth.startSignIn, { deviceToken: 'laptop', purpose: 'host', returnUrl: 'exp://192.168.1.5:8081/--/host' });
     expect(reason).toBeNull();
     const response = await callback(t, url, 'code=c1');
-    expect(response.headers.get('Location')).toBe('exp://192.168.1.5:8081/--/host?whop=linked');
+    const back = new URL(response.headers.get('Location')!);
+    expect(back.href.split('?')[0]).toBe('exp://192.168.1.5:8081/--/host');
+    expect(back.searchParams.get('whop')).toBe('link');
+    expect(await t.mutation(api.whopAuth.completeSignIn, { deviceToken: 'laptop', linkCode: back.searchParams.get('code')! })).toBe(true);
     expect((await t.query(api.whopAuth.account, { deviceToken: 'laptop' })).account?.whopUserId).toBe('user_razeen');
     const { dropId } = await t.mutation(api.drops.hostDrop, { deviceToken: 'laptop' });
     expect(await hostWhopUserIds(t)).toEqual(['user_razeen']);

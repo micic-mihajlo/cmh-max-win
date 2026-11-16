@@ -108,15 +108,19 @@ const award = (over: Partial<SquadAwardView> = {}): SquadAwardView => ({
   ],
   ...over,
 });
-const paid = (myPayout: SquadAwardView['myPayout']) =>
+// A real $3 pot: the first squad takes all $3, so each of the three gets $1.00 (Whop's minimum transfer).
+const paid = (myPayout: Omit<SquadAwardView['myPayout'], 'amountCents'>) =>
   award({
     mode: 'sandbox',
-    label: 'Squad 14 · 3rd place',
-    myPayout,
+    amountCents: 300,
+    perPlayerCents: 100,
+    place: 1,
+    label: 'Squad 14 · 1st place',
+    myPayout: { ...myPayout, amountCents: 100 } as SquadAwardView['myPayout'],
     split: [
-      { name: 'Chris', cents: 3333, isMe: true },
-      { name: 'Sarah', cents: 3333, isMe: false },
-      { name: 'Jen', cents: 3333, isMe: false },
+      { name: 'Chris', cents: 100, isMe: true },
+      { name: 'Sarah', cents: 100, isMe: false },
+      { name: 'Jen', cents: 100, isMe: false },
     ],
   });
 
@@ -179,6 +183,55 @@ export const DropStates: MockState[] = [
     ),
   },
   { id: '10-creator-card', ref: 'beat 2', section: 'Drops', title: 'Creator · prefilled drop card', render: () => <CreatorSetupScreen drop={{ ...danny, title: 'Split Passphrase' }} challenge={CHALLENGES[0]} onChallenge={() => {}} pot={POTS[0]} onPot={() => {}} /> },
+  {
+    id: '10-creator-real',
+    ref: 'beat 2',
+    section: 'Drops',
+    title: 'Creator · real $3, first squad wins, $7 left ($9 greyed)',
+    render: () => (
+      <CreatorSetupScreen
+        drop={{ ...danny, title: 'Split Passphrase', totalCents: 300, winnerSlots: 1 }}
+        challenge={CHALLENGES[0]}
+        onChallenge={() => {}}
+        pot={POTS[1]}
+        onPot={() => {}}
+        real={{ enabled: true, remainingCents: 700, capPerSquadCents: 600 }}
+      />
+    ),
+  },
+  {
+    id: '10-creator-real-over',
+    ref: 'beat 2',
+    section: 'Drops',
+    title: 'Creator · REAL_BUDGET_EXCEEDED',
+    render: () => (
+      <CreatorSetupScreen
+        drop={{ ...danny, title: 'Split Passphrase', totalCents: 600, winnerSlots: 1 }}
+        challenge={CHALLENGES[0]}
+        onChallenge={() => {}}
+        pot={POTS[2]}
+        onPot={() => {}}
+        real={{ enabled: true, remainingCents: 300, capPerSquadCents: 600 }}
+        error="Real payouts have $3 left. Pick a pot up to $3, or concept."
+      />
+    ),
+  },
+  {
+    id: '10-creator-real-off',
+    ref: 'beat 2',
+    section: 'Drops',
+    title: 'Creator · real payouts off',
+    render: () => (
+      <CreatorSetupScreen
+        drop={{ ...danny, title: 'Split Passphrase' }}
+        challenge={CHALLENGES[0]}
+        onChallenge={() => {}}
+        pot={POTS[0]}
+        onPot={() => {}}
+        real={{ enabled: false, remainingCents: 0, capPerSquadCents: 0 }}
+      />
+    ),
+  },
   {
     id: '10-creator-pot-error',
     ref: 'beat 2',
@@ -334,14 +387,14 @@ export const DropStates: MockState[] = [
     title: 'Payout · static CONCEPT card',
     render: () => <BountyResultScreen award={award()} bounty={bounty} />,
   },
-  { id: '16-payout-sign-in', ref: 'payout', section: 'Payout', title: 'Payout · sign in with Whop', render: () => <BountyResultScreen award={paid({ status: 'sign_in_required', amountCents: 3333 })} bounty={bounty} /> },
-  { id: '16-payout-sending', ref: 'payout', section: 'Payout', title: 'Payout · sending', render: () => <BountyResultScreen award={paid({ status: 'sending', amountCents: 3333 })} bounty={bounty} /> },
-  { id: '16-payout-sent', ref: 'payout', section: 'Payout', title: 'Payout · sent', render: () => <BountyResultScreen award={paid({ status: 'sent', amountCents: 3333 })} bounty={bounty} /> },
+  { id: '16-payout-sign-in', ref: 'payout', section: 'Payout', title: 'Payout · sign in with Whop', render: () => <BountyResultScreen award={paid({ status: 'sign_in_required', message: 'Sign in with Whop to receive $1' })} bounty={bounty} /> },
+  { id: '16-payout-sending', ref: 'payout', section: 'Payout', title: 'Payout · sending', render: () => <BountyResultScreen award={paid({ status: 'sending' })} bounty={bounty} /> },
+  { id: '16-payout-sent', ref: 'payout', section: 'Payout', title: 'Payout · sent', render: () => <BountyResultScreen award={paid({ status: 'sent', transferId: 'ctt_8kQ2mZ4hYw', message: 'Sent to your Whop balance' })} bounty={bounty} /> },
   {
     id: '16-payout-failed',
     ref: 'payout',
     section: 'Payout',
     title: 'Payout · failed (KYC)',
-    render: () => <BountyResultScreen award={paid({ status: 'failed', amountCents: 3333, failureCode: 'kyc_required' })} bounty={bounty} />,
+    render: () => <BountyResultScreen award={paid({ status: 'failed', failureCode: 'kyc_required' })} bounty={bounty} />,
   },
 ];
