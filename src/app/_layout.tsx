@@ -1,5 +1,6 @@
 import { Inter_400Regular, Inter_400Regular_Italic, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, useFonts } from '@expo-google-fonts/inter';
 import { ConvexProvider } from 'convex/react';
+import { ConvexQueryCacheProvider } from 'convex-helpers/react/cache/provider';
 import { DefaultTheme, Stack, ThemeProvider, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
@@ -55,7 +56,17 @@ export default function RootLayout() {
       )}
     </ThemeProvider>
   );
-  return convex ? <ConvexProvider client={convex}>{app}</ConvexProvider> : app;
+  // Queries stay subscribed for 2 minutes after their screen unmounts, so a revisit renders the last
+  // result at once and keeps updating live; a subscription only ends once nothing reads it for that long.
+  return convex ? (
+    <ConvexProvider client={convex}>
+      <ConvexQueryCacheProvider expiration={120_000} maxIdleEntries={40}>
+        {app}
+      </ConvexQueryCacheProvider>
+    </ConvexProvider>
+  ) : (
+    app
+  );
 }
 
 const styles = StyleSheet.create({
