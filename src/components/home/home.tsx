@@ -34,7 +34,9 @@ export function HomeScreen() {
     <Screen>
       <View style={styles.top}>
         <Wordmark />
-        <Txt variant="quote">Live quizzes with your stream. Winners get paid on Whop.</Txt>
+        <Txt variant="bodyStrong" color={Palette.paperMuted} style={styles.lede}>
+          Live quizzes with your stream. Winners get paid on Whop.
+        </Txt>
       </View>
       <View style={styles.join}>
         <PressScale
@@ -110,6 +112,7 @@ export function HomeScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  lede: Platform.select({ web: { textWrap: 'balance' } as object, default: {} }),
   top: { gap: Space.l, paddingTop: Space.l },
   join: { gap: Space.m, paddingTop: Space.s },
   tiles: { flexDirection: 'row', gap: 10 },
