@@ -15,6 +15,7 @@ const failures: Record<string, string> = {
 };
 
 function payoutLine(p: AwardPayoutView) {
+  if (p.message) return p.message;
   if (p.status === 'sign_in_required') return `Sign in with Whop to receive ${money2(p.amountCents)}.`;
   if (p.status === 'sending') return 'Sending to your Whop balance…';
   if (p.status === 'sent') return 'Sent to your Whop balance.';
@@ -73,6 +74,11 @@ export function BountyResultScreen({
               </Txt>
             </View>
           )}
+          {!concept && p.status === 'sent' && p.transferId ? (
+            <Txt variant="caption" color={Palette.paperMuted} selectable>
+              {p.transferId}
+            </Txt>
+          ) : null}
         </View>
       </Enter>
       <Enter from={8} delay={80}>
