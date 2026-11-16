@@ -310,6 +310,7 @@ export type UseSeasonPack = () => { view: SeasonPackView | undefined; buy: () =>
 export type WhopAccountView = {
   whopUserId: string;
   name: string;
+  displayName: string; // same as name
   username: string | null;
   avatarUrl: string | null;
   environment: 'sandbox' | 'production';
@@ -327,7 +328,11 @@ export type UseLinkForClaim = (code: string | null, returnPath: string) => () =>
 // From a join screen when joinChallenge fails with WHOP_SIGN_IN_REQUIRED: code is the challenge's join code, returnPath
 // the route to come back to (e.g. 'c/K7QM'). Once it resolves 'linked', call join again.
 export type UseSignInToJoin = (code: string | null, returnPath: string) => () => Promise<WhopSignInResult>;
-export type UseSignOutWhop = () => () => Promise<void>;
+// From Profile: sign this device in to its Whop account, from any device. Once signed in, follows, reminders,
+// challenges, hosted drops, the creator profile and payouts from every device on that account show here too; game
+// seats stay with the device that played. returnPath is the route to come back to (e.g. 'profile').
+export type UseSignInWithWhop = (returnPath: string) => () => Promise<WhopSignInResult>;
+export type UseSignOutWhop = () => () => Promise<void>; // this device only
 
 export type UseDrops = () => DropSummaryView[] | undefined; // scheduled and live drops, soonest first
 export type UseDrop = (dropId: string | null) => DropView | null | undefined;
