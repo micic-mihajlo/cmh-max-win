@@ -138,6 +138,8 @@ export type SignalErrorCode =
   | 'TEAM_NOT_LOCKED'
   | 'CHALLENGE_FULL' // a new device joining a challenge at capacity (contract-hardening.ts)
   | 'BAD_ANSWER' // split passphrase: the answer doesn't have one word per slot
+  | 'REAL_PAYOUTS_OFF' // hostDrop payoutMode 'real' while the server has real payouts off
+  | 'REAL_BUDGET_EXCEEDED' // hostDrop payoutMode 'real' with a pot above the remaining real budget (or the per-squad cap)
   | 'NOT_CASE_ROOM' // a Case 01 call (setTheory, lockIn, claimRole, startCase, restart) on a split-passphrase squad
 
 export type SignalError = { code: SignalErrorCode; message: string };
@@ -235,6 +237,9 @@ export type AwardPayoutView = {
   // Set only when failed: Whop's error code, e.g. 'kyc_required' (the business isn't verified),
   // 'transfer_unavailable' (balance held or too low), or 'unknown'.
   failureCode?: string;
+  transferId?: string; // set once sent: Whop's transfer id ('ctt_...')
+  // Real payouts only: 'Sent to your Whop balance' · 'Sign in with Whop to receive $1' · 'Sending to your Whop balance…'
+  message?: string;
 };
 export type AwardSplitRow = { name: string; cents: number; isMe: boolean };
 
@@ -350,7 +355,19 @@ export type UseHostView = (dropId: string | null) => HostView | null | undefined
 // creatorName heads the race ("Nova's drop"). Omitted: the newest name this device token used server-side, else "Host".
 // startsAt (ms epoch, 2 minutes to 30 days ahead): a scheduled drop, listed under "Coming up" with Remind me until it opens.
 // Omitted: the drop opens now and the streamer goes live, as before.
-export type UseHostDrop = () => (args: { title?: string; winnerSlots?: number; totalCents?: number; creatorName?: string; startsAt?: number; template?: DropTemplateId }) => Promise<{ dropId: string; joinCode: string }>;
+// payoutMode 'real' pays winners real (sandbox) money by Whop transfer; 'concept' never does. Omitted: as before.
+export type UseHostDrop = () => (args: {
+  title?: string;
+  winnerSlots?: number;
+  totalCents?: number;
+  creatorName?: string;
+  startsAt?: number;
+  template?: DropTemplateId;
+  payoutMode?: 'real' | 'concept';
+}) => Promise<{ dropId: string; joinCode: string }>;
+// The host's pot picker: offer real presets ($3, $6) only while enabled and totalCents <= remainingCents.
+export type RealPayoutStatusView = { enabled: boolean; remainingCents: number; capPerSquadCents: number };
+export type UseRealPayoutStatus = () => RealPayoutStatusView | undefined;
 export type UseDealSquads = (dropId: string) => () => Promise<void>; // host only; NOT_ENOUGH_PLAYERS below 4
 
 export type UseDropByCode = (code: string | null) => DropView | null | undefined; // null = no open drop with that code
