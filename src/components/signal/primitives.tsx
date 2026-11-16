@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
+import { ActivityIndicator, StyleSheet, View, type ViewStyle } from 'react-native';
 import Animated, { FadeIn, FadeInUp, FadeOut, ReduceMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -202,16 +202,19 @@ export function Segmented<T extends string>({
   return (
     <View style={styles.segmented} accessibilityRole="tablist">
       {options.map((o) => (
-        <Pressable
+        <PressScale
           key={o.value}
           accessibilityRole="tab"
           accessibilityState={{ selected: o.value === value }}
+          haptic={o.value === value ? undefined : 'select'}
+          hitSlop={0}
+          outerStyle={styles.flex}
           onPress={() => onChange?.(o.value)}
           style={[styles.segment, o.value === value && styles.segmentOn]}>
           <Txt variant="smallStrong" color={o.value === value ? Palette.paper : Palette.paperMuted}>
             {o.label}
           </Txt>
-        </Pressable>
+        </PressScale>
       ))}
     </View>
   );
@@ -302,7 +305,7 @@ const styles = StyleSheet.create({
   },
   toastDot: { width: 8, height: 8, borderRadius: 4 },
   segmented: { flexDirection: 'row', backgroundColor: Palette.panel, borderRadius: Radius.pill, padding: 4, borderWidth: 1, borderColor: Palette.hairline },
-  segment: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: Radius.pill },
+  segment: { alignItems: 'center', paddingVertical: 8, borderRadius: Radius.pill },
   segmentOn: { backgroundColor: Palette.panelRaised },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: Palette.hairline },
 });

@@ -1,5 +1,5 @@
 import type { ComponentProps, ReactNode } from 'react';
-import { Pressable, type PressableProps } from 'react-native';
+import { Pressable, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 import { Haptic, type HapticName } from './haptics';
@@ -9,6 +9,7 @@ import { Spring } from './tokens';
 type Props = Omit<PressableProps, 'children' | 'style'> & {
   children: ReactNode;
   style?: ComponentProps<typeof Animated.View>['style'];
+  outerStyle?: StyleProp<ViewStyle>;
   scaleTo?: number;
   haptic?: HapticName;
 };
@@ -18,7 +19,7 @@ const release = { ...Spring.release, reduceMotion: ReduceMotion.Never };
 
 // Feedback on touch-down, commit on release. Both directions are springs, so a quick tap that lets go
 // mid-press reverses from wherever it is. Reduce Motion swaps the scale for a dim that still animates.
-export function PressScale({ children, style, scaleTo = 0.97, haptic, disabled, onPressIn, onPressOut, onPress, ...rest }: Props) {
+export function PressScale({ children, style, outerStyle, scaleTo = 0.97, haptic, disabled, onPressIn, onPressOut, onPress, ...rest }: Props) {
   const reduced = useReduced();
   const pressed = useSharedValue(0);
 
@@ -30,6 +31,7 @@ export function PressScale({ children, style, scaleTo = 0.97, haptic, disabled, 
   return (
     <Pressable
       {...rest}
+      style={outerStyle}
       accessibilityRole={rest.accessibilityRole ?? 'button'}
       disabled={disabled}
       hitSlop={rest.hitSlop ?? 8}

@@ -78,14 +78,19 @@ export const lockEntries = mutation({
   },
 });
 
+// openFirst: a host-paced template (quick-quiz) also opens its first round, so one press starts the clock.
 export const startLive = mutation({
-  args: { deviceToken: v.string(), challengeId: v.string() },
-  handler: async (ctx, { deviceToken, challengeId }) => {
+  args: { deviceToken: v.string(), challengeId: v.string(), openFirst: v.optional(v.boolean()) },
+  handler: async (ctx, { deviceToken, challengeId, openFirst }) => {
     const c = await requireOwned(ctx, deviceToken, challengeId);
     if (c.status !== 'published' || c.config.startMode !== 'live') fail('CHALLENGE_CLOSED', 'Only an open live-mode challenge can be started.');
     if (c.config.teamFormation === 'dealt') await dealLive(ctx, c);
     else await ctx.db.patch(c._id, { status: 'live', firstDealtAt: Date.now() });
     await lockNow(ctx, c);
+    if (!openFirst || !isSessionTemplate(c.config.templateId)) return;
+    const now = Date.now();
+    const rows = await teamSessionsOf(ctx, c._id);
+    await saveTeamSessions(ctx, c, rows, rows.map((r) => hostAdvance(r.session as EngineSession, now)), now);
   },
 });
 

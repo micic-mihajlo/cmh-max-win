@@ -4,7 +4,7 @@ import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { internalMutation, mutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
 import { bountyView } from './drops';
-import { resolveIdentity, type ResolvedIdentity } from './whopAuth';
+import { linkedDeviceTokens, resolveIdentity, type ResolvedIdentity } from './whopAuth';
 import type {
   FeedLiveRow,
   FeedPushData,
@@ -38,7 +38,8 @@ export const isHiddenStreamer = (s: Doc<'streamers'>) => !!s.hidden || isTestLab
 // Rehearsal and QA hosts by name ("Capy QA", "PP Host", "Rehearsal Nova"): kept out of Find streamers and the following
 // feed only. Pages, follows and the cron still treat them as real.
 const REHEARSAL_NAME = /\b(capy|qa|test|pp host|rehearsal)\b/i;
-export const isRehearsalHost = (s: Doc<'streamers'>) => REHEARSAL_NAME.test(s.name);
+export const isRehearsalName = (name: string) => REHEARSAL_NAME.test(name);
+export const isRehearsalHost = (s: Doc<'streamers'>) => isRehearsalName(s.name);
 export const normalizedName = (name: string) => name.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
 // scripts/demo/seed-streamers.mjs hosts as 'seed-host-…' device tokens.
 const isSeeded = (s: Doc<'streamers'>) => s.hostToken.startsWith('seed-host-');
@@ -59,6 +60,25 @@ export function firstName(name: string) {
   return (name.split(' · ').at(-1) ?? '').trim().split(/\s+/)[0] ?? '';
 }
 
+// First names that stay apart within one list: "Chris", "Chris Bell", "Bot Priya", "Bot Theo", "Chris" ->
+// "Chris", "Chris B.", "Bot P.", "Bot T.", "Chris 2". A shared first name takes the last initial when one was given,
+// then a number for any name still taken.
+export function distinctFirstNames(names: string[]): string[] {
+  const words = names.map((n) => (n.split(' · ').at(-1) ?? '').trim().split(/\s+/).filter(Boolean));
+  const key = (s: string) => s.toLowerCase();
+  const firstCount = new Map<string, number>();
+  for (const w of words) if (w[0]) firstCount.set(key(w[0]), (firstCount.get(key(w[0])) ?? 0) + 1);
+  const seen = new Map<string, number>();
+  return words.map((w) => {
+    if (!w[0]) return '';
+    const initial = w.length > 1 ? Array.from(w[w.length - 1])[0] : '';
+    const base = firstCount.get(key(w[0]))! > 1 && /\p{L}/u.test(initial) ? `${w[0]} ${initial.toUpperCase()}.` : w[0];
+    const n = (seen.get(key(base)) ?? 0) + 1;
+    seen.set(key(base), n);
+    return n === 1 ? base : `${base} ${n}`;
+  });
+}
+
 // "Lou and Ana are waiting": first names of up to MAX_SQUADMATES others already waiting with this device, or dealt into
 // its squad (same group). Never this device or the host.
 export function squadmatesFor(
@@ -68,8 +88,8 @@ export function squadmatesFor(
 ): string[] {
   const mine = people.find((p) => p.deviceToken === deviceToken);
   const pool = mine?.group ? people.filter((p) => p.group === mine.group) : people.filter((p) => !p.group && !p.out);
-  const names = pool.filter((p) => p.deviceToken !== deviceToken && p.deviceToken !== hostToken).map((p) => firstName(p.name));
-  return [...new Set(names.filter(Boolean))].slice(0, MAX_SQUADMATES);
+  const names = distinctFirstNames(pool.filter((p) => p.deviceToken !== deviceToken && p.deviceToken !== hostToken).map((p) => p.name));
+  return names.filter(Boolean).slice(0, MAX_SQUADMATES);
 }
 
 const entrantsAsPeople = (entries: Doc<'dropEntries'>[]) =>
@@ -393,11 +413,16 @@ async function resultRow(ctx: QueryCtx, streamer: Doc<'streamers'>, { drop }: Ho
 }
 
 async function followRows(ctx: QueryCtx, me: ResolvedIdentity, streamerId: Id<'streamers'>) {
+  const tokens = await linkedDeviceTokens(ctx, me.deviceToken);
   const [byDevice, byWhop] = await Promise.all([
-    ctx.db
-      .query('follows')
-      .withIndex('by_device', (q) => q.eq('deviceToken', me.deviceToken).eq('streamerId', streamerId))
-      .collect(),
+    Promise.all(
+      tokens.map((t) =>
+        ctx.db
+          .query('follows')
+          .withIndex('by_device', (q) => q.eq('deviceToken', t).eq('streamerId', streamerId))
+          .collect(),
+      ),
+    ).then((rows) => rows.flat()),
     me.whopUserId
       ? ctx.db
           .query('follows')
@@ -458,11 +483,16 @@ export const followingFeed = query({
   handler: async (ctx, { deviceToken }): Promise<FollowingFeedView> => {
     const now = Date.now();
     const me = await resolveIdentity(ctx, deviceToken);
+    const tokens = await linkedDeviceTokens(ctx, deviceToken);
     const [byDevice, byWhop] = await Promise.all([
-      ctx.db
-        .query('follows')
-        .withIndex('by_device', (q) => q.eq('deviceToken', me.deviceToken))
-        .collect(),
+      Promise.all(
+        tokens.map((t) =>
+          ctx.db
+            .query('follows')
+            .withIndex('by_device', (q) => q.eq('deviceToken', t))
+            .collect(),
+        ),
+      ).then((rows) => rows.flat()),
       me.whopUserId
         ? ctx.db
             .query('follows')
