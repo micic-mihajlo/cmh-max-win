@@ -128,8 +128,8 @@ export function PrimaryButton({
   return (
     <View style={styles.flex}>
       <PressScale accessibilityRole="button" disabled={disabled} onPress={onPress} haptic="tap">
-        <View style={[styles.button, variant === 'accent' && styles.buttonAccent, disabled && styles.buttonDisabled]}>
-          <Txt variant="button" color={variant === 'accent' ? G.onAccent : G.onInk} style={styles.buttonText}>
+        <View style={[styles.button, variant === 'accent' && !disabled && styles.buttonAccent, disabled && styles.buttonDisabled]}>
+          <Txt variant="button" color={variant === 'accent' && !disabled ? G.onAccent : G.onInk} style={styles.buttonText}>
             {title}
           </Txt>
         </View>
