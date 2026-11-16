@@ -450,7 +450,7 @@ const styles = StyleSheet.create({
   },
   left: { flex: 1, maxWidth: 640 },
   leftContent: { paddingTop: Space.xxxl, paddingBottom: Space.xxxl },
-  right: { width: 400, paddingTop: 112, gap: Space.m },
+  right: { width: 400, paddingTop: Space.xxxl + 48 + 48, gap: Space.m },
   form: { gap: 48, width: '100%' },
   title: {
     fontFamily: FontFamily.uiSemi,
