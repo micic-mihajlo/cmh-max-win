@@ -11,16 +11,27 @@ import { PressScale } from '@/motion';
 
 import { money2, ordinal } from './ui';
 
-type Step = 'menu' | 'end' | 'pick';
+type Step = 'menu' | 'end' | 'pick' | 'reset';
 
-// Backup controls kept off the projected view: a small link at the end of the host screen opens a sheet with End now and Pick winners.
-export function HostControls({ view, onEnd, onAward }: { view: HostView; onEnd: () => Promise<void>; onAward: (squadIds: string[]) => Promise<void> }) {
+// Backup controls kept off the projected view: a small link at the end of the host screen opens a sheet with End now,
+// Pick winners and Reset my rooms.
+export function HostControls({
+  view,
+  onEnd,
+  onAward,
+  onResetRooms,
+}: {
+  view: HostView;
+  onEnd: () => Promise<void>;
+  onAward: (squadIds: string[]) => Promise<void>;
+  onResetRooms: () => Promise<void>;
+}) {
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState<Step | null>(null);
   const [picked, setPicked] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  if (view.status === 'ended') return null;
+  const live = view.status === 'live';
   const winners = view.solves.filter((w) => w.isWinner);
   const slots = view.bounty.winnerSlots - winners.length;
   const real = view.bounty.mode !== 'concept';
@@ -63,11 +74,22 @@ export function HostControls({ view, onEnd, onAward }: { view: HostView; onEnd: 
           {step === 'menu' ? (
             <>
               <Txt variant="name">Host controls</Txt>
-              <Button title="End now" variant="secondary" onPress={() => setStep('end')} style={styles.option} />
-              {slots > 0 && view.squads.some((s) => s.status === 'solving') ? (
+              {live ? <Button title="End now" variant="secondary" onPress={() => setStep('end')} style={styles.option} /> : null}
+              {live && slots > 0 && view.squads.some((s) => s.status === 'solving') ? (
                 <Button title="Pick winners" variant="secondary" onPress={() => setStep('pick')} style={styles.option} />
               ) : null}
+              <Button title="Reset my rooms" variant="secondary" onPress={() => setStep('reset')} style={styles.option} />
               <Button title="Close" variant="ghost" onPress={close} />
+            </>
+          ) : null}
+          {step === 'reset' ? (
+            <>
+              <Txt variant="name">Reset my rooms?</Txt>
+              <Txt variant="body" color={Palette.paperMuted}>
+                Ends every running room this device hosted. Rooms that haven’t started stay open, and payouts already made stay.
+              </Txt>
+              <Button title={busy ? 'Resetting…' : 'Reset my rooms'} variant="primary" disabled={busy} onPress={() => run(onResetRooms)} />
+              <Button title="Cancel" variant="ghost" disabled={busy} onPress={close} />
             </>
           ) : null}
           {step === 'end' ? (

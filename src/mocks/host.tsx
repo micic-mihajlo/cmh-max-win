@@ -111,7 +111,13 @@ export const HostStates: MockState[] = [
     ref: 'host controls',
     section: 'Host',
     title: 'Host · race with Host controls',
-    render: () => <HostScreen hostName="Danny" view={dealt(1)} controls={<HostControls view={dealt(1)} onEnd={async () => {}} onAward={async () => {}} />} />,
+    render: () => (
+      <HostScreen
+        hostName="Danny"
+        view={dealt(1)}
+        controls={<HostControls view={dealt(1)} onEnd={async () => {}} onAward={async () => {}} onResetRooms={async () => {}} />}
+      />
+    ),
   },
   { id: '20-host-empty', ref: 'host.md', section: 'Host', title: 'Host · code, nobody here yet', render: () => <HostScreen hostName="Danny" view={view(0)} /> },
   {

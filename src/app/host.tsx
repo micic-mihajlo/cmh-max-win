@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 
 import { CHALLENGES } from '@/components/drops/creator-setup';
 import { HOST_UNLOCKED_KEY, HostPinGate } from '@/components/drops/host-pin-gate';
+import { rememberMyRoom } from '@/components/drops/my-rooms';
 import { MIN_PLAYERS, prizeProblem, RunGameScreen, type RunGameState } from '@/components/drops/run-game';
 import { NameEntryScreen } from '@/components/screens/name-entry';
 import { Arrive, Pending } from '@/components/signal/backdrop';
@@ -106,6 +107,7 @@ export default function HostNewRoute() {
                     payoutMode: fun ? 'concept' : 'real',
                     minPlayers: state.minPlayers,
                   });
+                  await rememberMyRoom(dropId);
                   router.replace({
                     pathname: '/drop/[id]/host',
                     params: { id: dropId },

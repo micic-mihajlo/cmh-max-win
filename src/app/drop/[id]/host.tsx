@@ -1,14 +1,19 @@
+import { api } from '@convex/_generated/api';
+import { useMutation } from 'convex/react';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 
 import { HostScreen } from '@/components/drops/host';
 import { HostControls } from '@/components/drops/host-controls';
+import { readMyRooms } from '@/components/drops/my-rooms';
 import { ClosedScreen } from '@/components/screens/closed';
 import { Arrive, Pending } from '@/components/signal/backdrop';
 import { Toast } from '@/components/signal/primitives';
 import { useDealSquads, useHostAwardSquads, useHostEndDrop, useHostView } from '@/hooks/use-drops';
+import { useMyHostedDrops } from '@/hooks/use-host-account';
 import { usePlayerName } from '@/hooks/use-player-name';
+import { getDeviceToken } from '@/lib/device';
 import { toSignalError } from '@/lib/signal-error';
 
 export default function HostRoute() {
@@ -19,6 +24,13 @@ export default function HostRoute() {
   const deal = useDealSquads(id);
   const endDrop = useHostEndDrop(id);
   const awardSquads = useHostAwardSquads(id);
+  const endAny = useMutation(api.drops.hostEndDrop);
+  const hosted = useMyHostedDrops();
+  const resetRooms = async () => {
+    const deviceToken = await getDeviceToken();
+    const ids = new Set([...(await readMyRooms()), ...(hosted ?? []).filter((d) => d.status === 'live').map((d) => d.dropId)]);
+    await Promise.all([...ids].map((dropId) => endAny({ deviceToken, dropId }).catch(() => {})));
+  };
   const [dealing, setDealing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [minToDeal, setMinToDeal] = useState<number>();
@@ -31,7 +43,7 @@ export default function HostRoute() {
         hostName={name ?? 'Danny'}
         dealing={dealing}
         minToDeal={minToDeal}
-        controls={<HostControls view={view} onEnd={endDrop} onAward={awardSquads} />}
+        controls={<HostControls view={view} onEnd={endDrop} onAward={awardSquads} onResetRooms={resetRooms} />}
         onDeal={async () => {
           setDealing(true);
           setError(null);
