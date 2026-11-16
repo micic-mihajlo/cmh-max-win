@@ -11,7 +11,7 @@ import schema from './schema';
 import type { ChallengeConfigPatch } from '../src/lib/contract';
 
 const modules = import.meta.glob('./**/*.ts');
-const HOST = 'host-device';
+const HOST = 'creator-device'; // not host-…: discovery:home hides harness tokens
 const MIN = 60_000;
 
 function newTest() {
@@ -276,6 +276,32 @@ describe('home screen', () => {
     expect(after.comingUp[0].challengeId).toBe(kayla.challengeId);
     expect(after.comingUp[1].title).toBe('Nova 0');
     expect((await t.query(api.discovery.home, { deviceToken: 'someone' })).comingUp[0].title).toBe('Nova 0');
+  });
+
+  test('home: harness and load-test device tokens stay out, seeded creators stay in', async () => {
+    const t = newTest();
+    for (const token of ['host-1a2b', 'bot-77', 'load-3', 'qa-runner']) {
+      await hostAs(t, token, 'Jess', 'jess' + token.split('-')[0]);
+      await publishAs(t, token, { title: 'Friday night quiz', startMode: 'window', endsAt: Date.now() + 60 * MIN });
+    }
+    await hostAs(t, 'seed-host-danny', 'Danny', 'danny');
+    const danny = await publishAs(t, 'seed-host-danny', { title: 'Friday night quiz', startMode: 'window', endsAt: Date.now() + 60 * MIN });
+    await hostAs(t, 'ghost-device', 'Chris', 'chris');
+    const chris = await publishAs(t, 'ghost-device', { title: 'Chris race', startMode: 'window', endsAt: Date.now() + 60 * MIN });
+
+    const home = await t.query(api.discovery.home, { deviceToken: 'fan' });
+    expect(home.onNow.map((c) => c.challengeId).sort()).toEqual([danny.challengeId, chris.challengeId].sort());
+  });
+
+  test('cards name their creator, on home and on the creator page', async () => {
+    const t = await creator();
+    await publish(t, { title: 'Open', startMode: 'window', endsAt: Date.now() + 60 * MIN });
+    await publish(t, { title: 'Soon', startMode: 'scheduled', startsAt: Date.now() + 30 * MIN });
+    const home = await t.query(api.discovery.home, { deviceToken: 'fan' });
+    const page = (await t.query(api.discovery.creatorPage, { handle: 'nova' }))!;
+    for (const card of [...home.onNow, ...home.comingUp, ...page.live, ...page.upcoming]) expect(card.creator).toEqual({ displayName: 'Nova', handle: '@nova' });
+    expect(home.onNow).toHaveLength(1);
+    expect(home.comingUp).toHaveLength(1);
   });
 
   test('home: test, QA, rehearsal and flagged hosts and test titles stay out', async () => {
