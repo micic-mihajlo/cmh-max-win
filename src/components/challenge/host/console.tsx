@@ -1,23 +1,21 @@
-import * as Clipboard from 'expo-clipboard';
 import { router, type Href } from 'expo-router';
 import { useEffect, useState, type ReactNode } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
-import QRCode from 'react-native-qrcode-svg';
 import Animated, { FadeIn, LinearTransition, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { money, ordinal } from '@/components/drops/ui';
+import { JoinQR } from '@/components/share/JoinQR';
 import { Screen } from '@/components/signal/backdrop';
 import { Txt } from '@/components/signal/txt';
 import { FontFamily, Palette, Radius, Space } from '@/constants/signal';
 import { useApprovePayouts, useEndChallenge, useHostConsole } from '@/hooks/use-challenges';
+import { useShareChallenge } from '@/hooks/use-share-challenge';
 import { useLiveView, useLockEntries, useRunHostAction, useStartLive } from '@/hooks/use-live';
 import type { HostConsoleView, LivePhase, LiveView } from '@/lib/contract';
 import { toSignalError } from '@/lib/signal-error';
 import { Ease, Enter, PressScale, Stagger, useReduced } from '@/motion';
 
 import { useServerNow } from './use-server-now';
-
-const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL ?? 'https://signal-app-wine.vercel.app';
 
 type RoundPhase = 'lobby' | 'question' | 'leaderboard' | 'finished';
 type Round = {
@@ -236,41 +234,20 @@ function Header({ phase }: { phase: LivePhase }) {
 
 function Lobby({ host }: { host: HostConsoleView }) {
   const code = host.joinCode ?? '';
-  const url = host.shareUrl ?? WEB_URL + '/c/' + code;
-  const [copied, setCopied] = useState(false);
-  useEffect(() => {
-    if (!copied) return;
-    const t = setTimeout(() => setCopied(false), 1600);
-    return () => clearTimeout(t);
-  }, [copied]);
+  const { share, label, copied } = useShareChallenge(code, host.shareUrl);
   const newest = [...host.entrants].reverse().slice(0, 12);
   return (
     <>
-      <View style={styles.codeBlock}>
-        <View style={styles.tiles}>
-          <Stagger from={8} stagger={40}>
-            {code.split('').map((ch, i) => (
-              <View key={i} style={styles.tile}>
-                <Txt style={styles.letter}>{ch}</Txt>
-              </View>
-            ))}
-          </Stagger>
+      <Enter from={8} delay={60}>
+        <View style={styles.codeBlock}>
+          <JoinQR code={code} shareUrl={host.shareUrl} variant="stage" />
+          <PressScale haptic="tap" accessibilityRole="button" onPress={share} style={styles.share}>
+            <Txt variant="label" color={copied ? Palette.ok : Palette.paper}>
+              {label}
+            </Txt>
+          </PressScale>
         </View>
-        <View style={styles.qr}>
-          <QRCode value={url} size={168} color={Palette.paper} backgroundColor={Palette.card} />
-        </View>
-        <PressScale
-          haptic="tap"
-          accessibilityRole="button"
-          onPress={async () => {
-            await Clipboard.setStringAsync(url);
-            setCopied(true);
-          }}>
-          <Txt variant="label" color={copied ? Palette.ok : Palette.paper}>
-            {copied ? 'Link copied' : url.replace(/^https?:\/\//, '')}
-          </Txt>
-        </PressScale>
-      </View>
+      </Enter>
       <View style={styles.entrants}>
         <View style={styles.countRow}>
           <Txt style={styles.count}>{host.entrantCount}</Txt>
@@ -548,29 +525,8 @@ const styles = StyleSheet.create({
   status: { flexDirection: 'row', alignItems: 'center', gap: Space.s },
   dot: { width: 8, height: 8, borderRadius: 4 },
   titleBlock: { gap: Space.xs },
+  share: { minHeight: 44, justifyContent: 'center', paddingHorizontal: Space.m },
   codeBlock: { alignItems: 'center', gap: Space.l, paddingTop: Space.s },
-  tiles: { flexDirection: 'row', gap: 10 },
-  tile: {
-    width: 72,
-    height: 88,
-    borderRadius: Radius.m,
-    backgroundColor: Palette.card,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Palette.hairline,
-  },
-  letter: {
-    fontFamily: FontFamily.uiBold,
-    fontSize: 48,
-    lineHeight: 58,
-    color: Palette.paper,
-  },
-  qr: {
-    padding: Space.m,
-    borderRadius: Radius.m,
-    backgroundColor: Palette.card,
-  },
   entrants: { gap: Space.m, paddingTop: Space.s },
   countRow: { flexDirection: 'row', alignItems: 'baseline', gap: Space.s },
   count: {
