@@ -4,7 +4,16 @@ import { useQuery } from 'convex-helpers/react/cache/hooks';
 import { useCallback, useMemo } from 'react';
 
 import { useDeviceToken } from '@/hooks/use-device-token';
-import type { UseCheckHandle, UseCreatorPage, UseFollowCreator, UseRemindChallenge, UseShareLink, UseUpcomingReminders } from '@/lib/contract';
+import type {
+  UseCheckHandle,
+  UseCreatorPage,
+  UseDiscoveryHome,
+  UseFollowCreator,
+  UseRemindChallenge,
+  UseResolveCode,
+  UseShareLink,
+  UseUpcomingReminders,
+} from '@/lib/contract';
 import { getDeviceToken } from '@/lib/device';
 
 const d = api.discovery;
@@ -44,4 +53,11 @@ export const useRemindChallenge: UseRemindChallenge = (challengeId) => {
 export const useUpcomingReminders: UseUpcomingReminders = () => {
   const deviceToken = useDeviceToken();
   return useQuery(d.upcomingReminders, deviceToken ? { deviceToken } : 'skip');
+};
+
+export const useResolveCode: UseResolveCode = (code) => useQuery(d.resolveCode, code ? { code } : 'skip');
+
+export const useDiscoveryHome: UseDiscoveryHome = () => {
+  const deviceToken = useDeviceToken();
+  return useQuery(d.home, deviceToken ? { deviceToken } : 'skip');
 };

@@ -54,7 +54,9 @@ export function SquadRevealScreen({
       <Enter play={play} delay={900}>
         <View style={styles.card}>
           <View style={styles.cardHead}>
-            <Txt variant="title">{hero}</Txt>
+            <Txt variant="title" style={styles.flex}>
+              {hero}
+            </Txt>
             {squad ? (
               <Txt variant="caption" color={Palette.paperMuted}>
                 {squad.label}
@@ -100,7 +102,7 @@ const styles = StyleSheet.create({
   footer: { gap: Space.s },
   cta: { height: 52, borderRadius: 16, backgroundColor: Palette.paper, alignItems: 'center', justifyContent: 'center' },
   card: { padding: 18, borderRadius: 16, backgroundColor: Palette.panel, borderWidth: StyleSheet.hairlineWidth, borderColor: Palette.hairline },
-  cardHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
+  cardHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: Space.m },
   members: { gap: 10, marginTop: 14 },
   mem: { flexDirection: 'row', alignItems: 'center', gap: Space.m },
   avatar: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
