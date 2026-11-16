@@ -1,10 +1,12 @@
-import { Redirect, router } from 'expo-router';
+import { Redirect, router, type Href } from 'expo-router';
 import { useState } from 'react';
 import { Platform } from 'react-native';
 
+import { YourChallenges } from '@/components/home/your-challenges';
 import { CoverScreen, type JoinState } from '@/components/screens/cover';
 import { NameEntryScreen } from '@/components/screens/name-entry';
 import { WebHomeScreen } from '@/components/screens/web-home';
+import { useActiveDrop } from '@/hooks/use-active-drop';
 import { usePlayerName } from '@/hooks/use-player-name';
 import { useActiveRoom, useCreateRoom, useJoinRoom, useReclaimRole } from '@/hooks/use-signal';
 import { toSignalError } from '@/lib/signal-error';
@@ -24,6 +26,8 @@ function Cover() {
   const [draft, setDraft] = useState('');
   const [pendingAction, setPendingAction] = useState<'create' | 'join' | null>(null);
   const active = useActiveRoom();
+  const activeDrop = useActiveDrop(active?.code ?? null);
+  const passphrase = activeDrop?.template === 'split-passphrase';
   const createRoom = useCreateRoom();
   const joinRoom = useJoinRoom();
   const [join, setJoin] = useState<JoinState | null>(null);
@@ -77,18 +81,22 @@ function Cover() {
 
   return (
     <CoverScreen
-      active={active}
+      active={active && activeDrop === undefined ? undefined : active}
+      passphrase={passphrase}
       creating={creating}
       join={join ?? undefined}
+      mine={<YourChallenges />}
       on={{
         onJoinDrop: () => router.push('/join'),
         onHostDrop: () => router.push('/host'),
+        onCreate: () => router.push('/studio'),
+        onStreamers: () => router.push('/showcase/streamers' as Href),
         onStart: () => {
           setJoin(null);
           start(name);
         },
         onOpenJoin: () => setJoin({ code: '', phase: 'typing' }),
-        onRejoin: () => active && go(active.code),
+        onRejoin: () => active && (activeDrop ? router.push({ pathname: '/drop/[id]', params: { id: activeDrop.dropId } }) : go(active.code)),
         onCodeChange: (code) => setJoin({ code, phase: 'typing' }),
         onJoin: () => join && join.code.length === 4 && submitJoin(name, join.code),
         onCloseJoin: () => setJoin(null),

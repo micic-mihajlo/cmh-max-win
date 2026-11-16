@@ -38,7 +38,7 @@ export type FeedUpcomingRow = {
   startsAt: number; // ms epoch, server clock
   bounty: BountyView;
   reminded: boolean;
-  // "Lou and Ana are waiting": first names of up to 3 others already entered (or dealt into this device's squad).
+  // "Sarah and Jen are waiting": first names of up to 3 others already entered (or dealt into this device's squad).
   // Only for a device that tapped Remind me or entered; never this device or the host; absent when nobody's there.
   squadmates?: string[];
 };
@@ -74,11 +74,11 @@ export type FollowResult = { following: boolean; followerCount: number };
 export type PushPlatform = 'ios' | 'android';
 
 // Push payloads, in the notification's data field. Exactly two kinds, at most one per device per drop.
-// live: "Nova is live · The Aurora Seed" / "Join with K7QX." Opens the join screen with the code filled in.
-// starting: "Nova's room opens in 2 minutes" / "Your squad is waiting." Opens the drop's waiting room.
+// live: "Danny is live · The Aurora Seed" / "Join with K7QX." Opens the join screen with the code filled in.
+// starting: "Danny's room opens in 2 minutes" / "Your squad is waiting." Opens the drop's waiting room.
 // Sent to followers (live) and to devices that tapped Remind me or already entered (starting).
 // squadmates (starting only, optional): first names of up to 3 others already waiting in, or dealt into, this
-// device's drop or squad, never this device. "Lou and Ana are waiting". Absent when nobody else is there yet.
+// device's drop or squad, never this device. "Sarah and Jen are waiting". Absent when nobody else is there yet.
 export type FeedPushData = { kind: 'live' | 'starting'; dropId: string; joinCode: string; streamerId: string; squadmates?: string[] };
 
 export type UseFollowingFeed = () => FollowingFeedView | undefined;

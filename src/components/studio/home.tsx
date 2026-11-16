@@ -72,7 +72,6 @@ function Row({ c }: { c: ChallengeSummaryView }) {
             {meta}
           </Txt>
         </View>
-        {c.status === 'live' ? <View style={styles.liveDot} /> : null}
         <Txt variant="name" color={G.inkSoft}>
           ›
         </Txt>
@@ -112,12 +111,12 @@ function ProfileSetup() {
   return (
     <StudioScreen title="Your studio" footer={<PrimaryButton title={saving ? 'Saving…' : 'Continue'} disabled={!ready} onPress={submit} />}>
       <View style={studio.gap}>
-        <Field label="Name" value={name} onChange={setName} placeholder="Nova" autoFocus maxLength={40} />
+        <Field label="Name" value={name} onChange={setName} placeholder="Danny" autoFocus maxLength={40} />
         <Field
           label="Handle"
           value={handle}
           onChange={(t) => setHandle(t.replace(/\s/g, '').toLowerCase())}
-          placeholder="@nova"
+          placeholder="@danny"
           prefix="@"
           maxLength={21}
         />
@@ -137,5 +136,4 @@ const styles = StyleSheet.create({
     minHeight: 64,
     paddingVertical: Space.s,
   },
-  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: G.ink },
 });

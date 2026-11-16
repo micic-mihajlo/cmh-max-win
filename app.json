@@ -54,11 +54,20 @@
         }
       ],
       [
+        "expo-camera",
+        {
+          "cameraPermission": "Signal uses the camera to scan a challenge's QR code.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      [
         "expo-audio",
         {
           "microphonePermission": false
         }
       ],
+      "expo-asset",
       "@bacons/apple-targets"
     ],
     "experiments": {
@@ -71,7 +80,7 @@
       }
     },
     "owner": "r4z33n",
-    "runtimeVersion": "1.0.0-native2",
+    "runtimeVersion": "1.0.0-native3",
     "updates": {
       "url": "https://u.expo.dev/e7418053-b72f-4c96-9d50-d13174da4c76",
       "checkAutomatically": "ON_LOAD",

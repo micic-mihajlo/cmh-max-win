@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { PanResponder, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import { Txt } from '@/components/signal/txt';
 import { Palette, Space } from '@/constants/signal';
@@ -80,9 +81,8 @@ export function StreamerScreen({
             disabled={page.liveDrop.dropStatus === 'live'}
             style={[showcase.gutter, showcase.row, styles.live]}
             onPress={() => onOpenLive(page.liveDrop!)}>
-            <View style={styles.dot} />
             <Txt variant="bodyStrong" style={showcase.flex}>
-              Live now · {page.liveDrop.title}
+              Happening now · {page.liveDrop.title}
             </Txt>
             <Txt variant="label" color={page.liveDrop.dropStatus === 'live' ? Palette.paperMuted : Palette.paper}>
               {page.liveDrop.dropStatus === 'live' ? 'In progress' : 'Join'}
@@ -124,18 +124,33 @@ export function StreamerScreen({
 function PingSheet({ name, visible, onTurnOn, onClose }: { name: string; visible: boolean; onTurnOn: () => void; onClose: () => void }) {
   const insets = useSafeAreaInsets();
   const drag = useSharedValue(0);
+  const height = useSharedValue(400);
+  const [flung, setFlung] = useState(false);
   const pan = useMemo(
     () =>
       PanResponder.create({
         onMoveShouldSetPanResponder: (_, g) => g.dy > 4 && Math.abs(g.dy) > Math.abs(g.dx),
         onPanResponderMove: (_, g) => drag.set(Math.max(0, g.dy)),
         onPanResponderRelease: (_, g) => {
-          if (g.dy > 80 || g.vy > 0.5) onClose();
-          else drag.set(withSpring(0, Spring.release));
+          if (g.dy <= 80 && g.vy <= 0.5) {
+            drag.set(withSpring(0, Spring.release));
+            return;
+          }
+          setFlung(true);
+          const finish = () => {
+            onClose();
+            setFlung(false);
+          };
+          drag.set(
+            withSpring(height.get() + 40, { velocity: g.vy * 1000, damping: 20, stiffness: 240, overshootClamping: true }, (done) => {
+              if (done) scheduleOnRN(finish);
+            }),
+          );
         },
+        onPanResponderTerminationRequest: () => false,
         onPanResponderTerminate: () => drag.set(withSpring(0, Spring.release)),
       }),
-    [drag, onClose],
+    [drag, height, onClose],
   );
   const dragStyle = useAnimatedStyle(() => ({ transform: [{ translateY: drag.get() }] }));
   useEffect(() => {
@@ -152,9 +167,12 @@ function PingSheet({ name, visible, onTurnOn, onClose }: { name: string; visible
       {visible ? (
         <Animated.View
           entering={SlideInDown.springify().damping(20).stiffness(240)}
-          exiting={SlideOutDown.duration(200)}
+          exiting={flung ? undefined : SlideOutDown.duration(200)}
           style={styles.sheetWrap}>
-          <Animated.View style={[styles.sheet, { paddingBottom: insets.bottom + Space.xl }, dragStyle]} {...pan.panHandlers}>
+          <Animated.View
+            style={[styles.sheet, { paddingBottom: insets.bottom + Space.xl }, dragStyle]}
+            onLayout={(e) => height.set(e.nativeEvent.layout.height)}
+            {...pan.panHandlers}>
             <View style={styles.grabber} />
             <Txt variant="title" style={styles.centerText}>
               Get a ping when {name} goes live?
@@ -189,7 +207,6 @@ const styles = StyleSheet.create({
   centerText: { textAlign: 'center' },
   follow: { marginTop: Space.xl, minHeight: 52, justifyContent: 'center' },
   live: { marginTop: Space.xl },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Palette.ember },
   scrim: { backgroundColor: 'rgba(22,21,19,0.2)' },
   sheetWrap: { position: 'absolute', left: 0, right: 0, bottom: 0 },
   grabber: { alignSelf: 'center', width: 36, height: 4, borderRadius: 2, backgroundColor: Palette.hairline, marginTop: -Space.s },

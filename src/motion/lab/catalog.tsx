@@ -66,7 +66,7 @@ export default function MotionCatalog() {
     color: RoleColor[m.role!],
     initial: RoleInitial[m.role!],
     locked: i < lockedCount,
-    away: away && m.name === 'Lena',
+    away: away && m.name === 'Emily',
     isMe: m.isMe,
   }));
 
@@ -112,7 +112,7 @@ export default function MotionCatalog() {
             <Row>
               <Chip tone="action" label="Next lock-in" onPress={() => setLockedCount((c) => Math.min(3, c + 1))} />
               <Chip label="Edit theory" onPress={() => setLockedCount(0)} />
-              <Chip label={away ? 'Lena is back' : 'Lena steps away'} onPress={() => setAway((v) => !v)} />
+              <Chip label={away ? 'Emily is back' : 'Emily steps away'} onPress={() => setAway((v) => !v)} />
             </Row>
           </Section>
 
@@ -127,7 +127,7 @@ export default function MotionCatalog() {
                   <View style={[ui.card, styles.nudge]}>
                     <Text style={ui.title2}>Not Theo.</Text>
                     <Text style={ui.callout}>{labNudge('theo', 3).text}</Text>
-                    <Text style={[ui.label, { color: RoleColor.witness }]}>Lena · Witness</Text>
+                    <Text style={[ui.label, { color: RoleColor.witness }]}>Emily · Witness</Text>
                   </View>
                 </NudgeEntrance>
               )}
@@ -166,7 +166,7 @@ export default function MotionCatalog() {
             </View>
             <Row>
               <Chip
-                label="Ravi changes it"
+                label="Ryan changes it"
                 onPress={() => {
                   setFrom(null);
                   setCulprit((c) => (c === 'ines' ? 'jun' : 'ines'));
@@ -210,7 +210,7 @@ export default function MotionCatalog() {
           <Section title="9 · System banners" note="Delayed 1s / 3s so a blip never flashes.">
             <Row>
               <Chip label={reconnecting ? 'Reconnect' : 'Drop connection'} onPress={() => setReconnecting((v) => !v)} />
-              <Chip label={steppedAway ? 'Ravi is back' : 'Ravi steps away'} onPress={() => setSteppedAway((v) => !v)} />
+              <Chip label={steppedAway ? 'Ryan is back' : 'Ryan steps away'} onPress={() => setSteppedAway((v) => !v)} />
             </Row>
           </Section>
         </ScrollView>
@@ -218,7 +218,7 @@ export default function MotionCatalog() {
           Reconnecting… your place is saved.
         </StatusBanner>
         <StatusBanner visible={steppedAway && !reconnecting} showAfterMs={3000} tone="away">
-          Ravi stepped away. The case waits for all three.
+          Ryan stepped away. The case waits for all three.
         </StatusBanner>
       </View>
     </ReducedMotionOverride>

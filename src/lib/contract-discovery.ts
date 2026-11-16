@@ -26,7 +26,7 @@ export type ChallengeCardView = {
   membersOnly: boolean; // Whop members only
   prizePool: PrizePoolView;
   joinCode: string | null;
-  slug: string; // 'nova-friday-race-k7qm'; share as /c/<slug>, resolves with UseShareLink
+  slug: string; // 'danny-friday-race-k7qm'; share as /c/<slug>, resolves with UseShareLink
   entrantCount: number;
 };
 
@@ -37,7 +37,7 @@ export type PastChallengeCardView = ChallengeCardView & { endedAt: number; winne
 export type CreatorPageView = {
   creatorId: string;
   displayName: string;
-  handle: string; // '@nova'
+  handle: string; // '@danny'
   followerCount: number;
   following: boolean; // this device, or its Whop account
   live: ChallengeCardView[]; // live and open now, newest first
@@ -75,7 +75,7 @@ export type ChallengeReminderView = {
 export type HandleCheckView = { handle: string; available: boolean; problem: string | null }; // handle is normalized
 
 export type UseCreatorPage = (handle: string | null) => CreatorPageView | null | undefined; // null = no such creator
-// ref: a join code ('K7QM'), a slug ('nova-friday-race-k7qm', 'nova/K7QM'), a share URL, or a challenge id.
+// ref: a join code ('K7QM'), a slug ('danny-friday-race-k7qm', 'danny/K7QM'), a share URL, or a challenge id.
 export type UseShareLink = (ref: string | null) => SharePreviewView | null | undefined; // null = nothing public to show
 export type UseCheckHandle = (handle: string | null) => HandleCheckView | undefined;
 // Idempotent both ways. Follows are the same follows the drops feed uses (contract-feed.ts).
