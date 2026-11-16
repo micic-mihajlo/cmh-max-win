@@ -1,11 +1,12 @@
-import { useLocalSearchParams } from 'expo-router';
+import { Redirect, router, useLocalSearchParams } from 'expo-router';
 
-import { ClipPlayer } from '@/components/clip/clip-player';
+import { ClipCodeEntry } from '@/components/clip/code-entry';
 import { parseJoinCode } from '@/lib/join-code';
 
-// App Clip entry: /c/<CODE> links are rewritten here by +native-intent.
+// App Clip home: challenge links open /c/<CODE> directly; without one the viewer types the code here.
 export default function ClipRoute() {
-  const { code } = useLocalSearchParams<{ code?: string }>();
-  const parsed = code ? parseJoinCode(code) : null;
-  return <ClipPlayer key={parsed ?? 'entry'} code={parsed} />;
+  const params = useLocalSearchParams<{ code?: string }>();
+  const code = params.code ? parseJoinCode(params.code) : null;
+  if (code) return <Redirect href={{ pathname: '/c/[code]', params: { code } }} />;
+  return <ClipCodeEntry onCode={(next) => router.replace({ pathname: '/c/[code]', params: { code: next } })} />;
 }

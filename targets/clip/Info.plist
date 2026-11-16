@@ -27,6 +27,10 @@
       <key>NSAppClipRequestLocationConfirmation</key>
       <false/>
     </dict>
+    <key>NSCameraUsageDescription</key>
+    <string>Signal uses the camera to scan a challenge's QR code.</string>
+    <key>NSFaceIDUsageDescription</key>
+    <string>Allow $(PRODUCT_NAME) to access your Face ID biometric data.</string>
     <key>NSAppTransportSecurity</key>
     <dict>
       <key>NSAllowsArbitraryLoads</key>

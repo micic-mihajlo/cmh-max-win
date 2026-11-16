@@ -8,16 +8,11 @@ export function parseJoinCode(text: string): string | null {
   return JOIN_CODE.exec(cleaned)?.[1] ?? null;
 }
 
-// https://signal-app-wine.vercel.app/c/<CODE> opens the App Clip and the full app at the same path. Until the player
-// route /c/[code] lands, the clip player at /clip plays it. appclip.apple.com is the clip's default App Store URL.
-// Every other link passes through unchanged.
+// https://signal-app-wine.vercel.app/c/<CODE> opens the App Clip and the full app at the same route, /c/[code].
+// appclip.apple.com is the clip's default App Store URL, which carries no code, so it opens the clip's code entry.
 export function challengeLinkPath(path: string): string {
   try {
-    const url = new URL(path, 'cmhmaxwin://');
-    if (url.hostname === 'appclip.apple.com') return '/clip';
-    const route = url.protocol === 'https:' ? url.pathname : `/${url.hostname}${url.pathname}`;
-    const code = /^\/c\/([A-Za-z0-9]{4})\/?$/.exec(route)?.[1];
-    return code ? `/clip?code=${code.toUpperCase()}` : path;
+    return new URL(path, 'cmhmaxwin://').hostname === 'appclip.apple.com' ? '/clip' : path;
   } catch {
     return path;
   }
