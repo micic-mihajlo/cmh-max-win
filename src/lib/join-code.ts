@@ -7,3 +7,13 @@ export function parseJoinCode(text: string): string | null {
   const cleaned = text.trim().split(/[?#]/)[0].toUpperCase();
   return JOIN_CODE.exec(cleaned)?.[1] ?? null;
 }
+
+// https://signal-app-wine.vercel.app/c/<CODE> opens the App Clip and the full app at the same route, /c/[code].
+// appclip.apple.com is the clip's default App Store URL, which carries no code, so it opens the clip's code entry.
+export function challengeLinkPath(path: string): string {
+  try {
+    return new URL(path, 'cmhmaxwin://').hostname === 'appclip.apple.com' ? '/clip' : path;
+  } catch {
+    return path;
+  }
+}

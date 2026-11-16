@@ -1,0 +1,22 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [
+          "K9CHSNF6SC.r4z33n4l1.cmhmaxwin"
+        ],
+        "components": [
+          {
+            "/": "/c/*",
+            "comment": "Challenge links open the app at /c/<CODE>"
+          }
+        ]
+      }
+    ]
+  },
+  "appclips": {
+    "apps": [
+      "K9CHSNF6SC.r4z33n4l1.cmhmaxwin.Clip"
+    ]
+  }
+}

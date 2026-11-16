@@ -12,8 +12,11 @@ import { useActiveRoom, useCreateRoom, useJoinRoom, useReclaimRole } from '@/hoo
 import { toSignalError } from '@/lib/signal-error';
 import { gallery } from '@/mocks/load';
 
+import { isAppClip } from '../../modules/app-clip';
+
 export default function Index() {
   if (gallery) return <Redirect href="/mocks" />;
+  if (isAppClip) return <Redirect href="/clip" />;
   if (Platform.OS === 'web') return <WebHomeScreen />;
   return <Cover />;
 }

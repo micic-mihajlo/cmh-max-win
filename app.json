@@ -10,6 +10,11 @@
     "ios": {
       "icon": "./assets/images/icon.png",
       "bundleIdentifier": "r4z33n4l1.cmhmaxwin",
+      "appleTeamId": "K9CHSNF6SC",
+      "associatedDomains": [
+        "applinks:signal-app-wine.vercel.app",
+        "appclips:signal-app-wine.vercel.app"
+      ],
       "supportsTablet": true,
       "infoPlist": {
         "CFBundleDisplayName": "SIGNAL"
@@ -62,7 +67,8 @@
           "microphonePermission": false
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      "@bacons/apple-targets"
     ],
     "experiments": {
       "typedRoutes": true,
