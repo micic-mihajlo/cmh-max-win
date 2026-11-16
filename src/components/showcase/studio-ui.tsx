@@ -1,9 +1,10 @@
 import { router } from 'expo-router';
-import { useState, type ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View, type StyleProp, type ViewStyle } from 'react-native';
+import type { ReactNode } from 'react';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FontFamily, Palette, RoleMeta, Space } from '@/constants/signal';
+import { InkInput } from '@/components/signal/ink-input';
 import { Txt } from '@/components/signal/txt';
 import { Enter, PressScale } from '@/motion';
 
@@ -163,11 +164,10 @@ export function Field({
   maxLength?: number;
   prefix?: string;
 }) {
-  const [focused, setFocused] = useState(false);
   return (
     <View style={styles.field}>
       {label ? <Caption>{label}</Caption> : null}
-      <TextInput
+      <InkInput
         value={prefix && value ? prefix + value : value}
         onChangeText={(t) => onChange(prefix && t.startsWith(prefix) ? t.slice(prefix.length) : t)}
         placeholder={placeholder}
@@ -177,10 +177,8 @@ export function Field({
         maxLength={maxLength}
         autoCapitalize={prefix ? 'none' : 'sentences'}
         autoCorrect={!prefix}
-        selectionColor={Palette.paper}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        style={[styles.input, multiline && styles.inputTall, big && styles.inputBig, focused && styles.inputFocused]}
+        style={[styles.input, multiline && styles.inputTall, big && styles.inputBig]}
+        focusedStyle={styles.inputFocused}
       />
     </View>
   );

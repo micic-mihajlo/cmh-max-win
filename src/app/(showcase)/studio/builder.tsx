@@ -1,8 +1,9 @@
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, TextInput, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { FontFamily, Space } from '@/constants/signal';
+import { InkInput } from '@/components/signal/ink-input';
 import { Txt } from '@/components/signal/txt';
 import { auroraDraft, blankDraft, draftStore, type Draft } from '@/components/showcase/draft-store';
 import { NecessityCheck } from '@/components/showcase/necessity-check';
@@ -66,10 +67,11 @@ function Builder() {
                     </Txt>
                     <Caption>{s.job}</Caption>
                   </View>
-                  <TextInput
+                  <InkInput
                     value={s.claim}
                     onChangeText={(claim) => setDraft({ ...draft, suspects: draft.suspects.map((x, j) => (j === i ? { ...x, claim } : x)) })}
                     style={styles.claim}
+                    focusedStyle={styles.focused}
                   />
                 </Card>
               ))
@@ -216,7 +218,7 @@ function Field({ label, value, onChange, multiline, big }: { label: string; valu
   return (
     <View style={styles.field}>
       <Caption>{label}</Caption>
-      <TextInput value={value} onChangeText={onChange} multiline={multiline} style={[styles.input, multiline && styles.inputTall, big && styles.inputBig]} />
+      <InkInput value={value} onChangeText={onChange} multiline={multiline} style={[styles.input, multiline && styles.inputTall, big && styles.inputBig]} focusedStyle={styles.focused} />
     </View>
   );
 }
@@ -235,11 +237,13 @@ const styles = StyleSheet.create({
     fontSize: 17,
     lineHeight: 24,
     color: G.ink,
+    borderWidth: 1.5, borderColor: 'transparent',
   },
+  focused: { borderColor: G.ink },
   inputTall: { minHeight: 96, textAlignVertical: 'top' },
   inputBig: { fontFamily: FontFamily.display, fontSize: 24, lineHeight: 30 },
   tight: { gap: Space.s },
-  claim: { fontFamily: FontFamily.ui, fontSize: 17, lineHeight: 24, color: G.inkSoft, padding: 0 },
+  claim: { fontFamily: FontFamily.ui, fontSize: 17, lineHeight: 24, color: G.inkSoft, paddingVertical: Space.xs, paddingHorizontal: Space.s, marginHorizontal: -Space.s, borderRadius: 10, borderWidth: 1.5, borderColor: 'transparent' },
   piece: { borderRadius: 16, padding: Space.l, gap: Space.m },
   list: { alignItems: 'flex-start', gap: Space.s },
   hand: { gap: 2 },
