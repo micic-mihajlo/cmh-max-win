@@ -10,7 +10,7 @@ import { Duration, Enter, Haptic, useReduced } from '@/motion';
 
 import { AnswerTile, type TileState } from './answer-tile';
 import { useCount } from './count';
-import { DrainBar, Heartbeat, SecondsLeft } from './countdown';
+import { DrainBar, Heartbeat, SecondsLeft, useSecondsLeft } from './countdown';
 import { points, type QuizPrivateView, type QuizQuestionView, type QuizSharedView } from './format';
 import { RoomPulseField } from './pulse';
 import { Takeover } from './takeover';
@@ -100,6 +100,8 @@ export function PlayScreen({
   const picked = q.answer?.choice ?? mine.myChoices?.[q.index] ?? local;
   const mineIt = perPlayer ? picked !== null : q.answer ? mine.answeredByMe.includes(q.index) : local !== null;
   const open = !q.closed;
+  const secs = useSecondsLeft(open ? q.closesAt : null, offset);
+  const hot = open && secs >= 1 && secs <= 5;
   const right = q.closed && picked !== null && picked === q.correctChoice;
   // Per-player play scores each player's own pick; before it, the team's one answer.
   const gained = mine.myPoints?.[q.index] ?? q.points ?? 0;
@@ -159,7 +161,7 @@ export function PlayScreen({
 
       <View style={styles.band}>
         {open ? <Heartbeat closesAt={q.closesAt} offset={offset} /> : null}
-        {pulse ? <RoomPulseField pulse={pulse} myName={myName} meLocked={picked !== null} solo={solo} /> : null}
+        {pulse ? <RoomPulseField pulse={pulse} myName={myName} meLocked={picked !== null} solo={solo} showCount={!hot} /> : null}
       </View>
 
       <View style={styles.bottom}>
