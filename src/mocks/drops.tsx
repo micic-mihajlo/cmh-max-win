@@ -395,7 +395,7 @@ export const DropStates: MockState[] = [
     ref: 'retention',
     section: 'Payout',
     title: 'Payout · sign in with Whop + Follow the host',
-    render: () => <BountyResultScreen award={paid({ status: 'sign_in_required', message: 'Sign in with Whop to receive $1' })} bounty={bounty} host={{ name: 'Danny', following: false, next: null }} />,
+    render: () => <BountyResultScreen award={paid({ status: 'sign_in_required', message: 'Sign in with Whop to receive $1' })} bounty={bounty} host={{ name: 'Danny', following: false, next: { startsAt: new Date(2026, 10, 20, 21).getTime(), reminded: false } }} />,
   },
   {
     id: '16-payout-following',

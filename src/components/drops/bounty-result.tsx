@@ -16,8 +16,8 @@ const failures: Record<string, string> = {
 };
 
 function payoutLine(p: AwardPayoutView) {
+  if (p.status === 'sign_in_required') return `Sign in with Whop to receive ${money2(p.amountCents)}`;
   if (p.message) return p.message;
-  if (p.status === 'sign_in_required') return `Sign in with Whop to receive ${money2(p.amountCents)}.`;
   if (p.status === 'sending') return 'Sending to your Whop balance…';
   if (p.status === 'sent') return 'Sent to your Whop balance.';
   if (p.status === 'failed') return failures[p.failureCode ?? ''] ?? 'Whop couldn’t send it. Nothing was charged, and your share is still yours.';

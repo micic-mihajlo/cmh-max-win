@@ -1,6 +1,5 @@
 import { StyleSheet, View } from 'react-native';
 
-import { Button } from '@/components/signal/primitives';
 import { Txt } from '@/components/signal/txt';
 import { Palette, Space } from '@/constants/signal';
 import { PressScale } from '@/motion';
@@ -21,21 +20,23 @@ function when(at: number) {
   return day + ' ' + h + m + (d.getHours() < 12 ? ' am' : ' pm');
 }
 
-// End-of-drop retention: one tap to follow the host, then Remind me for their next drop.
+// End-of-drop retention: one row that morphs in place. Follow the host, then Remind me for their next drop.
 export function HostFollow({ name, following, onFollow, next }: HostFollowProps) {
-  if (!following) return <Button title={`Follow ${name}`} variant="secondary" onPress={onFollow} />;
+  const action = !following ? { title: 'Follow', quiet: false, onPress: onFollow } : next ? { title: next.reminded ? 'Reminded' : 'Remind me', quiet: next.reminded, onPress: next.onRemind } : null;
   return (
     <View style={styles.row}>
       <View style={styles.flex}>
-        <Txt variant="bodyStrong" numberOfLines={1}>{`Following ${name}`}</Txt>
+        <Txt variant="bodyStrong" numberOfLines={1}>
+          {following ? `Following ${name}` : `Follow ${name}`}
+        </Txt>
         <Txt variant="small" color={Palette.paperMuted} numberOfLines={1}>
-          {next ? `Next drop · ${when(next.startsAt)}` : `You’ll hear when ${name} goes live.`}
+          {next ? `Next drop · ${when(next.startsAt)}` : following ? `You’ll hear when ${name} goes live.` : `Hear when ${name} goes live.`}
         </Txt>
       </View>
-      {next ? (
-        <PressScale accessibilityRole="button" haptic="tap" hitSlop={12} onPress={next.onRemind} disabled={next.reminded}>
-          <Txt variant="bodyStrong" color={next.reminded ? Palette.paperMuted : Palette.paper}>
-            {next.reminded ? 'Reminded' : 'Remind me'}
+      {action ? (
+        <PressScale accessibilityRole="button" haptic="tap" hitSlop={12} onPress={action.onPress} disabled={action.quiet}>
+          <Txt variant="bodyStrong" color={action.quiet ? Palette.paperMuted : Palette.paper}>
+            {action.title}
           </Txt>
         </PressScale>
       ) : null}
