@@ -279,7 +279,7 @@ function useBountyHaptic(spotsLeft: number | null) {
 
 const styles = StyleSheet.create({
   wrap: { flex: 1, alignSelf: 'stretch', gap: Space.s, minHeight: 0 },
-  field: { flex: 1, minHeight: 0 },
+  field: { flex: 1, minHeight: 56 },
   dot: { position: 'absolute', left: 0, top: 0, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   letter: { fontFamily: FontFamily.uiSemi, color: Palette.onAccent },
   hit: { position: 'absolute' },

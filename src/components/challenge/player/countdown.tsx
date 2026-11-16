@@ -7,7 +7,7 @@ import { FontFamily, Palette, Radius } from '@/constants/signal';
 import { Haptic, useReduced } from '@/motion';
 
 // Time left on the open question, from the server clock: a hairline that drains, and the whole seconds left.
-function useSecondsLeft(closesAt: number | null, offset: number) {
+export function useSecondsLeft(closesAt: number | null, offset: number) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (closesAt === null) return;
