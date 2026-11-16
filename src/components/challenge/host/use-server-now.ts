@@ -1,10 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 // The server's clock: now ticks four times a second while ticking; read() gives it on demand in effects.
-export function useServerNow(
-  serverNow: number | null | undefined,
-  ticking: boolean,
-) {
+export function useServerNow(serverNow: number | null | undefined, ticking: boolean) {
   const offset = useRef(0);
   const [now, setNow] = useState(() => serverNow ?? 0);
   useEffect(() => {

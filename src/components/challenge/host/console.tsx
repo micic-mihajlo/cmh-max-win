@@ -1,41 +1,25 @@
-import * as Clipboard from "expo-clipboard";
-import { router, type Href } from "expo-router";
-import { useEffect, useState, type ReactNode } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
-import QRCode from "react-native-qrcode-svg";
-import Animated, {
-  FadeIn,
-  LinearTransition,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from "react-native-reanimated";
+import * as Clipboard from 'expo-clipboard';
+import { router, type Href } from 'expo-router';
+import { useEffect, useState, type ReactNode } from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import QRCode from 'react-native-qrcode-svg';
+import Animated, { FadeIn, LinearTransition, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
-import { money, ordinal } from "@/components/drops/ui";
-import { Screen } from "@/components/signal/backdrop";
-import { Txt } from "@/components/signal/txt";
-import { FontFamily, Palette, Radius, Space } from "@/constants/signal";
-import {
-  useApprovePayouts,
-  useEndChallenge,
-  useHostConsole,
-} from "@/hooks/use-challenges";
-import {
-  useLiveView,
-  useLockEntries,
-  useRunHostAction,
-  useStartLive,
-} from "@/hooks/use-live";
-import type { HostConsoleView, LivePhase, LiveView } from "@/lib/contract";
-import { toSignalError } from "@/lib/signal-error";
-import { Ease, Enter, PressScale, Stagger, useReduced } from "@/motion";
+import { money, ordinal } from '@/components/drops/ui';
+import { Screen } from '@/components/signal/backdrop';
+import { Txt } from '@/components/signal/txt';
+import { FontFamily, Palette, Radius, Space } from '@/constants/signal';
+import { useApprovePayouts, useEndChallenge, useHostConsole } from '@/hooks/use-challenges';
+import { useLiveView, useLockEntries, useRunHostAction, useStartLive } from '@/hooks/use-live';
+import type { HostConsoleView, LivePhase, LiveView } from '@/lib/contract';
+import { toSignalError } from '@/lib/signal-error';
+import { Ease, Enter, PressScale, Stagger, useReduced } from '@/motion';
 
-import { useServerNow } from "./use-server-now";
+import { useServerNow } from './use-server-now';
 
-const WEB_URL =
-  process.env.EXPO_PUBLIC_WEB_URL ?? "https://signal-app-wine.vercel.app";
+const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL ?? 'https://signal-app-wine.vercel.app';
 
-type RoundPhase = "lobby" | "question" | "leaderboard" | "finished";
+type RoundPhase = 'lobby' | 'question' | 'leaderboard' | 'finished';
 type Round = {
   phase: RoundPhase;
   questionCount: number;
@@ -54,24 +38,23 @@ type BoardRow = {
 type Board = { round: Round | null; rows: BoardRow[] };
 
 function readBoard(view: unknown): Board | null {
-  if (!view || typeof view !== "object" || !Array.isArray((view as Board).rows))
-    return null;
+  if (!view || typeof view !== 'object' || !Array.isArray((view as Board).rows)) return null;
   return view as Board;
 }
 
 const TEMPLATE_NAME: Record<string, string> = {
-  "quick-quiz": "Quick quiz",
-  "mystery-aurora": "The Aurora Seed",
-  "split-passphrase": "Split passphrase",
+  'quick-quiz': 'Quick quiz',
+  'mystery-aurora': 'The Aurora Seed',
+  'split-passphrase': 'Split passphrase',
 };
 
 const STATUS: Record<LivePhase, string> = {
-  draft: "Draft",
-  open: "Open",
-  locked: "Entries locked",
-  live: "Live",
-  ended: "Ended",
-  cancelled: "Cancelled",
+  draft: 'Draft',
+  open: 'Open',
+  locked: 'Entries locked',
+  live: 'Live',
+  ended: 'Ended',
+  cancelled: 'Cancelled',
 };
 
 export function HostConsole({ challengeId }: { challengeId: string | null }) {
@@ -99,15 +82,7 @@ export function HostConsole({ challengeId }: { challengeId: string | null }) {
   return <Console id={challengeId} host={host} live={live ?? null} />;
 }
 
-function Console({
-  id,
-  host,
-  live,
-}: {
-  id: string;
-  host: HostConsoleView;
-  live: LiveView | null;
-}) {
+function Console({ id, host, live }: { id: string; host: HostConsoleView; live: LiveView | null }) {
   const lock = useLockEntries(id);
   const start = useStartLive(id);
   const run = useRunHostAction(id);
@@ -116,16 +91,11 @@ function Console({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const phase: LivePhase =
-    live?.phase ?? (host.status === "published" ? "open" : host.status);
+  const phase: LivePhase = live?.phase ?? (host.status === 'published' ? 'open' : host.status);
   const board = readBoard(live?.view);
   const round = board?.round ?? null;
-  const quiz = host.config.templateId === "quick-quiz";
-  const questionCount =
-    round?.questionCount ??
-    (host.config.templateConfig as { questions?: unknown[] } | undefined)
-      ?.questions?.length ??
-    0;
+  const quiz = host.config.templateId === 'quick-quiz';
+  const questionCount = round?.questionCount ?? (host.config.templateConfig as { questions?: unknown[] } | undefined)?.questions?.length ?? 0;
 
   const act = async (name: string, fn: () => Promise<unknown>) => {
     if (busy) return;
@@ -134,86 +104,54 @@ function Console({
     try {
       await fn();
     } catch (e) {
-      setError(
-        toSignalError(e)?.message ?? "That didn’t go through. Try again.",
-      );
+      setError(toSignalError(e)?.message ?? 'That didn’t go through. Try again.');
     } finally {
       setBusy(null);
     }
   };
 
   const next = () =>
-    act("next", () =>
-      run("next", {
+    act('next', () =>
+      run('next', {
         expectedIndex: round?.index ?? null,
         expectedPhase: round?.phase,
       }),
     );
-  const endNow = () => act("end", end);
+  const endNow = () => act('end', end);
 
   let primary: ReactNode = null;
   let secondary: ReactNode = null;
-  if (phase === "open" || phase === "locked") {
-    primary = (
-      <Primary
-        title="Start"
-        accent
-        busy={busy === "start"}
-        disabled={host.entrantCount === 0}
-        onPress={() => act("start", start)}
-      />
-    );
+  if (phase === 'open' || phase === 'locked') {
+    primary = <Primary title="Start" accent busy={busy === 'start'} disabled={host.entrantCount === 0} onPress={() => act('start', start)} />;
     secondary =
-      phase === "open" ? (
-        <Quiet
-          title="Lock entries"
-          busy={busy === "lock"}
-          onPress={() => act("lock", lock)}
-        />
+      phase === 'open' ? (
+        <Quiet title="Lock entries" busy={busy === 'lock'} onPress={() => act('lock', lock)} />
       ) : (
         <Txt variant="label" color={Palette.paperMuted}>
           Locked
         </Txt>
       );
-  } else if (phase === "live") {
+  } else if (phase === 'live') {
     const label =
       !quiz || !round
-        ? "End"
-        : round.phase === "lobby"
-          ? "First question"
-          : round.phase === "question"
-            ? "Close question"
-            : round.phase === "leaderboard"
-              ? "Next question"
-              : "Finish";
-    const onPress = !quiz || round?.phase === "finished" ? endNow : next;
-    primary = (
-      <Primary
-        title={label}
-        busy={busy === "next" || (label === "End" && busy === "end")}
-        onPress={onPress}
-      />
-    );
-    secondary = quiz ? (
-      <EndControl busy={busy === "end"} onEnd={endNow} />
-    ) : null;
-  } else if (phase === "ended") {
+        ? 'End'
+        : round.phase === 'lobby'
+          ? 'First question'
+          : round.phase === 'question'
+            ? 'Close question'
+            : round.phase === 'leaderboard'
+              ? 'Next question'
+              : 'Finish';
+    const onPress = !quiz || round?.phase === 'finished' ? endNow : next;
+    primary = <Primary title={label} busy={busy === 'next' || (label === 'End' && busy === 'end')} onPress={onPress} />;
+    secondary = quiz ? <EndControl busy={busy === 'end'} onEnd={endNow} /> : null;
+  } else if (phase === 'ended') {
     const approved = host.payouts.length > 0;
     primary =
-      host.can.approvePayouts &&
-      !approved &&
-      host.payoutPreview &&
-      host.payoutPreview.paidCents > 0 ? (
-        <Primary
-          title="Approve payouts"
-          busy={busy === "approve"}
-          onPress={() => act("approve", approve)}
-        />
+      host.can.approvePayouts && !approved && host.payoutPreview && host.payoutPreview.paidCents > 0 ? (
+        <Primary title="Approve payouts" busy={busy === 'approve'} onPress={() => act('approve', approve)} />
       ) : (
-        <Primary
-          title="See recap"
-          onPress={() => router.push(("/studio/recap/" + id) as Href)}
-        />
+        <Primary title="See recap" onPress={() => router.push(('/studio/recap/' + id) as Href)} />
       );
   }
 
@@ -225,11 +163,7 @@ function Console({
           <View style={styles.footerStack}>
             {error ? (
               <Animated.View entering={FadeIn.duration(150)}>
-                <Txt
-                  variant="small"
-                  color={Palette.danger}
-                  style={styles.center}
-                >
+                <Txt variant="small" color={Palette.danger} style={styles.center}>
                   {error}
                 </Txt>
               </Animated.View>
@@ -240,42 +174,33 @@ function Console({
             </View>
           </View>
         ) : null
-      }
-    >
+      }>
       <Enter from={8}>
         <View style={styles.titleBlock}>
           <Txt variant="title">{host.config.title}</Txt>
           <Txt variant="small" color={Palette.paperMuted}>
             {[
               TEMPLATE_NAME[host.config.templateId] ?? host.config.templateId,
-              quiz && questionCount ? questionCount + " questions" : null,
-              host.config.poolCents
-                ? money(host.config.poolCents) + " pool, concept"
-                : null,
+              quiz && questionCount ? questionCount + ' questions' : null,
+              host.config.poolCents ? money(host.config.poolCents) + ' pool, concept' : null,
             ]
               .filter(Boolean)
-              .join(" · ")}
+              .join(' · ')}
           </Txt>
         </View>
       </Enter>
-      {phase === "open" || phase === "locked" ? <Lobby host={host} /> : null}
-      {phase === "live" ? (
+      {phase === 'open' || phase === 'locked' ? <Lobby host={host} /> : null}
+      {phase === 'live' ? (
         quiz && board ? (
-          <QuizBoard
-            host={host}
-            board={board}
-            serverNow={live?.serverNow ?? null}
-          />
+          <QuizBoard host={host} board={board} serverNow={live?.serverNow ?? null} />
         ) : (
           <TeamBoard host={host} />
         )
       ) : null}
-      {phase === "ended" ? (
-        <Final host={host} live={live} board={board} />
-      ) : null}
-      {phase === "cancelled" ? (
+      {phase === 'ended' ? <Final host={host} live={live} board={board} /> : null}
+      {phase === 'cancelled' ? (
         <Txt variant="body" color={Palette.paperMuted}>
-          {host.cancelReason ? "Cancelled: " + host.cancelReason : "Cancelled"}
+          {host.cancelReason ? 'Cancelled: ' + host.cancelReason : 'Cancelled'}
         </Txt>
       ) : null}
     </Screen>
@@ -287,12 +212,9 @@ function Header({ phase }: { phase: LivePhase }) {
     <View style={styles.header}>
       <PressScale
         haptic="tap"
-        onPress={() =>
-          router.canGoBack() ? router.back() : router.replace("/")
-        }
+        onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
         accessibilityRole="button"
-        accessibilityLabel="Back"
-      >
+        accessibilityLabel="Back">
         <Txt variant="label" color={Palette.paperMuted}>
           Back
         </Txt>
@@ -302,12 +224,7 @@ function Header({ phase }: { phase: LivePhase }) {
           style={[
             styles.dot,
             {
-              backgroundColor:
-                phase === "live"
-                  ? Palette.ok
-                  : phase === "cancelled"
-                    ? Palette.danger
-                    : Palette.paperMuted,
+              backgroundColor: phase === 'live' ? Palette.ember : phase === 'cancelled' ? Palette.danger : Palette.paperMuted,
             },
           ]}
         />
@@ -318,8 +235,8 @@ function Header({ phase }: { phase: LivePhase }) {
 }
 
 function Lobby({ host }: { host: HostConsoleView }) {
-  const code = host.joinCode ?? "";
-  const url = host.shareUrl ?? WEB_URL + "/c/" + code;
+  const code = host.joinCode ?? '';
+  const url = host.shareUrl ?? WEB_URL + '/c/' + code;
   const [copied, setCopied] = useState(false);
   useEffect(() => {
     if (!copied) return;
@@ -332,7 +249,7 @@ function Lobby({ host }: { host: HostConsoleView }) {
       <View style={styles.codeBlock}>
         <View style={styles.tiles}>
           <Stagger from={8} stagger={40}>
-            {code.split("").map((ch, i) => (
+            {code.split('').map((ch, i) => (
               <View key={i} style={styles.tile}>
                 <Txt style={styles.letter}>{ch}</Txt>
               </View>
@@ -340,12 +257,7 @@ function Lobby({ host }: { host: HostConsoleView }) {
           </Stagger>
         </View>
         <View style={styles.qr}>
-          <QRCode
-            value={url}
-            size={168}
-            color={Palette.paper}
-            backgroundColor={Palette.card}
-          />
+          <QRCode value={url} size={168} color={Palette.paper} backgroundColor={Palette.card} />
         </View>
         <PressScale
           haptic="tap"
@@ -353,10 +265,9 @@ function Lobby({ host }: { host: HostConsoleView }) {
           onPress={async () => {
             await Clipboard.setStringAsync(url);
             setCopied(true);
-          }}
-        >
+          }}>
           <Txt variant="label" color={copied ? Palette.ok : Palette.paper}>
-            {copied ? "Link copied" : url.replace(/^https?:\/\//, "")}
+            {copied ? 'Link copied' : url.replace(/^https?:\/\//, '')}
           </Txt>
         </PressScale>
       </View>
@@ -364,28 +275,19 @@ function Lobby({ host }: { host: HostConsoleView }) {
         <View style={styles.countRow}>
           <Txt style={styles.count}>{host.entrantCount}</Txt>
           <Txt variant="body" color={Palette.paperMuted}>
-            {host.entrantCount === 1 ? "player in" : "players in"}
+            {host.entrantCount === 1 ? 'player in' : 'players in'}
           </Txt>
         </View>
         {newest.length ? (
           <View style={styles.names}>
             {newest.map((e) => (
-              <Animated.View
-                key={e.name + e.joinedAt}
-                entering={FadeIn.duration(180)}
-                layout={LinearTransition.duration(200)}
-                style={styles.chip}
-              >
+              <Animated.View key={e.name + e.joinedAt} entering={FadeIn.duration(180)} layout={LinearTransition.duration(200)} style={styles.chip}>
                 <Txt variant="small">{e.name}</Txt>
               </Animated.View>
             ))}
             {host.entrantCount > newest.length ? (
-              <Txt
-                variant="small"
-                color={Palette.paperMuted}
-                style={styles.more}
-              >
-                {"+" + (host.entrantCount - newest.length)}
+              <Txt variant="small" color={Palette.paperMuted} style={styles.more}>
+                {'+' + (host.entrantCount - newest.length)}
               </Txt>
             ) : null}
           </View>
@@ -395,61 +297,38 @@ function Lobby({ host }: { host: HostConsoleView }) {
   );
 }
 
-function QuizBoard({
-  host,
-  board,
-  serverNow,
-}: {
-  host: HostConsoleView;
-  board: Board;
-  serverNow: number | null;
-}) {
+function QuizBoard({ host, board, serverNow }: { host: HostConsoleView; board: Board; serverNow: number | null }) {
   const round = board.round;
-  const open = round?.phase === "question";
+  const open = round?.phase === 'question';
   const { now, read } = useServerNow(serverNow, open);
   const members = new Map(host.teams.map((t) => [t.label, t.memberNames]));
   const answered = board.rows.filter((r) => r.answeredCurrent).length;
   const scored = board.rows.some((r) => r.points > 0);
   const n = round?.questionCount ?? 0;
-  const position =
-    round?.index !== null && round?.index !== undefined
-      ? "Question " + (round.index + 1) + " of " + n
-      : "";
+  const position = round?.index !== null && round?.index !== undefined ? 'Question ' + (round.index + 1) + ' of ' + n : '';
   const left = open && round?.closesAt ? Math.max(0, round.closesAt - now) : 0;
   return (
     <>
       <View style={styles.round}>
         <View style={styles.roundHead}>
           <Txt variant="label" color={Palette.paperMuted} style={styles.flex}>
-            {round?.phase === "finished"
-              ? "All questions closed"
-              : round?.phase === "lobby"
-                ? ""
-                : position}
+            {round?.phase === 'finished' ? 'All questions closed' : round?.phase === 'lobby' ? '' : position}
           </Txt>
-          {open ? (
-            <Txt style={styles.timer}>{Math.ceil(left / 1000) + "s"}</Txt>
-          ) : null}
+          {open ? <Txt style={styles.timer}>{Math.ceil(left / 1000) + 's'}</Txt> : null}
         </View>
-        <Countdown
-          opensAt={round?.opensAt ?? null}
-          closesAt={open ? (round?.closesAt ?? null) : null}
-          read={read}
-        />
+        <Countdown opensAt={round?.opensAt ?? null} closesAt={open ? (round?.closesAt ?? null) : null} read={read} />
         {round?.prompt ? (
           <Animated.View key={round.index} entering={FadeIn.duration(200)}>
             <Txt variant="quote">{round.prompt}</Txt>
           </Animated.View>
         ) : (
           <Txt variant="quote" color={Palette.paperMuted}>
-            {board.rows.length +
-              (board.rows.length === 1 ? " team" : " teams") +
-              " ready"}
+            {board.rows.length + (board.rows.length === 1 ? ' team' : ' teams') + ' ready'}
           </Txt>
         )}
         {open ? (
           <Txt variant="small" color={Palette.paperMuted}>
-            {answered + " of " + board.rows.length + " answered"}
+            {answered + ' of ' + board.rows.length + ' answered'}
           </Txt>
         ) : round?.correctText ? (
           <Animated.View entering={FadeIn.duration(200)} style={styles.answer}>
@@ -462,17 +341,15 @@ function QuizBoard({
       </View>
       <View style={styles.rows}>
         {board.rows.map((r) => (
-          <Animated.View
-            key={r.label}
-            layout={LinearTransition.springify().damping(20).stiffness(240)}
-            style={styles.row}
-          >
-            {scored ? <Txt style={styles.rank}>{r.rank}</Txt> : null}
-            <TeamCell label={r.label} members={members.get(r.label) ?? []} />
-            {open ? (
-              <View style={[styles.tick, r.answeredCurrent && styles.tickOn]} />
+          <Animated.View key={r.label} layout={LinearTransition.springify().damping(20).stiffness(240)} style={styles.row}>
+            {scored ? (
+              <Txt style={styles.rank} numberOfLines={1}>
+                {r.points > 0 ? ordinal(r.rank) : ''}
+              </Txt>
             ) : null}
-            <Txt style={styles.points}>{r.points.toLocaleString("en-US")}</Txt>
+            <TeamCell label={r.label} members={members.get(r.label) ?? []} />
+            {open ? <View style={[styles.tick, r.answeredCurrent && styles.tickOn]} /> : null}
+            <Txt style={styles.points}>{r.points.toLocaleString('en-US')}</Txt>
           </Animated.View>
         ))}
       </View>
@@ -480,15 +357,7 @@ function QuizBoard({
   );
 }
 
-function Countdown({
-  opensAt,
-  closesAt,
-  read,
-}: {
-  opensAt: number | null;
-  closesAt: number | null;
-  read: () => number;
-}) {
+function Countdown({ opensAt, closesAt, read }: { opensAt: number | null; closesAt: number | null; read: () => number }) {
   const reduced = useReduced();
   const progress = useSharedValue(0);
   useEffect(() => {
@@ -512,21 +381,15 @@ function Countdown({
 }
 
 function TeamBoard({ host }: { host: HostConsoleView }) {
-  const teams = [...host.teams].sort(
-    (a, b) => (a.place ?? Infinity) - (b.place ?? Infinity),
-  );
+  const teams = [...host.teams].sort((a, b) => (a.place ?? Infinity) - (b.place ?? Infinity));
   return (
     <View style={styles.rows}>
       {teams.map((t) => (
-        <Animated.View
-          key={t.teamId}
-          layout={LinearTransition.springify().damping(20).stiffness(240)}
-          style={styles.row}
-        >
-          <Txt style={styles.rank}>{t.place ?? ""}</Txt>
+        <Animated.View key={t.teamId} layout={LinearTransition.springify().damping(20).stiffness(240)} style={styles.row}>
+          <Txt style={styles.rank}>{t.place ?? ''}</Txt>
           <TeamCell label={t.label} members={t.memberNames} />
           <Txt variant="label" color={Palette.paperMuted}>
-            {t.status === "finished" ? "Finished" : "Playing"}
+            {t.status === 'finished' ? 'Finished' : 'Playing'}
           </Txt>
         </Animated.View>
       ))}
@@ -534,22 +397,9 @@ function TeamBoard({ host }: { host: HostConsoleView }) {
   );
 }
 
-function Final({
-  host,
-  live,
-  board,
-}: {
-  host: HostConsoleView;
-  live: LiveView | null;
-  board: Board | null;
-}) {
+function Final({ host, live, board }: { host: HostConsoleView; live: LiveView | null; board: Board | null }) {
   const points = new Map(board?.rows.map((r) => [r.label, r.points]) ?? []);
-  const cents = new Map(
-    host.payoutPreview?.lines.map((l) => [
-      l.place,
-      l.players.reduce((s, p) => s + p.cents, 0),
-    ]) ?? [],
-  );
+  const cents = new Map(host.payoutPreview?.lines.map((l) => [l.place, l.players.reduce((s, p) => s + p.cents, 0)]) ?? []);
   const rows =
     live?.leaderboard ??
     host.results.map((r) => ({
@@ -570,11 +420,7 @@ function Final({
               </Txt>
               <TeamCell label={r.label} members={r.memberNames} />
               <View style={styles.right}>
-                {points.has(r.label) ? (
-                  <Txt style={styles.points}>
-                    {points.get(r.label)!.toLocaleString("en-US")}
-                  </Txt>
-                ) : null}
+                {points.has(r.label) ? <Txt style={styles.points}>{points.get(r.label)!.toLocaleString('en-US')}</Txt> : null}
                 {r.inMoney && cents.get(r.place) ? (
                   <Txt variant="small" color={Palette.paperMuted}>
                     {money(cents.get(r.place)!)}
@@ -593,11 +439,9 @@ function Final({
       {host.payoutPreview && host.payoutPreview.poolCents > 0 ? (
         <Txt variant="small" color={Palette.paperMuted}>
           {money(host.payoutPreview.paidCents) +
-            (approved ? " approved" : " to pay out") +
-            (host.payoutPreview.returnedCents
-              ? ", " + money(host.payoutPreview.returnedCents) + " back to you"
-              : "") +
-            ". Concept, no money moves."}
+            (approved ? ' approved' : ' to pay out') +
+            (host.payoutPreview.returnedCents ? ', ' + money(host.payoutPreview.returnedCents) + ' back to you' : '') +
+            '. Concept · no real money moves.'}
         </Txt>
       ) : null}
     </>
@@ -614,7 +458,7 @@ function TeamCell({ label, members }: { label: string; members: string[] }) {
       </Txt>
       {solo || !members.length ? null : (
         <Txt variant="small" color={Palette.paperMuted} numberOfLines={1}>
-          {members.join(", ")}
+          {members.join(', ')}
         </Txt>
       )}
     </View>
@@ -642,55 +486,18 @@ function Primary({
       disabled={off}
       haptic="tap"
       onPress={onPress}
-      style={[
-        styles.primary,
-        accent ? styles.accent : styles.ink,
-        disabled && styles.disabled,
-      ]}
-    >
-      <Txt
-        variant="button"
-        color={
-          disabled
-            ? Palette.disabledText
-            : accent
-              ? Palette.onAccent
-              : Palette.ink
-        }
-        style={busy && styles.dim}
-      >
+      style={[styles.primary, accent ? styles.accent : styles.ink, disabled && styles.disabled]}>
+      <Txt variant="button" color={disabled ? Palette.disabledText : accent ? Palette.onAccent : Palette.ink} style={busy && styles.dim}>
         {title}
       </Txt>
-      {busy ? (
-        <ActivityIndicator
-          size="small"
-          color={accent ? Palette.onAccent : Palette.ink}
-          style={styles.spinner}
-        />
-      ) : null}
+      {busy ? <ActivityIndicator size="small" color={accent ? Palette.onAccent : Palette.ink} style={styles.spinner} /> : null}
     </PressScale>
   );
 }
 
-function Quiet({
-  title,
-  onPress,
-  busy,
-  color = Palette.paper,
-}: {
-  title: string;
-  onPress: () => void;
-  busy?: boolean;
-  color?: string;
-}) {
+function Quiet({ title, onPress, busy, color = Palette.paper }: { title: string; onPress: () => void; busy?: boolean; color?: string }) {
   return (
-    <PressScale
-      accessibilityRole="button"
-      disabled={busy}
-      haptic="tap"
-      onPress={onPress}
-      style={styles.quiet}
-    >
+    <PressScale accessibilityRole="button" disabled={busy} haptic="tap" onPress={onPress} style={styles.quiet}>
       <Txt variant="label" color={color} style={busy && styles.dim}>
         {title}
       </Txt>
@@ -708,7 +515,7 @@ function EndControl({ busy, onEnd }: { busy: boolean; onEnd: () => void }) {
   }, [armed]);
   return (
     <Quiet
-      title={armed ? "Confirm end" : "End"}
+      title={armed ? 'Confirm end' : 'End'}
       busy={busy}
       color={armed ? Palette.danger : Palette.paperMuted}
       onPress={() => {
@@ -722,34 +529,34 @@ function EndControl({ busy, onEnd }: { busy: boolean; onEnd: () => void }) {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  center: { textAlign: "center" },
+  center: { textAlign: 'center' },
   centered: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: Space.s,
   },
   dim: { opacity: 0.6 },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: Space.xl,
     paddingTop: Space.s,
     minHeight: 40,
   },
-  status: { flexDirection: "row", alignItems: "center", gap: Space.s },
+  status: { flexDirection: 'row', alignItems: 'center', gap: Space.s },
   dot: { width: 8, height: 8, borderRadius: 4 },
   titleBlock: { gap: Space.xs },
-  codeBlock: { alignItems: "center", gap: Space.l, paddingTop: Space.s },
-  tiles: { flexDirection: "row", gap: 10 },
+  codeBlock: { alignItems: 'center', gap: Space.l, paddingTop: Space.s },
+  tiles: { flexDirection: 'row', gap: 10 },
   tile: {
     width: 72,
     height: 88,
     borderRadius: Radius.m,
     backgroundColor: Palette.card,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Palette.hairline,
   },
@@ -765,20 +572,20 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.card,
   },
   entrants: { gap: Space.m, paddingTop: Space.s },
-  countRow: { flexDirection: "row", alignItems: "baseline", gap: Space.s },
+  countRow: { flexDirection: 'row', alignItems: 'baseline', gap: Space.s },
   count: {
     fontFamily: FontFamily.uiBold,
     fontSize: 40,
     lineHeight: 46,
     letterSpacing: -1,
     color: Palette.paper,
-    fontVariant: ["tabular-nums"],
+    fontVariant: ['tabular-nums'],
   },
   names: {
-    flexDirection: "row",
-    flexWrap: "wrap",
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: Space.s,
-    alignItems: "center",
+    alignItems: 'center',
   },
   chip: {
     paddingHorizontal: Space.m,
@@ -788,26 +595,26 @@ const styles = StyleSheet.create({
   },
   more: { paddingHorizontal: Space.xs },
   round: { gap: Space.m },
-  roundHead: { flexDirection: "row", alignItems: "baseline" },
+  roundHead: { flexDirection: 'row', alignItems: 'baseline' },
   timer: {
     fontFamily: FontFamily.uiSemi,
     fontSize: 20,
     lineHeight: 24,
     color: Palette.paper,
-    fontVariant: ["tabular-nums"],
+    fontVariant: ['tabular-nums'],
   },
   track: {
     height: 4,
     borderRadius: 2,
     backgroundColor: Palette.hairline,
-    overflow: "hidden",
+    overflow: 'hidden',
   },
-  fill: { flex: 1, backgroundColor: Palette.paper, transformOrigin: "left" },
-  answer: { flexDirection: "row", alignItems: "baseline", gap: Space.s },
+  fill: { flex: 1, backgroundColor: Palette.paper, transformOrigin: 'left' },
+  answer: { flexDirection: 'row', alignItems: 'baseline', gap: Space.s },
   rows: { gap: 2 },
   row: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: Space.m,
     minHeight: 52,
     paddingVertical: Space.s,
@@ -818,15 +625,15 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 20,
     color: Palette.paperMuted,
-    fontVariant: ["tabular-nums"],
+    fontVariant: ['tabular-nums'],
   },
-  right: { alignItems: "flex-end" },
+  right: { alignItems: 'flex-end' },
   points: {
     fontFamily: FontFamily.uiSemi,
     fontSize: 17,
     lineHeight: 22,
     color: Palette.paper,
-    fontVariant: ["tabular-nums"],
+    fontVariant: ['tabular-nums'],
   },
   tick: {
     width: 10,
@@ -837,22 +644,22 @@ const styles = StyleSheet.create({
   },
   tickOn: { backgroundColor: Palette.paper, borderColor: Palette.paper },
   footerStack: { gap: Space.s },
-  footer: { flexDirection: "row", alignItems: "center", gap: Space.l },
+  footer: { flexDirection: 'row', alignItems: 'center', gap: Space.l },
   quiet: {
     minHeight: 56,
-    justifyContent: "center",
+    justifyContent: 'center',
     paddingHorizontal: Space.xs,
   },
   primary: {
     minHeight: 56,
     borderRadius: Radius.m,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: Space.xl,
   },
   accent: { backgroundColor: Palette.ember },
   ink: { backgroundColor: Palette.paper },
   disabled: { backgroundColor: Palette.paperShade },
-  spinner: { position: "absolute", right: Space.l },
+  spinner: { position: 'absolute', right: Space.l },
 });
