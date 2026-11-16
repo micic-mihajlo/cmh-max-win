@@ -16,7 +16,7 @@ export function money(cents: number) {
 export const statusName: Record<ChallengeStatus, string> = {
   draft: 'Draft',
   published: 'Open',
-  live: 'Live',
+  live: 'In progress',
   ended: 'Ended',
   cancelled: 'Cancelled',
 };

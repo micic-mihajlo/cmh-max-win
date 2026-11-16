@@ -63,11 +63,11 @@ export function Screen({
   );
 }
 
-export const Wash = { neutral: Palette.paperShade, sand: Palette.accentSoft };
+export const Wash = { neutral: Palette.paperShade };
 
 export function Avatar({ initials, uri, size = 44 }: { initials: string; uri?: string; size?: number }) {
   return (
-    <View style={[styles.avatar, { width: size, height: size, borderRadius: size, backgroundColor: Wash.sand }]}>
+    <View style={[styles.avatar, { width: size, height: size, borderRadius: size, backgroundColor: Wash.neutral }]}>
       {uri ? (
         <Image source={{ uri }} style={{ width: size, height: size, borderRadius: size }} contentFit="cover" transition={150} accessibilityIgnoresInvertColors />
       ) : (

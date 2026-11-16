@@ -9,7 +9,6 @@ import { Enter, PressScale } from '@/motion';
 
 import { dropTime } from './copy';
 import { Avatar, BigButton, Screen, Section, showcase } from './kit';
-import { LiveAvatar } from './live-avatar';
 
 export const streamerHref = (id: string) => ({ pathname: '/showcase/creator', params: { id } }) as unknown as Href;
 
@@ -42,12 +41,12 @@ export function FeedScreen({
   return (
     <Screen title="Following">
       {view.live.length > 0 ? (
-        <Section title="Live now" style={styles.first}>
+        <Section title="Happening now" style={styles.first}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.liveRow} style={styles.bleed}>
             {view.live.map((l, i) => (
               <Enter key={l.dropId} index={i}>
-                <PressScale scaleTo={0.98} haptic="tap" accessibilityRole="button" accessibilityLabel={`${l.streamerName} is live with ${l.title}`} style={styles.live} onPress={() => onOpenLive(l)}>
-                  <LiveAvatar initials={l.streamerName.slice(0, 1)} uri={avatar(l.streamerId)} />
+                <PressScale scaleTo={0.98} haptic="tap" accessibilityRole="button" accessibilityLabel={`${l.streamerName}, ${l.title}`} style={styles.live} onPress={() => onOpenLive(l)}>
+                  <Avatar initials={l.streamerName.slice(0, 1)} uri={avatar(l.streamerId)} size={56} />
                   <Txt variant="smallStrong">{l.streamerName}</Txt>
                   <Txt variant="small" color={Palette.paperMuted} numberOfLines={1}>
                     {l.dropStatus === 'live' ? 'In progress' : l.title}

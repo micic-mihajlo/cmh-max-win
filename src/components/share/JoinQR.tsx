@@ -38,7 +38,7 @@ export function JoinQR({ code, shareUrl, variant = 'card', size }: JoinQRProps) 
             </View>
           ))}
         </View>
-        <Txt variant="small" color={Palette.paperMuted}>
+        <Txt variant="small" color={Palette.paperMuted} style={styles.stageLine}>
           Scan with your camera, or enter the code
         </Txt>
       </View>
