@@ -2,8 +2,8 @@ import { ConvexError, v } from 'convex/values';
 
 import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
-import { internalAction, internalMutation, type MutationCtx, type QueryCtx } from './_generated/server';
-import { WHOP_TRANSFER_API_VERSION_DATE, whopApiBase, whopEnvironment, whopRequest } from './whop';
+import { internalAction, internalMutation, internalQuery, type MutationCtx, type QueryCtx } from './_generated/server';
+import { WHOP_API_VERSION_DATE, WHOP_TRANSFER_API_VERSION_DATE, whopApiBase, whopEnvironment, whopRequest } from './whop';
 
 type WhopClaimLink = {
   id: string;
@@ -199,10 +199,13 @@ export async function realBudgetCommittedCents(ctx: Pick<QueryCtx, 'db'>) {
     .reduce((sum, r) => sum + r.cents, 0);
 }
 
-// What's left of SIGNAL_REAL_PAYOUT_BUDGET_CENTS; 0 when real payouts are off.
+// What's left of SIGNAL_REAL_PAYOUT_BUDGET_CENTS, and no more than the cached Whop balance can pay with the fee;
+// 0 when real payouts are off. Before the first balance read there is no cap; each transfer still checks the ledger.
 export async function realBudgetRemainingCents(ctx: Pick<QueryCtx, 'db'>) {
   if (process.env.SIGNAL_REAL_PAYOUTS !== 'on') return 0;
-  return Math.max(0, realPayoutBudgetCents() - (await realBudgetCommittedCents(ctx)));
+  const budget = Math.max(0, realPayoutBudgetCents() - (await realBudgetCommittedCents(ctx)));
+  const cached = await ctx.db.query('whopBalanceCache').first();
+  return cached ? Math.min(budget, Math.max(0, Math.floor(cached.availableCents / (1 + TRANSFER_FEE_RATE)))) : budget;
 }
 
 // A drop hosted with payoutMode 'concept' never moves real money, even with real payouts on, and neither does an
@@ -280,6 +283,52 @@ async function releaseRows(ctx: MutationCtx, rows: Doc<'bountyPayouts'>[]) {
   }
   return cents;
 }
+
+// ---------- Whop balance guard ----------
+
+export const TRANSFER_FEE_RATE = 0.03;
+export const BALANCE_REFRESH_MS = 60_000;
+export const withFeeCents = (cents: number) => Math.ceil(cents * (1 + TRANSFER_FEE_RATE));
+
+// The platform ledger's available USD balance in cents, or null when Whop can't be read.
+async function readAvailableCents(apiKey: string, origin: string): Promise<number | null> {
+  try {
+    const response = await fetch(whopApiBase() + '/ledger_accounts/' + encodeURIComponent(origin), {
+      headers: { Authorization: `Bearer ${apiKey}`, 'Api-Version-Date': WHOP_API_VERSION_DATE },
+    });
+    if (!response.ok) return null;
+    const ledger = (await response.json()) as { balances?: { currency?: string; balance?: number }[] };
+    const usd = ledger.balances?.find((b) => b.currency === 'usd');
+    return typeof usd?.balance === 'number' ? Math.floor(usd.balance * 100) : null;
+  } catch {
+    return null;
+  }
+}
+
+export const saveBalance = internalMutation({
+  args: { availableCents: v.number() },
+  handler: async (ctx, { availableCents }) => {
+    const row = await ctx.db.query('whopBalanceCache').first();
+    if (row) await ctx.db.patch(row._id, { availableCents, checkedAt: Date.now() });
+    else await ctx.db.insert('whopBalanceCache', { availableCents, checkedAt: Date.now() });
+  },
+});
+
+export const cachedBalance = internalQuery({ args: {}, handler: (ctx) => ctx.db.query('whopBalanceCache').first() });
+
+// Cron, every minute while real payouts are on: refreshes the cached balance the host picker is capped by.
+export const refreshBalance = internalAction({
+  args: {},
+  handler: async (ctx) => {
+    const apiKey = process.env.WHOP_API_KEY;
+    const origin = process.env.WHOP_ACCOUNT_ID;
+    if (process.env.SIGNAL_REAL_PAYOUTS !== 'on' || !apiKey || !origin) return;
+    const cached = await ctx.runQuery(internal.bounty.cachedBalance, {});
+    if (cached && Date.now() - cached.checkedAt < BALANCE_REFRESH_MS) return;
+    const availableCents = await readAvailableCents(apiKey, origin);
+    if (availableCents !== null) await ctx.runMutation(internal.bounty.saveBalance, { availableCents });
+  },
+});
 
 // Cron (no dropId): releases shares still waiting on a Whop sign-in SIGN_IN_RELEASE_MS after they were awarded.
 // By hand (dropId): releases every waiting share of that drop now. Idempotent.
@@ -366,6 +415,18 @@ export const sendTransfer = internalAction({
     const origin = process.env.WHOP_ACCOUNT_ID;
     if (!apiKey || !origin) {
       await ctx.runMutation(internal.bounty.recordTransfer, { payoutId, status: 'failed', failureCode: 'whop_not_configured' });
+      return;
+    }
+    // A transfer Whop refuses for funds risks a fraud hold, so the ledger must cover amount plus fee first.
+    const availableCents = await readAvailableCents(apiKey, origin);
+    if (availableCents === null) {
+      await retry();
+      return;
+    }
+    await ctx.runMutation(internal.bounty.saveBalance, { availableCents });
+    if (availableCents < withFeeCents(job.cents)) {
+      console.warn('REAL_FUNDS_LOW', { payoutId, cents: job.cents, availableCents });
+      await ctx.runMutation(internal.bounty.recordTransfer, { payoutId, status: 'failed', failureCode: 'REAL_FUNDS_LOW', error: `Whop balance ${availableCents}¢ is under ${withFeeCents(job.cents)}¢ with the fee.` });
       return;
     }
     let response: Response;

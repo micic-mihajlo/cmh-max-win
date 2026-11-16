@@ -3,7 +3,7 @@ import { ConvexError, v } from 'convex/values';
 import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, mutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
-import { MIN_TRANSFER_CENTS, awardModeWithBudget, realBudgetRemainingCents, realPayoutBudgetCents, realPayoutCapCents } from './bounty';
+import { CONCEPT_LABEL, MIN_TRANSFER_CENTS, awardModeWithBudget, realBudgetRemainingCents, realPayoutBudgetCents, realPayoutCapCents } from './bounty';
 import { ROLES, type Role } from './case01';
 import { checkScheduledStart, noteHostedDrop } from './feed';
 import { dealPassphrase } from './passphrase';
@@ -598,7 +598,9 @@ export const myAward = query({
             .filter((q) => q.eq(q.field('memberId'), member._id))
             .first()
         : null;
-    const myPayout: AwardPayoutView = mine
+    const myPayout: AwardPayoutView = mine?.failureCode === 'REAL_FUNDS_LOW'
+      ? { status: 'concept', amountCents: mine.cents, failureCode: 'REAL_FUNDS_LOW', message: CONCEPT_LABEL }
+      : mine
       ? {
           status: mine.status,
           amountCents: mine.cents,

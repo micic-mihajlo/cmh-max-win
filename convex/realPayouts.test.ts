@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { api, internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
-import { awardMode, awardModeWithBudget, createTransferRows } from './bounty';
+import { CONCEPT_LABEL, awardMode, awardModeWithBudget, createTransferRows } from './bounty';
 import { bountyView } from './drops';
 import schema from './schema';
 
@@ -15,6 +15,13 @@ const SEATS = ['dev-a', 'dev-b', 'dev-c'];
 
 let transfers: { key: string | null; body: { amount: number; destination_id: string; idempotence_key: string; type: string } }[];
 let respond: () => Response;
+let ledgerCents: number;
+
+// Answers the platform ledger read with ledgerCents, and hands every other request to the test's handler.
+const withLedger = (handler: (input: string | URL, init?: RequestInit) => Promise<Response>) =>
+  vi.fn(async (input: string | URL, init?: RequestInit) =>
+    String(input).includes('/ledger_accounts/') ? Response.json({ balances: [{ currency: 'usd', balance: ledgerCents / 100 }] }) : handler(input, init),
+  );
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -22,10 +29,11 @@ beforeEach(() => {
   vi.stubEnv('WHOP_ACCOUNT_ID', 'biz_platform');
   vi.stubEnv('SIGNAL_REAL_PAYOUT_BUDGET_CENTS', '100000');
   transfers = [];
+  ledgerCents = 100_000;
   respond = () => Response.json({ id: 'xfer_' + transfers.length });
   vi.stubGlobal(
     'fetch',
-    vi.fn(async (input: string | URL, init?: RequestInit) => {
+    withLedger(async (input: string | URL, init?: RequestInit) => {
       if (!String(input).endsWith('/transfers')) return new Response('not found', { status: 404 });
       transfers.push({ key: new Headers(init?.headers).get('Idempotency-Key'), body: JSON.parse(String(init?.body)) });
       return respond();
@@ -256,7 +264,7 @@ describe('Whop transfer quirks and real pots', () => {
   test('status is the source of truth; the fee and succeeded_at are never read; the key goes in the header', async () => {
     const t = convexTest(schema, modules);
     const headers: Headers[] = [];
-    vi.stubGlobal('fetch', vi.fn(async (_input: string | URL, init?: RequestInit) => {
+    vi.stubGlobal('fetch', withLedger(async (_input: string | URL, init?: RequestInit) => {
       headers.push(new Headers(init?.headers));
       return created('succeeded');
     }));
@@ -276,7 +284,7 @@ describe('Whop transfer quirks and real pots', () => {
     vi.stubEnv('SIGNAL_REAL_PAYOUTS', 'on');
     vi.stubEnv('SIGNAL_REAL_PAYOUT_BUDGET_CENTS', '1000');
     const t = convexTest(schema, modules);
-    vi.stubGlobal('fetch', vi.fn(async () => created('failed')));
+    vi.stubGlobal('fetch', withLedger(async () => created('failed')));
     const { awardId } = await seedAward(t);
     await link(t, 'dev-a', 'user_a');
     await t.mutation(internal.bounty.startTransfers, { awardId });
@@ -378,6 +386,47 @@ describe('minimum share and unclaimed releases', () => {
     expect(byToken['dev-a']).toMatchObject({ status: 'sent' });
     expect(byToken['dev-b']).toMatchObject({ status: 'failed', failureCode: 'sign_in_expired' });
     expect(await t.query(api.drops.realPayoutStatus, {})).toMatchObject({ remainingCents: 900 });
+  });
+});
+
+describe('Whop balance guard', () => {
+  test('a transfer the ledger cannot cover with the 3% fee is never sent, and the winner sees concept copy', async () => {
+    vi.stubEnv('SIGNAL_REAL_PAYOUTS', 'on');
+    vi.stubEnv('SIGNAL_REAL_PAYOUT_BUDGET_CENTS', '1000');
+    const t = convexTest(schema, modules);
+    ledgerCents = 102;
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { awardId } = await seedAward(t, 'transfer', 100);
+    await link(t, 'dev-a', 'user_a');
+    await t.mutation(internal.bounty.startTransfers, { awardId });
+    await settle(t);
+    expect(transfers).toHaveLength(0);
+    expect((await rows(t)).find((r) => r.deviceToken === 'dev-a')).toMatchObject({ status: 'failed', failureCode: 'REAL_FUNDS_LOW' });
+    expect((await myAward(t, 'dev-a'))!.myPayout).toEqual({ status: 'concept', amountCents: 100, failureCode: 'REAL_FUNDS_LOW', message: CONCEPT_LABEL });
+    expect(warn).toHaveBeenCalledWith('REAL_FUNDS_LOW', expect.objectContaining({ cents: 100, availableCents: 102 }));
+    ledgerCents = 103;
+    const again = await convexTest(schema, modules);
+    const second = await seedAward(again, 'transfer', 100);
+    await link(again, 'dev-a', 'user_a');
+    await again.mutation(internal.bounty.startTransfers, { awardId: second.awardId });
+    await settle(again);
+    expect(transfers).toHaveLength(1);
+  });
+
+  test('the remaining budget is capped by the cached balance, refreshed at most once a minute', async () => {
+    vi.stubEnv('SIGNAL_REAL_PAYOUTS', 'on');
+    vi.stubEnv('SIGNAL_REAL_PAYOUT_BUDGET_CENTS', '1000');
+    const t = convexTest(schema, modules);
+    expect(await t.query(api.drops.realPayoutStatus, {})).toMatchObject({ remainingCents: 1000 });
+    ledgerCents = 300;
+    await t.action(internal.bounty.refreshBalance, {});
+    expect(await t.query(api.drops.realPayoutStatus, {})).toMatchObject({ remainingCents: 291 });
+    ledgerCents = 1000;
+    await t.action(internal.bounty.refreshBalance, {});
+    expect(await t.query(api.drops.realPayoutStatus, {})).toMatchObject({ remainingCents: 291 });
+    vi.advanceTimersByTime(61_000);
+    await t.action(internal.bounty.refreshBalance, {});
+    expect(await t.query(api.drops.realPayoutStatus, {})).toMatchObject({ remainingCents: 970 });
   });
 });
 
