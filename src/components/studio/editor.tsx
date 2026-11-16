@@ -5,7 +5,7 @@ import { Txt } from '@/components/signal/txt';
 import { Caption, Card, Chip, Field, G, PrimaryButton, Section, StudioScreen, studio } from '@/components/showcase/studio-ui';
 import { FontFamily, Palette, Space } from '@/constants/signal';
 import { usePublishChallenge, useUpdateChallengeDraft } from '@/hooks/use-challenges';
-import type { ChallengeConfig, ChallengeConfigPatch, ChallengeDraftView } from '@/lib/contract';
+import type { ChallengeConfig, ChallengeConfigPatch, ChallengeDraftView, ChallengeTemplateView } from '@/lib/contract';
 import { Enter, Haptic, PressScale } from '@/motion';
 
 import { errorMessage, money, teamSizeName, templateName } from './format';
@@ -49,10 +49,6 @@ export function DraftEditor({ draft }: { draft: ChallengeDraftView }) {
     timer.current = setTimeout(() => void flush(), SAVE_AFTER_MS);
   };
 
-  const quiz = quizOf(cfg.templateConfig);
-  const setQuestions = (questions: QuizQuestion[]) => change({ templateConfig: { questions } });
-  const setQuestion = (i: number, q: Partial<QuizQuestion>) => setQuestions(quiz.questions.map((x, k) => (k === i ? { ...x, ...q } : x)));
-
   const submit = async () => {
     setPublishing(true);
     try {
@@ -67,9 +63,43 @@ export function DraftEditor({ draft }: { draft: ChallengeDraftView }) {
   };
 
   return (
+    <EditorView
+      cfg={cfg}
+      template={draft.template}
+      change={change}
+      onPublish={submit}
+      publishing={publishing}
+      note={problem ? { text: problem, bad: true } : saving ? { text: 'Saving…' } : null}
+    />
+  );
+}
+
+export type EditorConfig = Pick<ChallengeConfig, 'title' | 'templateId' | 'teamSize' | 'poolCents' | 'reward' | 'templateConfig'>;
+
+// The editor's fields. Saving is the caller's: a server draft autosaves, a first draft stays local until Publish.
+export function EditorView({
+  cfg,
+  template,
+  change,
+  onPublish,
+  publishing,
+  note,
+}: {
+  cfg: EditorConfig;
+  template: ChallengeTemplateView;
+  change: (patch: ChallengeConfigPatch) => void;
+  onPublish: () => void;
+  publishing: boolean;
+  note: { text: string; bad?: boolean } | null;
+}) {
+  const quiz = quizOf(cfg.templateConfig);
+  const setQuestions = (questions: QuizQuestion[]) => change({ templateConfig: { questions } });
+  const setQuestion = (i: number, q: Partial<QuizQuestion>) => setQuestions(quiz.questions.map((x, k) => (k === i ? { ...x, ...q } : x)));
+
+  return (
     <StudioScreen
       title={templateName(cfg.templateId)}
-      footer={<PrimaryButton variant="accent" title={publishing ? 'Publishing…' : 'Publish'} disabled={publishing} onPress={submit} />}>
+      footer={<PrimaryButton variant="accent" title={publishing ? 'Publishing…' : 'Publish'} disabled={publishing} onPress={onPublish} />}>
       <Field value={cfg.title} onChange={(title) => change({ title })} placeholder="Title" big maxLength={60} autoFocus={!cfg.title} />
 
       {cfg.templateId === 'quick-quiz' ? (
@@ -95,17 +125,17 @@ export function DraftEditor({ draft }: { draft: ChallengeDraftView }) {
       ) : (
         <Card>
           <Txt variant="bodyStrong" color={G.ink}>
-            {draft.template.name}
+            {template.name}
           </Txt>
           <Txt variant="small" color={G.inkSoft}>
-            {draft.template.blurb}
+            {template.blurb}
           </Txt>
         </Card>
       )}
 
       <Section title="Teams">
         <View style={studio.wrap}>
-          {draft.template.teamSizes.map((n) => (
+          {template.teamSizes.map((n) => (
             <Chip key={n} label={teamSizeName(n)} selected={cfg.teamSize === n} onPress={() => change({ teamSize: n })} />
           ))}
         </View>
@@ -120,18 +150,16 @@ export function DraftEditor({ draft }: { draft: ChallengeDraftView }) {
         {cfg.poolCents > 0 ? <Caption>Concept payout · split {rewardSplit(cfg)}</Caption> : null}
       </Section>
 
-      {problem ? (
-        <Enter from={4}>
-          <Caption color={G.bad}>{problem}</Caption>
+      {note ? (
+        <Enter key={note.text} from={4}>
+          <Caption color={note.bad ? G.bad : G.inkSoft}>{note.text}</Caption>
         </Enter>
-      ) : saving ? (
-        <Caption>Saving…</Caption>
       ) : null}
     </StudioScreen>
   );
 }
 
-function rewardSplit(cfg: ChallengeConfig) {
+function rewardSplit(cfg: EditorConfig) {
   const r = cfg.reward;
   if (r.kind === 'placement') return r.percents.join(' / ');
   if (r.kind === 'winner_takes_all') return 'winner takes all';
