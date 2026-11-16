@@ -90,7 +90,7 @@ export function PassphraseScreen({
         <NudgeEntrance style={styles.nudge}>
           <Txt variant="bodyStrong">Not quite.</Txt>
           <Txt variant="body" color={Palette.paperMuted}>
-            {squad.lastNudge.holderName ? `Check ${squad.lastNudge.holderName}’s word.` : squad.lastNudge.text}
+            {squad.lastNudge.holderName === me?.name ? 'Check your word.' : squad.lastNudge.holderName ? `Check ${squad.lastNudge.holderName}’s word.` : squad.lastNudge.text}
           </Txt>
         </NudgeEntrance>
       ) : null}

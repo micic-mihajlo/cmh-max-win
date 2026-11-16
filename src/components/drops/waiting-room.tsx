@@ -20,7 +20,7 @@ export function WaitingRoomScreen({ drop, offset, onBack }: { drop: DropView; of
   const display = creator.charAt(0).toUpperCase() + creator.slice(1);
   const named = drop.entrants.filter((p) => !p.isMe).slice(0, 2).map((p) => p.name);
   const others = drop.entrantCount - named.length - (drop.me.entered ? 1 : 0);
-  const hereLine = !named.length && others <= 0 ? 'You’re the first one here' : others > 0 ? `${named.length ? `${named.join(', ')} and ` : ''}${others} ${others === 1 ? 'other' : 'others'} ${named.length + others === 1 ? 'is' : 'are'} here` : `${named.join(' and ')} ${named.length === 1 ? 'is' : 'are'} here`;
+  const hereLine = !named.length && others <= 0 ? 'You’re the first one here' : others > 0 ? `${named.length ? `${named.join(', ')} and ` : ''}${others} ${others === 1 ? 'other' : 'others'}` : named.join(' and ');
   return (
     <Screen
       footer={
@@ -83,7 +83,7 @@ export function WaitingRoomScreen({ drop, offset, onBack }: { drop: DropView; of
                 </View>
               ))}
             </View>
-            <Txt variant="small" color={Palette.paperMuted} style={styles.flexShrink}>
+            <Txt variant="small" color={Palette.paperMuted} numberOfLines={1} style={styles.flexShrink}>
               {hereLine}
             </Txt>
           </View>
