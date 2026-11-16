@@ -11,7 +11,7 @@ import { presence as presenceComponent } from './presence';
 import { enforceRateLimit } from './rateLimits';
 import { squadSize } from './schema';
 import { CODE_ALPHABET, generateCode } from './signal';
-import { resolveIdentity } from './whopAuth';
+import { linkedDeviceTokens, resolveIdentity } from './whopAuth';
 import type {
   BountyView,
   DropSummaryView,
@@ -90,12 +90,16 @@ async function findDrop(ctx: QueryCtx, dropId: string) {
     .unique();
 }
 
-// The host of a hosted drop: the device that made it, or any device signed in to the Whop account that made it.
+// The host of a hosted drop: the device that made it, or any device signed in to the Whop account that made it or
+// that the making device is signed in to now.
 export async function isDropHost(ctx: Pick<QueryCtx, 'db'>, drop: Doc<'drops'>, deviceToken: string): Promise<boolean> {
   if (!drop.hostToken) return false;
   if (drop.hostToken === deviceToken) return true;
-  if (!drop.hostWhopUserId || !deviceToken) return false;
-  return (await resolveIdentity(ctx, deviceToken)).whopUserId === drop.hostWhopUserId;
+  if (!deviceToken) return false;
+  const me = await resolveIdentity(ctx, deviceToken);
+  if (!me.whopUserId) return false;
+  if (drop.hostWhopUserId === me.whopUserId) return true;
+  return (await linkedDeviceTokens(ctx, deviceToken)).includes(drop.hostToken);
 }
 
 async function requireDrop(ctx: QueryCtx, dropId: string) {
@@ -782,11 +786,34 @@ export const myHostedDrops = query({
   handler: async (ctx, { deviceToken }): Promise<HostedDropRow[]> => {
     const { whopUserId } = await resolveIdentity(ctx, deviceToken);
     if (!whopUserId) return [];
-    const drops = await ctx.db
+    const since = Date.now() - MY_HOSTED_WINDOW_MS;
+    const signedIn = await ctx.db
       .query('drops')
-      .withIndex('by_host_whop', (q) => q.eq('hostWhopUserId', whopUserId).gt('_creationTime', Date.now() - MY_HOSTED_WINDOW_MS))
+      .withIndex('by_host_whop', (q) => q.eq('hostWhopUserId', whopUserId).gt('_creationTime', since))
       .order('desc')
       .take(50);
+    // Drops a linked device hosted before it signed in carry no hostWhopUserId; find them through its streamer.
+    const byDevice = [];
+    for (const token of await linkedDeviceTokens(ctx, deviceToken)) {
+      const streamer = await ctx.db
+        .query('streamers')
+        .withIndex('by_host', (q) => q.eq('hostToken', token))
+        .unique();
+      if (!streamer) continue;
+      const listed = await ctx.db
+        .query('streamerDrops')
+        .withIndex('by_streamer', (q) => q.eq('streamerId', streamer._id).gt('createdAt', since))
+        .take(50);
+      for (const sd of listed) {
+        const drop = await findDrop(ctx, sd.dropId);
+        if (drop && drop._creationTime > since) byDevice.push(drop);
+      }
+    }
+    const seen = new Set<string>();
+    const drops = [...signedIn, ...byDevice]
+      .filter((d) => !seen.has(d.dropId) && !!seen.add(d.dropId))
+      .sort((a, b) => b._creationTime - a._creationTime)
+      .slice(0, 50);
     return Promise.all(
       drops.map(async (drop) => {
         const listing = await ctx.db

@@ -4,7 +4,7 @@ import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { internalMutation, mutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
 import { bountyView } from './drops';
-import { resolveIdentity, type ResolvedIdentity } from './whopAuth';
+import { linkedDeviceTokens, resolveIdentity, type ResolvedIdentity } from './whopAuth';
 import type {
   FeedLiveRow,
   FeedPushData,
@@ -394,11 +394,16 @@ async function resultRow(ctx: QueryCtx, streamer: Doc<'streamers'>, { drop }: Ho
 }
 
 async function followRows(ctx: QueryCtx, me: ResolvedIdentity, streamerId: Id<'streamers'>) {
+  const tokens = await linkedDeviceTokens(ctx, me.deviceToken);
   const [byDevice, byWhop] = await Promise.all([
-    ctx.db
-      .query('follows')
-      .withIndex('by_device', (q) => q.eq('deviceToken', me.deviceToken).eq('streamerId', streamerId))
-      .collect(),
+    Promise.all(
+      tokens.map((t) =>
+        ctx.db
+          .query('follows')
+          .withIndex('by_device', (q) => q.eq('deviceToken', t).eq('streamerId', streamerId))
+          .collect(),
+      ),
+    ).then((rows) => rows.flat()),
     me.whopUserId
       ? ctx.db
           .query('follows')
@@ -459,11 +464,16 @@ export const followingFeed = query({
   handler: async (ctx, { deviceToken }): Promise<FollowingFeedView> => {
     const now = Date.now();
     const me = await resolveIdentity(ctx, deviceToken);
+    const tokens = await linkedDeviceTokens(ctx, deviceToken);
     const [byDevice, byWhop] = await Promise.all([
-      ctx.db
-        .query('follows')
-        .withIndex('by_device', (q) => q.eq('deviceToken', me.deviceToken))
-        .collect(),
+      Promise.all(
+        tokens.map((t) =>
+          ctx.db
+            .query('follows')
+            .withIndex('by_device', (q) => q.eq('deviceToken', t))
+            .collect(),
+        ),
+      ).then((rows) => rows.flat()),
       me.whopUserId
         ? ctx.db
             .query('follows')
