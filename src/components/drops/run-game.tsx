@@ -3,6 +3,7 @@ import { Image, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } f
 import Svg, { Rect } from 'react-native-svg';
 
 import { Screen } from '@/components/signal/backdrop';
+import { Button } from '@/components/signal/primitives';
 import { Txt } from '@/components/signal/txt';
 import { FontFamily, Palette, Radius, Space } from '@/constants/signal';
 import type { DropSummaryView, RealPayoutStatusView, WhopAccountView } from '@/lib/contract';
@@ -80,7 +81,9 @@ export function RunGameScreen({
       <Section label="Challenge">
         <View style={[styles.cards, !desktop && styles.cardsPhone]}>
           {CHALLENGES.map((c) => (
-            <ChallengeCard key={c.key} challenge={c} selected={c.key === state.challenge.key} onPress={() => set({ challenge: c })} />
+            <View key={c.key} style={styles.cardCell}>
+              <ChallengeCard challenge={c} compact={!desktop} selected={c.key === state.challenge.key} onPress={() => set({ challenge: c })} />
+            </View>
           ))}
         </View>
       </Section>
@@ -94,7 +97,7 @@ export function RunGameScreen({
         <HostRow host={host} />
       </Section>
       {error ? (
-        <Txt variant="body" color={Palette.paper}>
+        <Txt variant="body" color={Palette.paperMuted}>
           {error}
         </Txt>
       ) : null}
@@ -159,16 +162,18 @@ function Motif({ challenge }: { challenge: Challenge }) {
   );
 }
 
-function ChallengeCard({ challenge, selected, onPress }: { challenge: Challenge; selected: boolean; onPress: () => void }) {
+function ChallengeCard({ challenge, selected, compact, onPress }: { challenge: Challenge; selected: boolean; compact?: boolean; onPress: () => void }) {
   return (
-    <PressScale accessibilityRole="button" accessibilityState={{ selected }} onPress={onPress} haptic="tap" style={[styles.card, selected && styles.cardOn]}>
+    <PressScale
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      onPress={onPress}
+      haptic="tap"
+      style={[styles.card, compact && styles.cardCompact, selected && styles.cardOn]}>
       <View style={styles.cardTop}>
         <Motif challenge={challenge} />
         {selected ? (
           <Enter from={0} style={styles.check}>
-            <Svg width={12} height={12} viewBox="0 0 12 12">
-              <Rect x={0} y={0} width={0} height={0} />
-            </Svg>
             <Txt variant="caption" color={Palette.onAccent} style={styles.checkMark}>
               ✓
             </Txt>
@@ -356,21 +361,25 @@ function HostRow({ host }: { host: Host }) {
           </PressScale>
         </View>
       ) : host.account === null ? (
-        <View style={styles.hostRow}>
-          <Txt variant="body" color={Palette.paperMuted} style={styles.flex}>
+        <>
+          <Txt variant="body" color={Palette.paperMuted}>
             This device only
           </Txt>
-          <PressScale accessibilityRole="button" disabled={host.signingIn} onPress={host.onSignIn} haptic="tap" style={styles.secondary}>
-            <Txt variant="smallStrong">{host.signingIn ? 'Opening Whop…' : 'Sign in with Whop'}</Txt>
-          </PressScale>
-        </View>
+          <Button
+            title={host.signingIn ? 'Opening Whop…' : 'Sign in with Whop'}
+            variant="secondary"
+            disabled={host.signingIn}
+            onPress={host.onSignIn}
+            style={styles.signIn}
+          />
+        </>
       ) : (
         <Txt variant="body" color={Palette.paperMuted}>
           This device only
         </Txt>
       )}
       {host.signInError ? (
-        <Txt variant="small" color={Palette.paper}>
+        <Txt variant="small" color={Palette.paperMuted}>
           {host.signInError}
         </Txt>
       ) : null}
@@ -382,9 +391,7 @@ function HostRow({ host }: { host: Host }) {
               {`${d.code} · ${d.players} in · ${d.status === 'live' ? 'racing' : 'waiting'}`}
             </Txt>
           </View>
-          <Txt variant="smallStrong" style={styles.underline}>
-            Reopen
-          </Txt>
+          <Txt variant="smallStrong">Reopen</Txt>
         </PressScale>
       ))}
     </View>
@@ -426,13 +433,7 @@ function Preview({ state, hostName }: { state: RunGameState; hostName: string })
 }
 
 function Primary({ label, enabled, onPress }: { label: string; enabled: boolean; onPress?: () => void }) {
-  return (
-    <PressScale accessibilityRole="button" disabled={!enabled} onPress={onPress} haptic="tap" style={[styles.primary, !enabled && styles.primaryOff]}>
-      <Txt variant="button" color={enabled ? Palette.onAccent : Palette.paperMuted}>
-        {label}
-      </Txt>
-    </PressScale>
-  );
+  return <Button title={label} variant="accent" disabled={!enabled} onPress={onPress} />;
 }
 
 const styles = StyleSheet.create({
@@ -450,7 +451,7 @@ const styles = StyleSheet.create({
   left: { flex: 1, maxWidth: 640 },
   leftContent: { paddingTop: Space.xxxl, paddingBottom: Space.xxxl },
   right: { width: 400, paddingTop: 112, gap: Space.m },
-  form: { gap: 48 },
+  form: { gap: 48, width: '100%' },
   title: {
     fontFamily: FontFamily.uiSemi,
     fontSize: 40,
@@ -460,8 +461,11 @@ const styles = StyleSheet.create({
   },
   titlePhone: { fontSize: 32, lineHeight: 40 },
   section: { gap: Space.m },
-  cards: { flexDirection: 'row', gap: Space.m },
-  cardsPhone: { flexDirection: 'column' },
+  cards: { flexDirection: 'row', gap: Space.m, width: '100%' },
+  cardsPhone: { flexDirection: 'column', width: '100%' },
+  cardCell: { flex: 1 },
+  signIn: { alignSelf: 'flex-start', paddingHorizontal: Space.xl, borderWidth: 1, borderColor: Palette.hairline, backgroundColor: Palette.card },
+  cardCompact: { minHeight: 120 },
   card: {
     flex: 1,
     minHeight: 168,
@@ -487,7 +491,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkMark: { position: 'absolute', lineHeight: 22 },
+  checkMark: { lineHeight: 22 },
   prize: { gap: Space.m },
   amountRow: { flexDirection: 'row', alignItems: 'center' },
   amount: {
@@ -552,15 +556,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  secondary: {
-    height: 40,
-    paddingHorizontal: Space.l,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Palette.hairline,
-    backgroundColor: Palette.card,
-    justifyContent: 'center',
-  },
   liveRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -576,12 +571,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  primary: {
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: Palette.ember,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryOff: { backgroundColor: Palette.inkDeep },
 });

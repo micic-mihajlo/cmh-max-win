@@ -28,7 +28,7 @@ export default function RootLayout() {
   }, [ready]);
   usePushTapRouting(ready);
   const reduced = useReduced();
-  const projected = /^\/drop\/[^/]+\/host$|^\/mocks\/2\d-host/.test(usePathname());
+  const projected = /^\/host$|^\/drop\/[^/]+\/host$|^\/mocks\/2\d-host/.test(usePathname());
 
   if (!ready) return null;
 
