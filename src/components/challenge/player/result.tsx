@@ -52,6 +52,7 @@ export function ResultScreen({
   conceptPool,
   host,
   claiming,
+  note,
   onClaim,
   onDone,
 }: {
@@ -68,6 +69,7 @@ export function ResultScreen({
   conceptPool: boolean;
   host: string;
   claiming: boolean;
+  note: string | null;
   onClaim?: () => void;
   onDone: () => void;
 }) {
@@ -121,11 +123,11 @@ export function ResultScreen({
           <Txt variant="caption" color={Palette.paperMuted}>
             {[maths, payoutLabel].filter(Boolean).join(' · ')}
           </Txt>
-          {payout ? null : (
+          {note || !payout ? (
             <Txt variant="caption" color={Palette.paperMuted}>
-              {`Waiting for ${host} to approve`}
+              {note ?? `Waiting for ${host} to approve`}
             </Txt>
-          )}
+          ) : null}
         </Enter>
       ) : null}
 
