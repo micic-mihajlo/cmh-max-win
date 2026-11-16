@@ -5,7 +5,7 @@ import { Button } from '@/components/signal/primitives';
 import { Txt } from '@/components/signal/txt';
 import { Palette, Radius, Space } from '@/constants/signal';
 import type { AwardPayoutView, BountyView, SquadAwardView } from '@/lib/contract';
-import { Enter } from '@/motion';
+import { Enter, PressScale } from '@/motion';
 
 import { Brass, money, money2 } from './ui';
 
@@ -28,11 +28,13 @@ export function BountyResultScreen({
   award,
   bounty,
   signingIn,
+  host,
   on,
 }: {
   award: SquadAwardView;
   bounty: BountyView;
   signingIn?: boolean;
+  host?: { name: string; following: boolean; onFollow?: () => void };
   on?: { onSignIn?: () => void; onContinue?: () => void };
 }) {
   const p = award.myPayout;
@@ -93,6 +95,19 @@ export function BountyResultScreen({
           ))}
         </View>
       </Enter>
+      {host ? (
+        <Enter from={8} delay={160}>
+          {host.following ? (
+            <Txt variant="body" color={Palette.paperMuted} style={styles.host}>
+              See you Friday
+            </Txt>
+          ) : (
+            <PressScale accessibilityRole="link" haptic="tap" onPress={host.onFollow} style={styles.host}>
+              <Txt variant="bodyStrong">{`Follow ${host.name} for next Friday`}</Txt>
+            </PressScale>
+          )}
+        </Enter>
+      ) : null}
     </Screen>
   );
 }
@@ -104,5 +119,6 @@ const styles = StyleSheet.create({
   concept: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: Brass, backgroundColor: 'transparent' },
   status: { flexDirection: 'row', alignItems: 'center', gap: Space.s },
   split: { paddingHorizontal: Space.xl },
-  row: { flexDirection: 'row', alignItems: 'center', gap: Space.m, height: 44 },
+  host: { alignSelf: 'flex-start', paddingHorizontal: Space.xl, paddingVertical: Space.s },
+  row: { flexDirection: 'row', alignItems: 'center', gap: Space.m, height: 64 },
 });

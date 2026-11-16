@@ -2,7 +2,7 @@ import { ConvexError, v } from 'convex/values';
 
 import type { Doc, Id } from './_generated/dataModel';
 import { mutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
-import { firstName } from './feed';
+import { distinctFirstNames } from './feed';
 import { recordSolve, WRONG_GUESS_COOLDOWN_MS } from './signal';
 import { act, checkSession, startSession, type Session } from './templates/engine';
 import { SPLIT_CODE_MIN_WORDS, type SplitCodeState } from './templates/splitCode';
@@ -26,7 +26,8 @@ function fail(code: SignalErrorCode, message: string, extra: Record<string, numb
 // used: words already dealt to other squads in this drop; returns this squad's words so the caller can add them.
 export async function dealPassphrase(ctx: MutationCtx, roomId: Id<'rooms'>, team: { playerId: Id<'members'>; name: string }[], used: string[] = []) {
   const nonce = Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, '0')).join('');
-  const players = team.map((p) => ({ playerId: p.playerId as string, name: firstName(p.name) || p.name }));
+  const names = distinctFirstNames(team.map((p) => p.name));
+  const players = team.map((p, i) => ({ playerId: p.playerId as string, name: names[i] || p.name }));
   const { session } = startSession(TEMPLATE, players, roomId + ':' + nonce, { wordCount: Math.max(SPLIT_CODE_MIN_WORDS, team.length), exclude: used }, { now: Date.now() });
   const passphrase: Passphrase = { session: session as Session<SplitCodeState>, proposedBy: null, typed: null, nudge: null };
   await ctx.db.patch(roomId, { passphrase });

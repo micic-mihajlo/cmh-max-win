@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 
 import { CHALLENGES, CreatorSetupScreen, POTS, potFits, winnerSlotsFor } from '@/components/drops/creator-setup';
+import { HostAccount } from '@/components/drops/host-account';
 import { NameEntryScreen } from '@/components/screens/name-entry';
 import { useHostDrop, useRealPayoutStatus } from '@/hooks/use-drops';
 import { usePlayerName } from '@/hooks/use-player-name';
@@ -32,6 +33,7 @@ export default function HostNewRoute() {
         setError(null);
       }}
       error={error}
+      account={<HostAccount />}
       onOpen={
         opening || !potFits(pot, real)
           ? undefined

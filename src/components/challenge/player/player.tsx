@@ -20,6 +20,7 @@ import { usePlayerName } from '@/hooks/use-player-name';
 import { useLinkForClaim, useSignInToJoin } from '@/hooks/use-whop-account';
 import { Button } from '@/components/signal/primitives';
 import type { SignalErrorCode } from '@/lib/contract';
+import { teamIndexFromLabel, teamStyle } from '@/lib/teams';
 import { toSignalError } from '@/lib/signal-error';
 
 type Refusal = 'members' | 'signin' | 'closed' | 'full';
@@ -138,6 +139,7 @@ export function ChallengePlayer({ code: rawCode }: { code: string }) {
         title={challenge.title}
         teamLabel={session?.teamLabel ?? challenge.me.team?.label ?? null}
         solo={challenge.teamSize === 1}
+        teamSize={challenge.teamSize}
         totalPoints={quiz?.points ?? null}
         ended={ended}
         teamCount={recap?.teamCount ?? null}
@@ -162,7 +164,8 @@ export function ChallengePlayer({ code: rawCode }: { code: string }) {
         return toSignalError(e)?.message ?? 'That answer did not go through.';
       }
     };
-    return <PlayScreen quiz={quiz} answeredByMe={answeredByMe} serverNow={session.serverNow} onAnswer={onAnswer} />;
+    const team = challenge.teamSize > 1 ? teamStyle(session.teamLabel, teamIndexFromLabel(session.teamLabel)) : null;
+    return <PlayScreen quiz={quiz} answeredByMe={answeredByMe} serverNow={session.serverNow} team={team} onAnswer={onAnswer} />;
   }
 
   const canLeave = challenge.status === 'published';

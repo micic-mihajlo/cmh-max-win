@@ -43,7 +43,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  filled: { borderColor: '#3A3E4B', backgroundColor: Palette.panelRaised },
+  filled: { borderColor: Palette.paper, backgroundColor: Palette.panelRaised },
   active: { borderColor: Palette.ember },
   error: { borderColor: Palette.danger },
   caret: { width: 2, height: 30, backgroundColor: Palette.ember, borderRadius: 1 },

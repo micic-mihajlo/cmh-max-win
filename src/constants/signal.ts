@@ -1,18 +1,18 @@
 import type { TextStyle } from 'react-native';
 
 export const Palette = {
-  ink: '#F9F9F8',
-  inkDeep: '#F1F0EF',
+  ink: '#FAFAF7',
+  inkDeep: '#EFEDE7',
   panel: '#FFFFFF',
   panelRaised: '#FFFFFF',
   hairline: '#DAD9D6',
   paper: '#21201C',
-  paperShade: '#F1F0EF',
+  paperShade: '#EFEDE7',
   paperMuted: '#63635E',
   paperFaint: '#63635E',
   card: '#FFFFFF',
   onAccent: '#FFFFFF',
-  accentSoft: '#FFEAE4',
+  accentSoft: '#F3EDE0',
   disabledText: '#1915014A',
   conceptBorder: '#CFCECA',
   inkOnPaper: '#21201C',

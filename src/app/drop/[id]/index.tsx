@@ -63,8 +63,13 @@ function PassphraseSquad({ drop, code }: { drop: DropView; code: string }) {
   const submit = useSubmitPassphrase(code);
   const confirm = useConfirmPassphrase(code);
   const [busy, setBusy] = useState(false);
+  const [opened, setOpened] = useState(false);
   if (piece === undefined) return <Loading />;
   if (piece === null || piece.squad.status === 'solved') return <Redirect href={{ pathname: '/drop/[id]/race', params: { id: drop.dropId } }} />;
+  if (!opened) {
+    const members = piece.teammates.map((t) => ({ memberId: t.name + t.position, name: t.name, role: null, roles: [], isMe: t.isMe }));
+    return <SquadRevealScreen drop={drop} members={members} pieces={undefined} cta="See your word" onOpen={() => setOpened(true)} />;
+  }
   const run = async (action: () => Promise<unknown>) => {
     setBusy(true);
     try {

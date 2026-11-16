@@ -175,6 +175,20 @@ describe('real payouts (SIGNAL_REAL_PAYOUTS)', () => {
     expect((await t.run((ctx) => bountyView(ctx, drop))).mode).toBe('concept');
   });
 
+  test('a committed real award keeps the drop real after it uses up the budget', async () => {
+    vi.stubEnv('SIGNAL_REAL_PAYOUTS', 'on');
+    vi.stubEnv('SIGNAL_REAL_PAYOUT_BUDGET_CENTS', '1000');
+    const t = convexTest(schema, modules);
+    const drop = { dropId: 'drop1', payoutMode: 'real', bounty: { totalCents: 999, currency: 'usd' as const, winnerSlots: 1 } } as unknown as Doc<'drops'>;
+    const { awardId } = await seedAward(t);
+    await t.run(async (ctx) => {
+      const award = (await ctx.db.get(awardId))!;
+      await ctx.db.insert('solves', { dropId: 'drop1', roomId: award.roomId, place: 1, solvedAt: 1, solveMs: 1, attempts: 1 });
+    });
+    await t.run((ctx) => createTransferRows(ctx, awardId));
+    expect((await t.run((ctx) => bountyView(ctx, drop))).mode).toBe('transfer');
+  });
+
   test('linked members are paid once each; the split adds up to the squad share', async () => {
     const t = convexTest(schema, modules);
     const { awardId, memberIds } = await seedAward(t);

@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactElement } from 'react';
 import { AgreementScreen } from '@/components/screens/agreement';
 import { ClosedScreen } from '@/components/screens/closed';
 import { CoverScreen } from '@/components/screens/cover';
+import { WebHomeScreen } from '@/components/screens/web-home';
 import { DossierScreen, type DossierUi } from '@/components/screens/dossier';
 import { IntroScreen } from '@/components/screens/intro';
 import { LobbyScreen } from '@/components/screens/lobby';
@@ -58,6 +59,8 @@ export const MockStates: MockState[] = [
   { id: '01-cover-resolved', ref: '1.3', section: 'Cover', title: 'Returning · crew solved it', render: () => <CoverScreen active={{ code: 'K7QX', status: 'resolved', role: 'hacker' }} /> },
   { id: '01-cover-rejoin-passphrase', ref: '1.2', section: 'Cover', title: 'Returning · passphrase squad', render: () => <CoverScreen active={{ code: '4JCC', status: 'playing', role: null }} passphrase /> },
   { id: '01-cover-resolved-passphrase', ref: '1.3', section: 'Cover', title: 'Returning · passphrase solved', render: () => <CoverScreen active={{ code: '4JCC', status: 'resolved', role: null }} passphrase /> },
+  { id: '01-web-home', ref: '1.4', section: 'Cover', title: 'Web home', render: () => <WebHomeScreen /> },
+  { id: '01-web-home-seated', ref: '1.5', section: 'Cover', title: 'Web home · seated in a squad', render: () => <WebHomeScreen onResume={() => {}} /> },
   { id: '01-cover-loading', ref: '1.4', section: 'Cover', title: 'Loading active room', render: () => <CoverScreen active={undefined} /> },
   { id: '01-cover-creating', ref: '1.12', section: 'Cover', title: 'Creating a room', render: () => <CoverScreen active={null} creating /> },
   { id: '01-join-empty', ref: '1.5', section: 'Cover', title: 'Join · empty', render: () => <CoverScreen active={null} join={{ code: '', phase: 'typing' }} /> },

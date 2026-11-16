@@ -1,21 +1,25 @@
 import type { ComponentProps, ReactNode } from 'react';
-import { Pressable, type PressableProps } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import { Pressable, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
+import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 import { Haptic, type HapticName } from './haptics';
 import { useReduced } from './reduced';
-import { Duration, Ease, Spring } from './tokens';
+import { Spring } from './tokens';
 
 type Props = Omit<PressableProps, 'children' | 'style'> & {
   children: ReactNode;
   style?: ComponentProps<typeof Animated.View>['style'];
+  outerStyle?: StyleProp<ViewStyle>;
   scaleTo?: number;
   haptic?: HapticName;
 };
 
-// Feedback on touch-down, commit on release. The press-in is a 100ms ease-out; the release is a
-// spring, so a quick tap that lets go mid-press reverses from wherever it is.
-export function PressScale({ children, style, scaleTo = 0.97, haptic, disabled, onPressIn, onPressOut, onPress, ...rest }: Props) {
+const pressIn = { ...Spring.press, reduceMotion: ReduceMotion.Never };
+const release = { ...Spring.release, reduceMotion: ReduceMotion.Never };
+
+// Feedback on touch-down, commit on release. Both directions are springs, so a quick tap that lets go
+// mid-press reverses from wherever it is. Reduce Motion swaps the scale for a dim that still animates.
+export function PressScale({ children, style, outerStyle, scaleTo = 0.97, haptic, disabled, onPressIn, onPressOut, onPress, ...rest }: Props) {
   const reduced = useReduced();
   const pressed = useSharedValue(0);
 
@@ -27,15 +31,17 @@ export function PressScale({ children, style, scaleTo = 0.97, haptic, disabled, 
   return (
     <Pressable
       {...rest}
+      style={outerStyle}
+      accessibilityRole={rest.accessibilityRole ?? 'button'}
       disabled={disabled}
       hitSlop={rest.hitSlop ?? 8}
       pressRetentionOffset={rest.pressRetentionOffset ?? 16}
       onPressIn={(e) => {
-        pressed.set(withTiming(1, { duration: Duration.press, easing: Ease.out }));
+        pressed.set(withSpring(1, pressIn));
         onPressIn?.(e);
       }}
       onPressOut={(e) => {
-        pressed.set(withSpring(0, Spring.release));
+        pressed.set(withSpring(0, release));
         onPressOut?.(e);
       }}
       onPress={(e) => {

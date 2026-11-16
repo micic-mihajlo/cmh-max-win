@@ -16,7 +16,7 @@ import {
   wakeTimes,
   type Session,
 } from './engine';
-import { quickQuizTemplate, type QuizConfig, type QuizSharedView, type QuizState } from './quickQuiz';
+import { QUIZ_DEFAULT_TIME_MS, quickQuizTemplate, type QuizConfig, type QuizSharedView, type QuizState } from './quickQuiz';
 import type { Team } from './types';
 
 const SEEDS = Array.from({ length: 40 }, (_, i) => `challenge-1:team${i}`);
@@ -64,6 +64,14 @@ describe('quick-quiz content schema', () => {
     ]);
     expect(publishIssues('quick-quiz', undefined)).toEqual([{ field: 'questions', message: 'Add your questions.' }]);
     expect(publishIssues('mystery-aurora', {})).toEqual([]);
+  });
+
+  test('a question without a time limit gets 20 s; an authored time limit is kept', () => {
+    const untimed = { questions: QUIZ.questions.map(({ timeLimitMs: _, ...q }, i) => (i === 1 ? QUIZ.questions[1] : q)) };
+    expect(QUIZ_DEFAULT_TIME_MS).toBe(20_000);
+    expect(publishIssues('quick-quiz', untimed)).toEqual([]);
+    const s = startSession('quick-quiz', team(1), 's', untimed, { now: T0 }).session;
+    expect((s.state as QuizState).questions.map((q) => q.timeLimitMs)).toEqual([20_000, 10_000, 20_000]);
   });
 
   test('dealing refuses unpublishable content', async () => {

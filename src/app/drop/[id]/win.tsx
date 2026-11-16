@@ -6,6 +6,7 @@ import { BountyResultScreen } from '@/components/drops/bounty-result';
 import { Atmosphere } from '@/components/signal/backdrop';
 import { Palette } from '@/constants/signal';
 import { useDrop, useMyAward } from '@/hooks/use-drops';
+import { useFollowStreamer, useStreamerForDrop } from '@/hooks/use-feed';
 import { useLinkForClaim } from '@/hooks/use-whop-account';
 import { useRoom } from '@/hooks/use-signal';
 
@@ -17,6 +18,9 @@ export default function WinRoute() {
   const room = useRoom(squad?.code ?? null);
   const link = useLinkForClaim(squad?.code ?? null, `/drop/${id}/win`);
   const [signingIn, setSigningIn] = useState(false);
+  const streamer = useStreamerForDrop(drop?.template ? id : null);
+  const { follow } = useFollowStreamer(streamer?.streamerId ?? '');
+  const [followed, setFollowed] = useState(false);
   if (drop === undefined || award === undefined || room === undefined) {
     return (
       <View style={styles.loading}>
@@ -31,6 +35,18 @@ export default function WinRoute() {
       award={award}
       bounty={drop.bounty}
       signingIn={signingIn}
+      host={
+        streamer
+          ? {
+              name: streamer.name,
+              following: streamer.following || followed,
+              onFollow: () => {
+                setFollowed(true);
+                follow().catch(() => setFollowed(false));
+              },
+            }
+          : undefined
+      }
       on={{
         onSignIn: async () => {
           setSigningIn(true);

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { StyleSheet, useWindowDimensions, View, type StyleProp, type ViewStyle } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 
@@ -12,6 +13,9 @@ import { Brass, money, short } from './ui';
 
 export const MIN_TO_DEAL = 4;
 const NEWEST = 3;
+// Past this many squads the board switches to one-line cells so 34 squads fit a 1280×720 projector.
+// Cells share one width per row so a short last row stays on the grid.
+const DENSE_AFTER = 12;
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL;
 
 // The shared big screen before the deal: the code is the hero, the QR is the way in. On a phone the QR takes the
@@ -100,6 +104,11 @@ function HostBoard({ view }: { view: HostView }) {
   const solve = new Map(view.solves.map((s) => [s.squadLabel, s]));
   const order = [...view.squads].sort((a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity));
   const filled = Math.min(view.solves.length, view.bounty.winnerSlots);
+  const dense = order.length > DENSE_AFTER;
+  const [boardWidth, setBoardWidth] = useState(0);
+  const basis = dense ? 220 : 280;
+  const columns = Math.max(1, Math.floor((boardWidth + Space.s) / (basis + Space.s)));
+  const cellWidth = boardWidth ? (boardWidth - Space.s * (columns - 1)) / columns : undefined;
   return (
     <Screen>
       <View style={styles.boardHead}>
@@ -119,30 +128,36 @@ function HostBoard({ view }: { view: HostView }) {
           </View>
         ))}
       </View>
-      <View style={styles.squads}>
-        <Stagger stagger={30} itemStyle={styles.squadCell}>
+      <View style={styles.squads} onLayout={(e) => setBoardWidth(e.nativeEvent.layout.width)}>
+        <Stagger stagger={30} itemStyle={cellWidth ? { width: cellWidth } : styles.squadCell}>
           {order.map((s) => {
             const solved = solve.get(s.squadLabel);
             return (
-              <View key={s.squadLabel} style={[styles.squad, solved?.isWinner && styles.squadWinner]}>
+              <View key={s.squadLabel} style={[styles.squad, dense && styles.squadDense, solved?.isWinner && styles.squadWinner]}>
                 <View style={styles.squadHead}>
-                  <Txt variant="name" style={styles.flex}>
+                  <Txt variant={dense ? 'bodyStrong' : 'name'} style={styles.flex}>
                     {s.squadLabel}
                   </Txt>
                   {solved ? (
                     <>
                       <Txt variant="time">{short(solved.solveMs)}</Txt>
-                      <Seal locked color={solved.isWinner ? Palette.paper : Palette.paperMuted} initial={String(solved.place)} size={32} />
+                      <Seal locked color={solved.isWinner ? Palette.paper : Palette.paperMuted} initial={String(solved.place)} size={dense ? 24 : 32} />
                     </>
                   ) : null}
                 </View>
-                <View style={styles.chips}>
-                  {s.memberNames.map((m, i) => (
-                    <View key={`${m}-${i}`} style={styles.chip}>
-                      <Txt variant="small">{m}</Txt>
-                    </View>
-                  ))}
-                </View>
+                {dense ? (
+                  <Txt variant="small" color={Palette.paperMuted} numberOfLines={1}>
+                    {s.memberNames.join(', ')}
+                  </Txt>
+                ) : (
+                  <View style={styles.chips}>
+                    {s.memberNames.map((m, i) => (
+                      <View key={`${m}-${i}`} style={styles.chip}>
+                        <Txt variant="small">{m}</Txt>
+                      </View>
+                    ))}
+                  </View>
+                )}
               </View>
             );
           })}
@@ -237,11 +252,9 @@ function Pot({ view, style }: { view: HostView; style?: StyleProp<ViewStyle> }) 
   return (
     <View style={style}>
       <Txt variant="bodyStrong">{`${money(view.bounty.totalCents)} · ${view.bounty.winnerSlots === 1 ? 'first squad' : `first ${view.bounty.winnerSlots} squads`}`}</Txt>
-      {view.bounty.mode === 'concept' ? (
-        <Txt variant="label" color={Brass}>
-          Concept · no real money moves
-        </Txt>
-      ) : null}
+      <Txt variant="label" color={Brass}>
+        {view.bounty.mode === 'concept' ? 'Concept · no real money moves' : 'Real · paid via Whop'}
+      </Txt>
     </View>
   );
 }
@@ -263,6 +276,7 @@ const styles = StyleSheet.create({
     borderColor: Palette.hairline,
   },
   squadWinner: { borderColor: Palette.paper, borderWidth: 1 },
+  squadDense: { gap: 2, paddingVertical: Space.s, paddingHorizontal: Space.m },
   podium: { gap: Space.m, padding: Space.l, borderRadius: Radius.m, backgroundColor: Palette.paperShade },
   podiumRow: { flexDirection: 'row', alignItems: 'center', gap: Space.m },
   rows: { gap: Space.s },
@@ -301,6 +315,6 @@ const styles = StyleSheet.create({
   chip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: Radius.pill, backgroundColor: Palette.paperShade },
   footer: { flexDirection: 'row', alignItems: 'center', gap: Space.l },
   footerStack: { flexDirection: 'column', alignItems: 'stretch', gap: Space.m },
-  deal: { height: 54, paddingHorizontal: Space.xl, borderRadius: 16, backgroundColor: Palette.ember, alignItems: 'center', justifyContent: 'center' },
+  deal: { height: 52, paddingHorizontal: Space.xl, borderRadius: 16, backgroundColor: Palette.paper, alignItems: 'center', justifyContent: 'center' },
   dealOff: { backgroundColor: Palette.inkDeep },
 });

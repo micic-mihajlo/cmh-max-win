@@ -1,8 +1,10 @@
 import { api } from '@convex/_generated/api';
-import { useAction, useMutation, useQuery } from 'convex/react';
+import { useAction, useMutation } from 'convex/react';
+import { useQuery } from 'convex-helpers/react/cache/hooks';
 import { useCallback } from 'react';
 
 import { useDeviceToken } from '@/hooks/use-device-token';
+import { useFinishWhopRedirect } from '@/hooks/use-whop-account';
 import type {
   UseConnectWhopCompany,
   UseCreatorWhop,
@@ -21,12 +23,13 @@ export const useCreatorWhopSignIn: UseCreatorWhopSignIn = () => {
   const deviceToken = useDeviceToken();
   const start = useAction(api.whopAuth.startSignIn);
   const complete = useMutation(api.whopAuth.completeSignIn);
+  useFinishWhopRedirect();
   return useCallback(async (): Promise<WhopSignInResult> => {
     if (!deviceToken) return 'error';
     const returnUrl = whopReturnUrl('studio');
     const result = await start({ deviceToken, returnUrl });
     if (result.reason) return result.reason;
-    return openWhopSignIn(result.url, returnUrl, (linkCode) => complete({ deviceToken, linkCode }));
+    return openWhopSignIn(result.url, returnUrl, (linkCode) => complete({ deviceToken, linkCode }), 'creator');
   }, [complete, deviceToken, start]);
 };
 

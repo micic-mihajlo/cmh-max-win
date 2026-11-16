@@ -123,7 +123,7 @@ function LiveNotifications() {
 export function NotificationSettings() {
   if (fx) return <NotificationSettingsScreen streamers={fx.feed.following} FollowToggle={SampleFollowToggle} sample />;
   return (
-    <LiveBoundary title="Notifications">
+    <LiveBoundary title="Settings">
       <LiveNotificationSettings />
     </LiveBoundary>
   );

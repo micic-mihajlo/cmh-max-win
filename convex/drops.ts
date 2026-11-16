@@ -11,7 +11,7 @@ import { presence as presenceComponent } from './presence';
 import { enforceRateLimit } from './rateLimits';
 import { squadSize } from './schema';
 import { CODE_ALPHABET, generateCode } from './signal';
-import { resolveIdentity } from './whopAuth';
+import { linkedDeviceTokens, resolveIdentity } from './whopAuth';
 import type {
   BountyView,
   DropSummaryView,
@@ -30,8 +30,8 @@ import type { HostedDropRow } from '../src/lib/contract-host';
 
 export const DEMO_DROP_ID = 'aurora-demo';
 
-function fail(code: SignalErrorCode, message: string): never {
-  throw new ConvexError({ code, message });
+function fail(code: SignalErrorCode, message: string, extra: Record<string, number> = {}): never {
+  throw new ConvexError({ code, message, ...extra });
 }
 
 // Squad sizes for n entrants in entry order. N = 3: remainder 2 -> one duo, remainder 1 -> two duos.
@@ -90,12 +90,16 @@ async function findDrop(ctx: QueryCtx, dropId: string) {
     .unique();
 }
 
-// The host of a hosted drop: the device that made it, or any device signed in to the Whop account that made it.
+// The host of a hosted drop: the device that made it, or any device signed in to the Whop account that made it or
+// that the making device is signed in to now.
 export async function isDropHost(ctx: Pick<QueryCtx, 'db'>, drop: Doc<'drops'>, deviceToken: string): Promise<boolean> {
   if (!drop.hostToken) return false;
   if (drop.hostToken === deviceToken) return true;
-  if (!drop.hostWhopUserId || !deviceToken) return false;
-  return (await resolveIdentity(ctx, deviceToken)).whopUserId === drop.hostWhopUserId;
+  if (!deviceToken) return false;
+  const me = await resolveIdentity(ctx, deviceToken);
+  if (!me.whopUserId) return false;
+  if (drop.hostWhopUserId === me.whopUserId) return true;
+  return (await linkedDeviceTokens(ctx, deviceToken)).includes(drop.hostToken);
 }
 
 async function requireDrop(ctx: QueryCtx, dropId: string) {
@@ -118,15 +122,26 @@ async function findEntry(ctx: QueryCtx, dropId: string, deviceToken: string) {
     .unique();
 }
 
-// mode is what an award would get right now, so it respects the remaining real-payout budget.
+// mode is the mode the drop's first award got once it commits, so a real drop stays real through the payout even
+// after that award uses up the budget. Before then it's what an award would get right now, within the budget.
 export async function bountyView(ctx: Pick<QueryCtx, 'db'>, drop: Doc<'drops'>): Promise<BountyView> {
   const perSquadCents = Math.floor(drop.bounty.totalCents / drop.bounty.winnerSlots);
+  const first = await ctx.db
+    .query('solves')
+    .withIndex('by_drop', (q) => q.eq('dropId', drop.dropId))
+    .first();
+  const award = first
+    ? await ctx.db
+        .query('bountyAwards')
+        .withIndex('by_room', (q) => q.eq('roomId', first.roomId))
+        .first()
+    : null;
   return {
     totalCents: drop.bounty.totalCents,
     currency: 'usd',
     winnerSlots: drop.bounty.winnerSlots,
     perSquadCents,
-    mode: await awardModeWithBudget(ctx, drop, perSquadCents),
+    mode: award?.mode ?? (await awardModeWithBudget(ctx, drop, perSquadCents)),
   };
 }
 
@@ -381,6 +396,7 @@ export async function insertDrop(
     hostWhopUserId?: string;
     template?: DropTemplateId;
     payoutMode?: 'real' | 'concept';
+    minPlayers?: number;
   },
 ) {
   const { totalCents, winnerSlots } = args.bounty;
@@ -400,6 +416,7 @@ export async function insertDrop(
     ...(args.hostToken && args.hostWhopUserId ? { hostWhopUserId: args.hostWhopUserId } : {}),
     ...(args.template ? { template: args.template } : {}),
     ...(args.payoutMode ? { payoutMode: args.payoutMode } : {}),
+    ...(args.minPlayers !== undefined ? { minPlayers: args.minPlayers } : {}),
     startsAt: args.startsAt,
     status: 'scheduled',
     bounty: { totalCents, currency: 'usd', winnerSlots },
@@ -638,8 +655,9 @@ export const hostDrop = mutation({
     // real: pay winners by Whop transfer (refused unless real payouts are on and the pool fits the remaining budget).
     // concept: never real money. Omitted: as before.
     payoutMode: v.optional(v.union(v.literal('real'), v.literal('concept'))),
+    minPlayers: v.optional(v.number()), // players dealSquads waits for, clamped to squadSize..DROP_CAPACITY; omitted: squadSize
   },
-  handler: async (ctx, { deviceToken, title, winnerSlots, totalCents, creatorName, startsAt, avatarUrl, template, rehearsal, payoutMode }) => {
+  handler: async (ctx, { deviceToken, title, winnerSlots, totalCents, creatorName, startsAt, avatarUrl, template, rehearsal, payoutMode, minPlayers }) => {
     if (!deviceToken) fail('WRONG_STATUS', 'Missing device token.');
     await enforceRateLimit(ctx, 'hostDrop', deviceToken);
     if (payoutMode === 'real') await requireRealBudget(ctx, totalCents ?? 30_000, winnerSlots ?? 3);
@@ -657,6 +675,7 @@ export const hostDrop = mutation({
       ...(whopUserId ? { hostWhopUserId: whopUserId } : {}),
       ...(template ? { template } : {}),
       ...(payoutMode ? { payoutMode } : {}),
+      ...(minPlayers !== undefined ? { minPlayers: clampMinPlayers(minPlayers, 3) } : {}),
     });
     await noteHostedDrop(ctx, { hostToken: deviceToken, name, dropId: hosted.dropId, scheduledFor: startsAt ?? null, avatarUrl, rehearsal });
     return hosted;
@@ -687,7 +706,11 @@ export const realPayoutStatus = query({
   }),
 });
 
-export const MIN_DEAL_ENTRANTS = 4;
+// One full squad can play, and a race always has at least two entrants, unless the host asked for more (minPlayers).
+export const minToDeal = (drop: Doc<'drops'>) => drop.minPlayers ?? Math.max(2, drop.squadSize);
+
+export const clampMinPlayers = (minPlayers: number, size: number) =>
+  Number.isFinite(minPlayers) ? Math.min(DROP_CAPACITY, Math.max(2, size, Math.floor(minPlayers))) : Math.max(2, size);
 
 // Host-only "Deal squads": starts the drop now and splits squads with the usual rules.
 export const dealSquads = mutation({
@@ -695,9 +718,8 @@ export const dealSquads = mutation({
   handler: async (ctx, { deviceToken, dropId }) => {
     const drop = await requireDrop(ctx, dropId);
     if (!(await isDropHost(ctx, drop, deviceToken))) fail('NOT_HOST', 'Only the host can deal squads.');
-    if ((await entriesOf(ctx, dropId)).length < MIN_DEAL_ENTRANTS) {
-      fail('NOT_ENOUGH_PLAYERS', `Deal squads needs at least ${MIN_DEAL_ENTRANTS} players.`);
-    }
+    const needMore = minToDeal(drop) - (await entriesOf(ctx, dropId)).length;
+    if (needMore > 0) fail('NOT_ENOUGH_PLAYERS', `Deal squads needs at least ${minToDeal(drop)} players.`, { needMore });
     await startDropNow(ctx, dropId);
   },
 });
@@ -740,6 +762,8 @@ export const hostView = query({
       status: drop.status,
       bounty: await bountyView(ctx, drop),
       entrantCount: entries.length,
+      minToDeal: minToDeal(drop),
+      needMore: Math.max(0, minToDeal(drop) - entries.length),
       entrants: entries.map((e) => ({ name: e.name, joinedAt: e._creationTime })),
       squads,
       solves: solves.map((s) => ({
@@ -762,11 +786,34 @@ export const myHostedDrops = query({
   handler: async (ctx, { deviceToken }): Promise<HostedDropRow[]> => {
     const { whopUserId } = await resolveIdentity(ctx, deviceToken);
     if (!whopUserId) return [];
-    const drops = await ctx.db
+    const since = Date.now() - MY_HOSTED_WINDOW_MS;
+    const signedIn = await ctx.db
       .query('drops')
-      .withIndex('by_host_whop', (q) => q.eq('hostWhopUserId', whopUserId).gt('_creationTime', Date.now() - MY_HOSTED_WINDOW_MS))
+      .withIndex('by_host_whop', (q) => q.eq('hostWhopUserId', whopUserId).gt('_creationTime', since))
       .order('desc')
       .take(50);
+    // Drops a linked device hosted before it signed in carry no hostWhopUserId; find them through its streamer.
+    const byDevice = [];
+    for (const token of await linkedDeviceTokens(ctx, deviceToken)) {
+      const streamer = await ctx.db
+        .query('streamers')
+        .withIndex('by_host', (q) => q.eq('hostToken', token))
+        .unique();
+      if (!streamer) continue;
+      const listed = await ctx.db
+        .query('streamerDrops')
+        .withIndex('by_streamer', (q) => q.eq('streamerId', streamer._id).gt('createdAt', since))
+        .take(50);
+      for (const sd of listed) {
+        const drop = await findDrop(ctx, sd.dropId);
+        if (drop && drop._creationTime > since) byDevice.push(drop);
+      }
+    }
+    const seen = new Set<string>();
+    const drops = [...signedIn, ...byDevice]
+      .filter((d) => !seen.has(d.dropId) && !!seen.add(d.dropId))
+      .sort((a, b) => b._creationTime - a._creationTime)
+      .slice(0, 50);
     return Promise.all(
       drops.map(async (drop) => {
         const listing = await ctx.db

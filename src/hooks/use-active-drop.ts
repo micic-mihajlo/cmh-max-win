@@ -1,5 +1,5 @@
 import { api } from '@convex/_generated/api';
-import { useQuery } from 'convex/react';
+import { useQuery } from 'convex-helpers/react/cache/hooks';
 
 import { useDeviceToken } from '@/hooks/use-device-token';
 import { useDrop } from '@/hooks/use-drops';

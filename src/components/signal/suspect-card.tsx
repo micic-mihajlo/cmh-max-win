@@ -78,7 +78,7 @@ export function SuspectOption({
 
 const styles = StyleSheet.create({
   list: { backgroundColor: Palette.card, borderRadius: Radius.l, borderWidth: 1, borderColor: Palette.hairline, paddingHorizontal: Space.l },
-  listRow: { minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Space.s },
+  listRow: { minHeight: 64, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Space.s },
   listRule: { borderTopWidth: 1, borderTopColor: Palette.hairline },
   card: {
     backgroundColor: Palette.panel,

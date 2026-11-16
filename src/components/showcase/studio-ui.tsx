@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
-import type { ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View, type StyleProp, type ViewStyle } from 'react-native';
+import { useState, type ReactNode } from 'react';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FontFamily, Palette, RoleMeta, Space } from '@/constants/signal';
@@ -12,7 +12,7 @@ import type { BuilderRole } from './validate';
 // SIGNAL token map (whop-design.md): sand surfaces, sand-12 ink, orange-9 only on the commit action.
 export const G = {
   bg: Palette.ink,
-  surface: Palette.panel,
+  surface: Palette.card,
   ink: Palette.paper,
   inkSoft: Palette.paperMuted,
   line: Palette.hairline,
@@ -21,9 +21,9 @@ export const G = {
   accent: Palette.ember,
   onAccent: Palette.onAccent,
   ok: Palette.ok,
-  okWash: '#EAF1EA',
+  okWash: Palette.paperShade,
   bad: Palette.danger,
-  badWash: '#F8E9E3',
+  badWash: Palette.paperShade,
   role: { detective: Palette.paperShade, hacker: Palette.paperShade, witness: Palette.paperShade } as Record<BuilderRole, string>,
 };
 
@@ -32,8 +32,12 @@ export const docName = (label: string) => label.charAt(0) + label.slice(1).toLow
 export function StudioScreen({ title, kicker, children, footer, onBack }: { title: string; kicker?: string; children: ReactNode; footer?: ReactNode; onBack?: () => void }) {
   const insets = useSafeAreaInsets();
   return (
-    <View style={styles.root}>
-      <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: insets.top + Space.m, paddingBottom: insets.bottom + (footer ? 120 : Space.xxxl) }]}>
+    <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView
+        style={styles.flex}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        contentContainerStyle={[styles.scroll, { paddingTop: insets.top + Space.m, paddingBottom: footer ? Space.l : insets.bottom + Space.xxxl }]}>
         <Pressable accessibilityRole="button" hitSlop={12} onPress={onBack ?? (() => (router.canGoBack() ? router.back() : router.replace('/')))} style={styles.back}>
           <Txt variant="small" color={G.inkSoft}>
             ‹ Back
@@ -48,7 +52,7 @@ export function StudioScreen({ title, kicker, children, footer, onBack }: { titl
         {children}
       </ScrollView>
       {footer ? <View style={[styles.footer, { paddingBottom: insets.bottom + Space.l }]}>{footer}</View> : null}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -128,8 +132,8 @@ export function PrimaryButton({
   return (
     <View style={styles.flex}>
       <PressScale accessibilityRole="button" disabled={disabled} onPress={onPress} haptic="tap">
-        <View style={[styles.button, variant === 'accent' && styles.buttonAccent, disabled && styles.buttonDisabled]}>
-          <Txt variant="button" color={variant === 'accent' ? G.onAccent : G.onInk} style={styles.buttonText}>
+        <View style={[styles.button, variant === 'accent' && !disabled && styles.buttonAccent, disabled && styles.buttonDisabled]}>
+          <Txt variant="button" color={variant === 'accent' && !disabled ? G.onAccent : G.onInk} style={styles.buttonText}>
             {title}
           </Txt>
         </View>
@@ -159,6 +163,7 @@ export function Field({
   maxLength?: number;
   prefix?: string;
 }) {
+  const [focused, setFocused] = useState(false);
   return (
     <View style={styles.field}>
       {label ? <Caption>{label}</Caption> : null}
@@ -172,7 +177,10 @@ export function Field({
         maxLength={maxLength}
         autoCapitalize={prefix ? 'none' : 'sentences'}
         autoCorrect={!prefix}
-        style={[styles.input, multiline && styles.inputTall, big && styles.inputBig]}
+        selectionColor={Palette.paper}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        style={[styles.input, multiline && styles.inputTall, big && styles.inputBig, focused && styles.inputFocused]}
       />
     </View>
   );
@@ -197,10 +205,6 @@ const styles = StyleSheet.create({
   title: { fontFamily: FontFamily.display, fontSize: 28, lineHeight: 32, letterSpacing: -0.4, color: G.ink },
   caption: { fontFamily: FontFamily.ui, fontSize: 13, lineHeight: 17, color: G.inkSoft },
   footer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
     paddingHorizontal: Space.xl,
     paddingTop: Space.m,
     flexDirection: 'row',
@@ -230,7 +234,11 @@ const styles = StyleSheet.create({
     fontSize: 17,
     lineHeight: 24,
     color: G.ink,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+    outlineWidth: 0,
   },
+  inputFocused: { borderColor: Palette.paper },
   inputTall: { minHeight: 96, textAlignVertical: 'top' },
   inputBig: { fontFamily: FontFamily.display, fontSize: 24, lineHeight: 30 },
   buttonDisabled: { opacity: 0.32 },
