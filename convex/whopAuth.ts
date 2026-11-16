@@ -1,4 +1,4 @@
-import { ConvexError, v } from 'convex/values';
+import { ConvexError, v, type Infer } from 'convex/values';
 
 import { internal } from './_generated/api';
 import {
@@ -18,7 +18,14 @@ import { whopApiBase, whopEnvironment, whopRequest } from './whop';
 
 const SESSION_TTL_MS = 10 * 60 * 1000;
 const DEFAULT_RETURN_URL = 'cmhmaxwin://whop-auth';
-const RETURN_URL_PREFIXES = ['cmhmaxwin://', 'exp://', 'exps://', 'https://signal-app-wine.vercel.app/'];
+const RETURN_URL_PREFIXES = ['cmhmaxwin://', 'https://signal-app-wine.vercel.app/'];
+// Expo Go return URLs can name any host, so a production sign-in never returns to one.
+const DEV_RETURN_URL_PREFIXES = ['exp://', 'exps://'];
+
+function allowedReturnUrl(returnUrl: string | undefined): string {
+  const prefixes = whopEnvironment() === 'production' ? RETURN_URL_PREFIXES : [...RETURN_URL_PREFIXES, ...DEV_RETURN_URL_PREFIXES];
+  return returnUrl && prefixes.some((p) => returnUrl.startsWith(p)) ? returnUrl : DEFAULT_RETURN_URL;
+}
 
 export type ResolvedIdentity = { deviceToken: string; whopUserId?: string; name?: string };
 
@@ -197,8 +204,7 @@ export const startSignIn = action({
     const state = randomString();
     const codeVerifier = randomString();
     const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(codeVerifier));
-    const safeReturnUrl = returnUrl && RETURN_URL_PREFIXES.some((p) => returnUrl.startsWith(p)) ? returnUrl : DEFAULT_RETURN_URL;
-    await ctx.runMutation(internal.whopAuth.createSession, { state, deviceToken, codeVerifier, returnUrl: safeReturnUrl });
+    await ctx.runMutation(internal.whopAuth.createSession, { state, deviceToken, codeVerifier, returnUrl: allowedReturnUrl(returnUrl) });
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: clientId,
@@ -266,9 +272,10 @@ export const oauthCallback = httpAction(async (ctx, request) => {
   const state = url.searchParams.get('state');
   const session = state ? await ctx.runMutation(internal.whopAuth.consumeSession, { state }) : null;
   if (!session) return new Response('Sign-in link expired. Start again from the app.', { status: 400 });
-  const back = (result: string) => {
+  const back = (result: string, linkCode?: string) => {
     const target = new URL(session.returnUrl);
     target.searchParams.set('whop', result);
+    if (linkCode) target.searchParams.set('code', linkCode);
     return new Response(null, { status: 302, headers: { Location: target.toString() } });
   };
   const code = url.searchParams.get('code');
@@ -281,12 +288,11 @@ export const oauthCallback = httpAction(async (ctx, request) => {
       code_verifier: session.codeVerifier,
     });
     const user = await fetchMe(tokens.access_token);
-    await ctx.runMutation(internal.whopAuth.linkIdentity, {
-      deviceToken: session.deviceToken,
-      ...profile(user),
-      ...tokenFields(tokens),
-    });
-    return back('linked');
+    // Login CSRF: the browser that signed in may not be the device that started. Hand that browser a one-time code,
+    // and link only when the starting device redeems it (completeSignIn), so a forwarded authorize link links nobody.
+    const linkCode = randomString();
+    await ctx.runMutation(internal.whopAuth.holdLink, { linkCode, deviceToken: session.deviceToken, ...profile(user), ...tokenFields(tokens) });
+    return back('link', linkCode);
   } catch (error) {
     console.error('Whop sign-in failed', error instanceof ConvexError ? error.data.code : 'unknown');
     return back('error');
@@ -321,26 +327,71 @@ const profileArgs = {
   avatarUrl: v.optional(v.string()),
 };
 
-export const linkIdentity = internalMutation({
-  args: {
-    deviceToken: v.string(),
-    ...profileArgs,
-    accessToken: v.string(),
-    refreshToken: v.optional(v.string()),
-    expiresAt: v.number(),
-  },
-  handler: async (ctx, { deviceToken, accessToken, refreshToken, expiresAt, ...fields }) => {
-    const existing = await ctx.db
-      .query('identities')
-      .withIndex('by_token', (q) => q.eq('deviceToken', deviceToken))
-      .unique();
-    const row = { deviceToken, ...fields, environment: whopEnvironment(), linkedAt: Date.now() };
-    if (existing) await ctx.db.replace(existing._id, row);
-    else await ctx.db.insert('identities', row);
-    await writeTokens(ctx, { whopUserId: fields.whopUserId, accessToken, refreshToken, expiresAt });
-    await releaseTransfersFor(ctx, deviceToken, fields.whopUserId);
+const linkArgs = {
+  deviceToken: v.string(),
+  ...profileArgs,
+  accessToken: v.string(),
+  refreshToken: v.optional(v.string()),
+  expiresAt: v.number(),
+};
+const linkValidator = v.object(linkArgs);
+
+export const holdLink = internalMutation({
+  args: { linkCode: v.string(), ...linkArgs },
+  handler: async (ctx, args) => {
+    await ctx.db.insert('whopPendingLinks', { ...args, createdAt: Date.now() });
+    await ctx.scheduler.runAfter(SESSION_TTL_MS, internal.whopAuth.dropLink, { linkCode: args.linkCode });
   },
 });
+
+async function takeLink(ctx: MutationCtx, linkCode: string) {
+  const pending = await ctx.db
+    .query('whopPendingLinks')
+    .withIndex('by_code', (q) => q.eq('linkCode', linkCode))
+    .unique();
+  if (pending) await ctx.db.delete(pending._id);
+  return pending;
+}
+
+export const dropLink = internalMutation({
+  args: { linkCode: v.string() },
+  handler: async (ctx, { linkCode }) => {
+    await takeLink(ctx, linkCode);
+  },
+});
+
+// The device that started sign-in redeems the code the callback handed its browser. Any other device, a replayed
+// code, or one older than the session TTL links nothing, and the code is spent either way.
+export const completeSignIn = mutation({
+  args: { deviceToken: v.string(), linkCode: v.string() },
+  handler: async (ctx, { deviceToken, linkCode }): Promise<boolean> => {
+    const pending = await takeLink(ctx, linkCode);
+    if (!pending || pending.deviceToken !== deviceToken || pending.createdAt + SESSION_TTL_MS < Date.now()) return false;
+    const { _id, _creationTime, linkCode: _linkCode, createdAt: _createdAt, ...link } = pending;
+    await linkDevice(ctx, link);
+    return true;
+  },
+});
+
+export const linkIdentity = internalMutation({
+  args: linkArgs,
+  handler: (ctx, args) => linkDevice(ctx, args),
+});
+
+async function linkDevice(
+  ctx: MutationCtx,
+  { deviceToken, accessToken, refreshToken, expiresAt, ...fields }: Infer<typeof linkValidator>,
+) {
+  const existing = await ctx.db
+    .query('identities')
+    .withIndex('by_token', (q) => q.eq('deviceToken', deviceToken))
+    .unique();
+  const row = { deviceToken, ...fields, environment: whopEnvironment(), linkedAt: Date.now() };
+  if (existing) await ctx.db.replace(existing._id, row);
+  else await ctx.db.insert('identities', row);
+  await writeTokens(ctx, { whopUserId: fields.whopUserId, accessToken, refreshToken, expiresAt });
+  await releaseTransfersFor(ctx, deviceToken, fields.whopUserId);
+}
 
 export const updateProfile = internalMutation({
   args: { deviceToken: v.string(), ...profileArgs },

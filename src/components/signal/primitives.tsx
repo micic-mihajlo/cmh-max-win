@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
-import Animated, { FadeIn, FadeInUp, FadeOut } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInUp, FadeOut, ReduceMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FontFamily, Palette, Radius, RoleMeta, Space } from '@/constants/signal';
 import type { Presence, Role } from '@/lib/contract';
-import { PressScale } from '@/motion';
+import { PressScale, Spring } from '@/motion';
 
 import { Icon } from './icon';
 import { useMotionReduced } from './settings';
@@ -86,14 +86,13 @@ const presenceCopy: Record<Presence, string> = {
 };
 
 export function PresenceLine({ person }: { person: { name: string; presence: Presence } | null }) {
-  const reduced = useMotionReduced();
   return (
     <View style={styles.presence}>
       {person ? (
         <Animated.View
           key={`${person.name}-${person.presence}`}
-          entering={reduced ? undefined : FadeIn.duration(180)}
-          exiting={reduced ? undefined : FadeOut.duration(180)}
+          entering={FadeIn.duration(180).reduceMotion(ReduceMotion.Never)}
+          exiting={FadeOut.duration(180).reduceMotion(ReduceMotion.Never)}
           style={styles.presenceItem}>
           <Txt variant="caption" color={Palette.paperMuted} numberOfLines={1}>
             {`${person.name} ${presenceCopy[person.presence]}`}
@@ -162,9 +161,9 @@ export function TopBar({ left, right }: { left?: ReactNode; right?: ReactNode })
 
 export function IconButton({ name, label, onPress }: { name: Parameters<typeof Icon>[0]['name']; label: string; onPress?: () => void }) {
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} hitSlop={10} style={styles.iconButton}>
+    <PressScale accessibilityLabel={label} onPress={onPress} hitSlop={10} scaleTo={0.92} style={styles.iconButton}>
       <Icon name={name} size={17} color={Palette.paperMuted} />
-    </Pressable>
+    </PressScale>
   );
 }
 
@@ -174,7 +173,11 @@ export function Toast({ text, tone = 'info' }: { text: string; tone?: 'info' | '
   const accent = tone === 'warn' ? Palette.paper : tone === 'good' ? Palette.ok : Palette.paperMuted;
   return (
     <Animated.View
-      entering={reduced ? FadeIn : FadeInUp.springify().damping(18)}
+      entering={
+        reduced
+          ? FadeIn.duration(150).reduceMotion(ReduceMotion.Never)
+          : FadeInUp.springify().damping(Spring.press.damping).stiffness(Spring.press.stiffness).mass(Spring.press.mass)
+      }
       accessibilityRole="alert"
       accessibilityLiveRegion="polite"
       style={[styles.toast, { top: insets.top + Space.s }]}>

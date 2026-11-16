@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, View } from 'react-native';
-import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon } from '@/components/signal/icon';
@@ -9,6 +9,7 @@ import { useMotionReduced } from '@/components/signal/settings';
 import { Txt } from '@/components/signal/txt';
 import { Palette, Radius, Space } from '@/constants/signal';
 import type { RoomView } from '@/lib/contract';
+import { Sheet } from '@/motion';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -30,9 +31,10 @@ export function CaseMenu({ room, mode, actions = {} }: { room: RoomView; mode: M
   const hostName = host(room)?.name ?? 'the host';
   return (
     <>
-      <AnimatedPressable accessibilityLabel="Close menu" onPress={actions.onClose} entering={reduced ? undefined : FadeIn} style={styles.scrim} />
+      <AnimatedPressable accessibilityLabel="Close menu" onPress={actions.onClose} entering={Sheet.scrimIn} exiting={Sheet.scrimOut} style={styles.scrim} />
       <Animated.View
-        entering={reduced ? undefined : SlideInDown.springify().damping(20)}
+        entering={Sheet.enter(reduced)}
+        exiting={Sheet.exit(reduced)}
         style={[styles.sheet, { paddingBottom: insets.bottom + Space.l }]}>
         <View style={styles.handle} />
         {mode === 'confirm-leave' ? (

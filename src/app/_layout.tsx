@@ -2,6 +2,7 @@ import { Inter_400Regular, Inter_400Regular_Italic, Inter_500Medium, Inter_600Se
 import { ConvexProvider } from 'convex/react';
 import { DefaultTheme, Stack, ThemeProvider, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import * as SystemUI from 'expo-system-ui';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
@@ -9,8 +10,10 @@ import { Platform, StyleSheet, View } from 'react-native';
 import { usePushTapRouting } from '@/components/showcase/social/push';
 import { Palette } from '@/constants/signal';
 import { convex } from '@/lib/convex';
+import { useReduced } from '@/motion';
 
 SplashScreen.preventAutoHideAsync();
+SystemUI.setBackgroundColorAsync(Palette.ink).catch(() => {});
 
 const theme = {
   ...DefaultTheme,
@@ -24,11 +27,22 @@ export default function RootLayout() {
     if (ready) SplashScreen.hideAsync();
   }, [ready]);
   usePushTapRouting(ready);
+  const reduced = useReduced();
   const projected = /^\/drop\/[^/]+\/host$|^\/mocks\/2\d-host/.test(usePathname());
 
   if (!ready) return null;
 
-  const stack = <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Palette.ink } }} />;
+  // iOS slide on both platforms (Android's default is a fade-up); Reduce Motion crossfades instead.
+  // The root view shares the page colour, so nothing white shows behind a screen mid-transition.
+  const stack = (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: Palette.ink },
+        animation: reduced ? 'fade' : 'ios_from_right',
+      }}
+    />
+  );
   const app = (
     <ThemeProvider value={theme}>
       <StatusBar style="dark" />

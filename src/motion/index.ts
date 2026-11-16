@@ -19,5 +19,6 @@ export {
 export { PressScale } from './press-scale';
 export { ReducedMotionOverride, useReduced } from './reduced';
 export { Seal } from './seal';
+export { Sheet } from './sheet';
 export { StatusBanner } from './status-banner';
 export { Duration, Ease, Spring, type SpringToken } from './tokens';

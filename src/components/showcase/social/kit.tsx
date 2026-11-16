@@ -63,12 +63,11 @@ export function Screen({
   );
 }
 
-const washes = ['#F3EDE0', '#E7EDF4', '#F4E6E1'];
-export const Wash = { neutral: '#F1F0EB', pick: (key: string) => washes[key.charCodeAt(0) % washes.length] };
+export const Wash = { neutral: Palette.paperShade };
 
 export function Avatar({ initials, uri, size = 44 }: { initials: string; uri?: string; size?: number }) {
   return (
-    <View style={[styles.avatar, { width: size, height: size, borderRadius: size, backgroundColor: Wash.pick(initials) }]}>
+    <View style={[styles.avatar, { width: size, height: size, borderRadius: size, backgroundColor: Wash.neutral }]}>
       {uri ? (
         <Image source={{ uri }} style={{ width: size, height: size, borderRadius: size }} contentFit="cover" transition={150} accessibilityIgnoresInvertColors />
       ) : (
