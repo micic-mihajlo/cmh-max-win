@@ -3,10 +3,11 @@ import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 
 import { HostScreen } from '@/components/drops/host';
+import { HostControls } from '@/components/drops/host-controls';
 import { ClosedScreen } from '@/components/screens/closed';
 import { Arrive, Pending } from '@/components/signal/backdrop';
 import { Toast } from '@/components/signal/primitives';
-import { useDealSquads, useHostView } from '@/hooks/use-drops';
+import { useDealSquads, useHostAwardSquads, useHostEndDrop, useHostView } from '@/hooks/use-drops';
 import { usePlayerName } from '@/hooks/use-player-name';
 import { toSignalError } from '@/lib/signal-error';
 
@@ -16,6 +17,8 @@ export default function HostRoute() {
   const view = useHostView(id);
   const { name } = usePlayerName();
   const deal = useDealSquads(id);
+  const endDrop = useHostEndDrop(id);
+  const awardSquads = useHostAwardSquads(id);
   const [dealing, setDealing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [minToDeal, setMinToDeal] = useState<number>();
@@ -28,6 +31,7 @@ export default function HostRoute() {
         hostName={name ?? 'Danny'}
         dealing={dealing}
         minToDeal={minToDeal}
+        controls={<HostControls view={view} onEnd={endDrop} onAward={awardSquads} />}
         onDeal={async () => {
           setDealing(true);
           setError(null);
