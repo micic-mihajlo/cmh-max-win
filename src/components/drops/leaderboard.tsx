@@ -20,11 +20,11 @@ const squadNames = (list: string[], me: string | null) => {
   return names(at < 0 ? list : list.map((n, i) => (i === at ? 'you' : n)));
 };
 
-// Only our row carries a time; other squads are dimmed labels.
+// Solved squads carry their time; other squads are dimmed labels.
 function Row({ row, me }: { row: LeaderboardRow; me: string | null }) {
   return (
     <View style={styles.row}>
-      <Txt variant="bodyStrong" color={row.isMine ? Palette.paper : Palette.paperMuted} style={styles.rank}>
+      <Txt variant="bodyStrong" color={row.isMine ? Palette.ember : Palette.paperMuted} style={styles.rank}>
         {row.rank ?? ''}
       </Txt>
       {row.isMine && row.memberNames.length ? (
@@ -40,7 +40,13 @@ function Row({ row, me }: { row: LeaderboardRow; me: string | null }) {
           {row.isMine ? ' · you' : ''}
         </Txt>
       )}
-      {row.isMine ? <Txt variant="time">{row.status === 'solving' ? 'Racing' : short(row.solveMs ?? 0)}</Txt> : null}
+      {row.isMine ? (
+        <Txt variant="time">{row.status === 'solving' ? 'Racing' : short(row.solveMs ?? 0)}</Txt>
+      ) : row.solveMs !== null ? (
+        <Txt variant="time" color={Palette.paperMuted}>
+          {short(row.solveMs)}
+        </Txt>
+      ) : null}
     </View>
   );
 }
@@ -150,9 +156,9 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'flex-end', gap: Space.m },
   spots: { flexDirection: 'row', gap: 6 },
   spot: { flex: 1, height: 8, borderRadius: Radius.pill, backgroundColor: Palette.panelRaised },
-  spotTaken: { backgroundColor: Palette.ember },
+  spotTaken: { backgroundColor: Palette.paper },
   list: { backgroundColor: Palette.panel, borderRadius: 16, paddingHorizontal: Space.l },
-  row: { flexDirection: 'row', alignItems: 'center', gap: Space.m, height: 56 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: Space.m, height: 64 },
   rank: { minWidth: 28, fontVariant: ['tabular-nums'] },
   card: {
     gap: Space.s,

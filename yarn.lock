@@ -3814,6 +3814,7 @@ __metadata:
     expo-glass-effect: "npm:~58.0.5"
     expo-haptics: "npm:~58.0.8"
     expo-image: "npm:~58.0.18"
+    expo-keep-awake: "npm:~58.0.4"
     expo-linking: "npm:~58.0.17"
     expo-notifications: "npm:~58.1.9"
     expo-router: "npm:~58.0.31"

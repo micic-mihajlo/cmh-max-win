@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/signal/backdrop';
@@ -50,6 +51,7 @@ export function CreatorSetupScreen({
   onChallenge,
   error,
   onOpen,
+  account,
 }: {
   drop: CreatorDrop;
   live?: { entrantCount: number; shareUrl: string };
@@ -60,6 +62,7 @@ export function CreatorSetupScreen({
   onChallenge?: (challenge: Challenge) => void;
   error?: string | null;
   onOpen?: () => void;
+  account?: ReactNode;
 }) {
   return (
     <Screen
@@ -126,6 +129,7 @@ export function CreatorSetupScreen({
           </>
         ) : null}
       </View>
+      {account}
       {error ? (
         <Txt variant="body" color={Palette.danger}>
           {error}
@@ -203,5 +207,5 @@ const styles = StyleSheet.create({
   },
   potOn: { backgroundColor: Palette.paper, borderColor: Palette.paper },
   potOff: { opacity: 0.4 },
-  cta: { height: 54, borderRadius: 16, backgroundColor: Palette.paper, alignItems: 'center', justifyContent: 'center' },
+  cta: { height: 52, borderRadius: 16, backgroundColor: Palette.paper, alignItems: 'center', justifyContent: 'center' },
 });

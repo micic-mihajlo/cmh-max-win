@@ -15,12 +15,9 @@ export function SampleStudioHome() {
       footer={<PrimaryButton title="New drop" onPress={() => router.push('/studio/builder?fresh=1')} />}>
       <View style={styles.live}>
         <View style={studio.between}>
-          <View style={studio.row}>
-            <View style={styles.liveDot} />
-            <Txt variant="smallStrong" color={G.ink}>
-              Live now
-            </Txt>
-          </View>
+          <Txt variant="smallStrong" color={G.ink}>
+            Happening now
+          </Txt>
           <Txt variant="small" color={G.inkSoft}>
             ${liveDrop.bounty} · first {liveDrop.winners} squads
           </Txt>
@@ -105,7 +102,6 @@ const styles = StyleSheet.create({
   right: { alignItems: 'flex-end' },
   live: { gap: Space.m, marginTop: Space.s },
   liveTitle: { fontFamily: FontFamily.display, fontSize: 22, lineHeight: 28, color: G.ink },
-  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: G.ink },
   tile: {
     width: 40,
     height: 46,

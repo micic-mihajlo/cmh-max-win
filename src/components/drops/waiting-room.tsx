@@ -42,12 +42,9 @@ export function WaitingRoomScreen({ drop, offset, onBack }: { drop: DropView; of
           </View>
           <View style={styles.flex}>
             <Txt variant="bodyStrong">{display}</Txt>
-            <View style={styles.liveRow}>
-              <View style={styles.live} />
-              <Txt variant="small" color={Palette.paperMuted}>
-                is live
-              </Txt>
-            </View>
+            <Txt variant="small" color={Palette.paperMuted}>
+              is hosting
+            </Txt>
           </View>
         </View>
         <Txt variant="display" style={styles.title}>
@@ -112,8 +109,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  liveRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  live: { width: 6, height: 6, borderRadius: 3, backgroundColor: Palette.ember },
   title: { marginTop: Space.l },
   countBox: { alignItems: 'center', gap: 4, marginTop: Space.s },
   count: { fontFamily: FontFamily.uiMedium, fontSize: 76, lineHeight: 84, letterSpacing: -2, color: Palette.paper, fontVariant: ['tabular-nums'] },

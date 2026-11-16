@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
     padding: Space.m,
     borderRadius: 20,
     backgroundColor: Palette.card,
-    shadowColor: '#161513',
+    shadowColor: Palette.paper,
     shadowOpacity: 0.06,
     shadowRadius: 24,
     shadowOffset: { width: 0, height: 8 },

@@ -27,7 +27,7 @@ function Community() {
                 load(c);
                 router.push('/studio/preview');
               }}>
-              <View style={[styles.cover, { backgroundColor: c.tone }]}>
+              <View style={styles.cover}>
                 <Caption>
                   {settings.find((s) => s.id === c.setting)!.label} · {c.difficulty}
                 </Caption>
@@ -62,7 +62,7 @@ function Community() {
 const styles = StyleSheet.create({
   item: { gap: Space.m, marginBottom: Space.m },
   flex: { flex: 1 },
-  cover: { height: 140, borderRadius: 16, padding: Space.l, justifyContent: 'space-between' },
+  cover: { height: 140, borderRadius: 16, backgroundColor: G.fill, padding: Space.l, justifyContent: 'space-between' },
   coverTitle: { fontFamily: FontFamily.display, fontSize: 28, lineHeight: 32, letterSpacing: -0.4, color: G.ink },
 });
 

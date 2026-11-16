@@ -1,7 +1,8 @@
-import { Redirect, router } from 'expo-router';
+import { Redirect, router, type Href } from 'expo-router';
 import { useState } from 'react';
 import { Platform } from 'react-native';
 
+import { YourChallenges } from '@/components/home/your-challenges';
 import { CoverScreen, type JoinState } from '@/components/screens/cover';
 import { NameEntryScreen } from '@/components/screens/name-entry';
 import { WebHomeScreen } from '@/components/screens/web-home';
@@ -13,8 +14,17 @@ import { gallery } from '@/mocks/load';
 
 export default function Index() {
   if (gallery) return <Redirect href="/mocks" />;
-  if (Platform.OS === 'web') return <WebHomeScreen />;
+  if (Platform.OS === 'web') return <WebHome />;
   return <Cover />;
+}
+
+function WebHome() {
+  const active = useActiveRoom();
+  const activeDrop = useActiveDrop(active?.code ?? null);
+  const resume = active
+    ? () => (activeDrop ? router.push({ pathname: '/drop/[id]', params: { id: activeDrop.dropId } }) : router.push({ pathname: '/room/[code]', params: { code: active.code } }))
+    : undefined;
+  return <WebHomeScreen onResume={resume} />;
 }
 
 function Cover() {
@@ -81,9 +91,12 @@ function Cover() {
       passphrase={passphrase}
       creating={creating}
       join={join ?? undefined}
+      mine={<YourChallenges />}
       on={{
         onJoinDrop: () => router.push('/join'),
         onHostDrop: () => router.push('/host'),
+        onCreate: () => router.push('/studio'),
+        onStreamers: () => router.push('/showcase/streamers' as Href),
         onStart: () => {
           setJoin(null);
           start(name);

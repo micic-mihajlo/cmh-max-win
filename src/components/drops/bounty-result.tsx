@@ -120,5 +120,5 @@ const styles = StyleSheet.create({
   status: { flexDirection: 'row', alignItems: 'center', gap: Space.s },
   split: { paddingHorizontal: Space.xl },
   host: { alignSelf: 'flex-start', paddingHorizontal: Space.xl, paddingVertical: Space.s },
-  row: { flexDirection: 'row', alignItems: 'center', gap: Space.m, height: 44 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: Space.m, height: 64 },
 });

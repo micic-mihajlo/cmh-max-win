@@ -1,4 +1,4 @@
-import { Redirect } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 
 import { JoinCodeScreen, type JoinPhase } from '@/components/drops/join-code';
@@ -8,6 +8,7 @@ import { usePlayerName } from '@/hooks/use-player-name';
 
 // Phone join by code: name once, four tiles, then wait for the deal and hand off to the squad reveal.
 // A code from a link survives the name gate and joins as soon as the name is saved.
+// A device that already holds a seat in that drop (a re-scan or reload after the deal) goes straight back to it.
 export function JoinFlow({ initial }: { initial: string | null }) {
   const { name, save } = usePlayerName();
   const tried = useRef(false);
@@ -19,6 +20,8 @@ export function JoinFlow({ initial }: { initial: string | null }) {
   const drop = useDrop(dropId);
   const [failed, setFailed] = useState<string | null>(null);
   const known = useDropByCode(phase === 'error' ? failed : null);
+  const linked = useDropByCode(initial);
+  const seated = [linked, known].find((d) => d?.me.entered);
 
   const submit = async (full: string) => {
     if (!name) return;
@@ -38,6 +41,7 @@ export function JoinFlow({ initial }: { initial: string | null }) {
     submit(initial);
   });
 
+  if (seated) return <Redirect href={{ pathname: '/drop/[id]', params: { id: seated.dropId } }} />;
   if (name === undefined) return null;
   if (name === null) return <NameEntryScreen name={draft} onChangeName={setDraft} onContinue={() => save(draft.trim())} />;
   if (dropId && (drop?.me.squad || drop?.me.entered)) return <Redirect href={{ pathname: '/drop/[id]', params: { id: dropId } }} />;
@@ -53,6 +57,7 @@ export function JoinFlow({ initial }: { initial: string | null }) {
         if (phase === 'error') setPhase('typing');
       }}
       onSubmit={submit}
+      onScan={() => router.push('/scan')}
     />
   );
 }

@@ -128,6 +128,7 @@ export default defineSchema({
     conceptOnly: v.optional(v.boolean()), // hosted drops never take the sandbox payout path
     strictSquadSize: v.optional(v.boolean()), // demo controls: every squad is exactly squadSize, leftovers unmatched
     template: v.optional(v.literal('split-passphrase')), // hostDrop: squads play a split passphrase instead of the mystery
+    minPlayers: v.optional(v.number()), // hostDrop: players dealSquads waits for (squadSize..150); unset: squadSize
     payoutMode: v.optional(v.union(v.literal('real'), v.literal('concept'))), // hostDrop's pick; absent: as before
     startsAt: v.number(),
     status: v.union(v.literal('scheduled'), v.literal('live'), v.literal('ended')),

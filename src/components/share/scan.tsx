@@ -1,6 +1,6 @@
 import { CameraView, type BarcodeScanningResult } from 'expo-camera';
 import React, { useEffect, useRef, useState } from 'react';
-import { StyleSheet, TextInput, View, type StyleProp, type ViewStyle } from 'react-native';
+import { KeyboardAvoidingView, StyleSheet, TextInput, View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, { FadeIn, FadeOut, useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -113,6 +113,7 @@ export function ManualCode({
   const shake = useSharedValue(0);
   const row = useAnimatedStyle(() => ({ transform: [{ translateX: shake.get() }] }));
   const copy = COPY[camera];
+  const [typing, setTyping] = useState(false);
 
   const type = (raw: string) => {
     const pasted = raw.length > 4 ? parseChallengeCode(raw) : null;
@@ -137,66 +138,74 @@ export function ManualCode({
   };
 
   return (
-    <Screen
-      header={
-        <View style={styles.header}>
-          <CloseButton onPress={onClose} style={styles.roundQuiet} />
-        </View>
-      }
-      contentStyle={styles.manual}>
-      <View style={styles.copy}>
-        {SYMBOLS ? (
-          <View style={styles.badge}>
-            <Icon name={camera === 'denied' ? 'video.slash' : 'qrcode.viewfinder'} size={28} />
+    <KeyboardAvoidingView behavior={process.env.EXPO_OS === 'ios' ? 'padding' : undefined} style={styles.fill}>
+      <Screen
+        scroll={false}
+        header={
+          <View style={styles.header}>
+            <CloseButton onPress={onClose} style={styles.roundQuiet} />
           </View>
-        ) : null}
-        <Txt variant="title" style={styles.center}>
-          {copy.title}
-        </Txt>
-        <Txt variant="body" color={Palette.paperMuted} style={styles.center}>
-          {copy.body}
-        </Txt>
-      </View>
-      {camera === 'ask' && onAllow ? <Button title="Allow camera" onPress={onAllow} /> : null}
-      {camera === 'denied' && onSettings ? <Button title="Open Settings" variant="secondary" onPress={onSettings} /> : null}
-      {camera === 'manual' && onScan ? <Button title="Scan instead" variant="secondary" onPress={onScan} /> : null}
-      <View style={styles.enter}>
-        <Txt variant="label" color={Palette.paperMuted} style={styles.center}>
-          {camera === 'ask' || camera === 'denied' ? 'Or enter the code' : 'Code'}
-        </Txt>
-        <PressScale
-          accessibilityRole="button"
-          accessibilityLabel={`Challenge code ${code.split('').join(' ') || 'empty'}`}
-          scaleTo={0.98}
-          onPress={() => input.current?.focus()}>
-          <Animated.View style={[styles.tiles, row]}>
-            {Array.from({ length: 4 }, (_, i) => (
-              <View key={i} style={[styles.tile, code[i] ? styles.tileFilled : null, error && styles.tileError]}>
-                <Txt style={styles.letter}>{code[i] ?? ''}</Txt>
-              </View>
-            ))}
-          </Animated.View>
-        </PressScale>
-        <Txt variant="small" color={error ? Palette.danger : Palette.paperMuted} style={styles.center}>
-          {error ? 'Codes skip I, O, 0 and 1. Check the screen.' : 'You can paste a Signal link too.'}
-        </Txt>
-      </View>
-      <TextInput
-        ref={input}
-        value={code}
-        onChangeText={type}
-        autoFocus={camera === 'manual' || camera === 'off'}
-        autoCapitalize="characters"
-        autoCorrect={false}
-        autoComplete="off"
-        caretHidden
-        style={styles.hidden}
-      />
-    </Screen>
+        }
+        contentStyle={styles.manual}>
+        <View style={styles.copy}>
+          {SYMBOLS && !typing ? (
+            <View style={styles.badge}>
+              <Icon name={camera === 'denied' ? 'video.slash' : 'qrcode.viewfinder'} size={28} />
+            </View>
+          ) : null}
+          <Txt variant="title" style={styles.center}>
+            {copy.title}
+          </Txt>
+          {typing ? null : (
+            <Txt variant="body" color={Palette.paperMuted} style={styles.center}>
+              {copy.body}
+            </Txt>
+          )}
+        </View>
+        {camera === 'ask' && onAllow ? <Button title="Allow camera" onPress={onAllow} /> : null}
+        {camera === 'denied' && onSettings ? <Button title="Open Settings" variant="secondary" onPress={onSettings} /> : null}
+        {camera === 'manual' && onScan ? <Button title="Scan instead" variant="secondary" onPress={onScan} /> : null}
+        <View style={styles.enter}>
+          <Txt variant="label" color={Palette.paperMuted} style={styles.center}>
+            {camera === 'ask' || camera === 'denied' ? 'Or enter the code' : 'Code'}
+          </Txt>
+          <PressScale
+            accessibilityRole="button"
+            accessibilityLabel={`Challenge code ${code.split('').join(' ') || 'empty'}`}
+            scaleTo={0.98}
+            onPress={() => input.current?.focus()}>
+            <Animated.View style={[styles.tiles, row]}>
+              {Array.from({ length: 4 }, (_, i) => (
+                <View key={i} style={[styles.tile, code[i] ? styles.tileFilled : null, error && styles.tileError]}>
+                  <Txt style={styles.letter}>{code[i] ?? ''}</Txt>
+                </View>
+              ))}
+            </Animated.View>
+          </PressScale>
+          <Txt variant="small" color={error ? Palette.danger : Palette.paperMuted} style={styles.center}>
+            {error ? 'Codes skip I, O, 0 and 1. Check the screen.' : 'You can paste a Signal link too.'}
+          </Txt>
+        </View>
+        <TextInput
+          ref={input}
+          value={code}
+          onChangeText={type}
+          onFocus={() => setTyping(true)}
+          onBlur={() => setTyping(false)}
+          autoFocus={camera === 'off'}
+          autoCapitalize="characters"
+          autoCorrect={false}
+          autoComplete="off"
+          caretHidden
+          style={styles.hidden}
+        />
+      </Screen>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  fill: { flex: 1 },
   camera: { flex: 1, backgroundColor: Palette.paper },
   frameWrap: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, alignItems: 'center', justifyContent: 'center' },
   frame: {
