@@ -13,37 +13,46 @@ export type AccountView = { username: string | null; displayName: string; avatar
 
 export function AccountSection({
   account,
+  bare,
   onSignIn,
   onSignOut,
 }: {
   account: AccountView | null;
+  bare?: boolean;
   onSignIn?: () => void;
   onSignOut: () => void;
 }) {
   if (!account && !onSignIn) return null;
+  const handle = account?.username ? `@${account.username}` : account?.displayName;
   return (
     <Section title="Account">
       {account ? (
         <View style={showcase.row}>
-          <Avatar initials={account.displayName.slice(0, 1)} uri={account.avatarUrl ?? undefined} size={44} />
+          {bare ? null : <Avatar initials={account.displayName.slice(0, 1)} uri={account.avatarUrl ?? undefined} size={44} />}
           <View style={showcase.flex}>
             <Txt variant="bodyStrong" numberOfLines={1}>
-              {account.displayName}
+              {bare ? `Signed in as ${handle}` : account.displayName}
             </Txt>
-            {account.username ? (
-              <Txt variant="caption" color={Palette.paperMuted} numberOfLines={1}>
-                @{account.username}
-              </Txt>
-            ) : null}
+            <Txt variant="caption" color={Palette.paperMuted} numberOfLines={1}>
+              {bare ? 'Your Whop account' : handle}
+            </Txt>
           </View>
-          <TextAction title="Sign out" muted onPress={onSignOut} />
+          <View style={styles.signOut}>
+            <TextAction title="Sign out" muted onPress={onSignOut} />
+            <Txt variant="caption" color={Palette.paperMuted}>
+              Only on this device
+            </Txt>
+          </View>
         </View>
       ) : (
         <PressScale accessibilityRole="button" scaleTo={0.98} haptic="tap" onPress={onSignIn} style={showcase.row}>
+          {bare ? null : <Avatar initials="" size={44} />}
           <View style={showcase.flex}>
-            <Txt variant="bodyStrong">Sign in with Whop</Txt>
-            <Txt variant="caption" color={Palette.paperMuted}>
-              Keep your follows and history on every device
+            <Txt variant="bodyStrong" numberOfLines={1}>
+              Sign in with Whop
+            </Txt>
+            <Txt variant="caption" color={Palette.paperMuted} numberOfLines={1}>
+              Keep your follows on every device
             </Txt>
           </View>
           <Txt variant="name" color={Palette.paperMuted} style={styles.chevron}>
@@ -57,23 +66,24 @@ export function AccountSection({
 
 const sampleAccount: AccountView = { displayName: 'Chris Walker', username: 'chris', avatarUrl: null };
 
-export function Account() {
-  return feedFixtures ? <SampleAccount /> : <LiveAccount />;
+export function Account({ bare }: { bare?: boolean }) {
+  return feedFixtures ? <SampleAccount bare={bare} /> : <LiveAccount bare={bare} />;
 }
 
-function SampleAccount() {
+function SampleAccount({ bare }: { bare?: boolean }) {
   const [account, setAccount] = useState<AccountView | null>(null);
-  return <AccountSection account={account} onSignIn={() => setAccount(sampleAccount)} onSignOut={() => setAccount(null)} />;
+  return <AccountSection account={account} bare={bare} onSignIn={() => setAccount(sampleAccount)} onSignOut={() => setAccount(null)} />;
 }
 
-function LiveAccount() {
+function LiveAccount({ bare }: { bare?: boolean }) {
   const state = useWhopAccount();
   const signOut = useSignOutWhop();
   const a = state?.available ? state.account : null;
   if (!a) return null;
-  return <AccountSection account={{ displayName: a.name, username: a.username, avatarUrl: a.avatarUrl }} onSignOut={() => void signOut()} />;
+  return <AccountSection account={{ displayName: a.name, username: a.username, avatarUrl: a.avatarUrl }} bare={bare} onSignOut={() => void signOut()} />;
 }
 
 const styles = StyleSheet.create({
   chevron: { marginLeft: Space.s },
+  signOut: { alignItems: 'flex-end', gap: 2 },
 });
