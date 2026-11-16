@@ -203,14 +203,12 @@ function Console({ id, host, live }: { id: string; host: HostConsoleView; live: 
     (round.phase === 'question' || round.phase === 'leaderboard') &&
     (pulse.phase === 'question' || pulse.phase === 'reveal')
   ) {
-    const q = round.phase === 'question' && round.index !== null ? questions[round.index] : undefined;
     return (
       <Stage
         pulse={pulse}
         round={{ ...round, questionCount }}
         controls={
           <>
-            {q ? <Peek key={round.index} answer={q.choices[q.correct]} /> : null}
             {secondary}
             <View style={styles.flex}>{primary}</View>
           </>
