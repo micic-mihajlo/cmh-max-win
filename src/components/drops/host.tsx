@@ -12,6 +12,8 @@ import { Brass, money, short } from './ui';
 
 export const MIN_TO_DEAL = 4;
 const NEWEST = 3;
+// Past this many squads the board switches to one-line cells so 34 squads fit a 1280×720 projector.
+const DENSE_AFTER = 12;
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL;
 
 // The shared big screen before the deal: the code is the hero, the QR (code only) is secondary.
@@ -81,6 +83,7 @@ function HostBoard({ view }: { view: HostView }) {
   const solve = new Map(view.solves.map((s) => [s.squadLabel, s]));
   const order = [...view.squads].sort((a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity));
   const filled = Math.min(view.solves.length, view.bounty.winnerSlots);
+  const dense = order.length > DENSE_AFTER;
   return (
     <Screen>
       <View style={styles.boardHead}>
@@ -101,29 +104,35 @@ function HostBoard({ view }: { view: HostView }) {
         ))}
       </View>
       <View style={styles.squads}>
-        <Stagger stagger={30} itemStyle={styles.squadCell}>
+        <Stagger stagger={30} itemStyle={dense ? styles.squadCellDense : styles.squadCell}>
           {order.map((s) => {
             const solved = solve.get(s.squadLabel);
             return (
-              <View key={s.squadLabel} style={[styles.squad, solved?.isWinner && styles.squadWinner]}>
+              <View key={s.squadLabel} style={[styles.squad, dense && styles.squadDense, solved?.isWinner && styles.squadWinner]}>
                 <View style={styles.squadHead}>
-                  <Txt variant="name" style={styles.flex}>
+                  <Txt variant={dense ? 'bodyStrong' : 'name'} style={styles.flex}>
                     {s.squadLabel}
                   </Txt>
                   {solved ? (
                     <>
                       <Txt variant="time">{short(solved.solveMs)}</Txt>
-                      <Seal locked color={solved.isWinner ? Palette.ember : Palette.paperMuted} initial={String(solved.place)} size={32} />
+                      <Seal locked color={solved.isWinner ? Palette.ember : Palette.paperMuted} initial={String(solved.place)} size={dense ? 24 : 32} />
                     </>
                   ) : null}
                 </View>
-                <View style={styles.chips}>
-                  {s.memberNames.map((m, i) => (
-                    <View key={`${m}-${i}`} style={styles.chip}>
-                      <Txt variant="small">{m}</Txt>
-                    </View>
-                  ))}
-                </View>
+                {dense ? (
+                  <Txt variant="small" color={Palette.paperMuted} numberOfLines={1}>
+                    {s.memberNames.join(', ')}
+                  </Txt>
+                ) : (
+                  <View style={styles.chips}>
+                    {s.memberNames.map((m, i) => (
+                      <View key={`${m}-${i}`} style={styles.chip}>
+                        <Txt variant="small">{m}</Txt>
+                      </View>
+                    ))}
+                  </View>
+                )}
               </View>
             );
           })}
@@ -154,6 +163,7 @@ const styles = StyleSheet.create({
   barFill: { flex: 1, backgroundColor: Palette.ember },
   squads: { flexDirection: 'row', flexWrap: 'wrap', gap: Space.s },
   squadCell: { flexGrow: 1, flexBasis: 280 },
+  squadCellDense: { flexGrow: 1, flexBasis: 220 },
   squad: {
     gap: Space.s,
     padding: Space.l,
@@ -163,6 +173,7 @@ const styles = StyleSheet.create({
     borderColor: Palette.hairline,
   },
   squadWinner: { borderColor: Palette.ember, borderWidth: 1 },
+  squadDense: { gap: 2, paddingVertical: Space.s, paddingHorizontal: Space.m },
   squadHead: { flexDirection: 'row', alignItems: 'center', gap: Space.m },
   flex: { flex: 1 },
   center: { textAlign: 'center' },
