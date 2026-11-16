@@ -16,9 +16,16 @@ export function YourChallenges() {
   if (!mine?.length) return null;
   return (
     <View style={styles.section}>
-      <Txt variant="label" color={Palette.paperMuted}>
-        Your challenges
-      </Txt>
+      <View style={styles.head}>
+        <Txt variant="label" color={Palette.paperMuted} style={styles.flex}>
+          Your challenges
+        </Txt>
+        {mine.length > SHOWN ? (
+          <PressScale accessibilityRole="link" haptic="tap" onPress={() => router.push('/studio')} hitSlop={12}>
+            <Txt variant="label">See all</Txt>
+          </PressScale>
+        ) : null}
+      </View>
       {mine.slice(0, SHOWN).map((c) => (
         <PressScale
           key={c.challengeId}
@@ -35,10 +42,8 @@ export function YourChallenges() {
               {statusLine(c)}
             </Txt>
           </View>
-          {c.status === 'live' ? <View style={styles.liveDot} /> : null}
         </PressScale>
       ))}
-      {mine.length > SHOWN ? <QuietLink title="See all" onPress={() => router.push('/studio')} /> : null}
     </View>
   );
 }
@@ -55,7 +60,7 @@ export function QuietLink({ title, onPress, disabled }: { title: string; onPress
 
 function statusLine(c: ChallengeSummaryView) {
   if (c.status === 'draft') return 'Draft';
-  if (c.status === 'live') return 'Running';
+  if (c.status === 'live') return 'In progress';
   if (c.status === 'published') return 'Open';
   const when = c.endedAt ? ' · ' + new Date(c.endedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
   return (c.status === 'cancelled' ? 'Cancelled' : 'Ended') + when;
@@ -69,8 +74,8 @@ function hrefFor(c: ChallengeSummaryView): Href {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  head: { flexDirection: 'row', alignItems: 'center' },
   section: { gap: Space.xs, paddingTop: Space.m },
   row: { flexDirection: 'row', alignItems: 'center', gap: Space.m, minHeight: 52, paddingVertical: Space.s },
-  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Palette.ember },
   link: { minHeight: 36, alignItems: 'center', justifyContent: 'center' },
 });

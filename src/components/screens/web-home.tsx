@@ -19,7 +19,7 @@ export function WebHomeScreen() {
       footer={
         <>
           <Button title="Start a game" onPress={() => router.push('/host')} />
-          <Button title="Play on your phone" variant="secondary" onPress={() => window.location.assign('/expo')} />
+          <QuietLink title="Play on your phone" onPress={() => window.location.assign('/expo')} />
           <QuietLink title="Create a challenge" onPress={() => router.push('/studio')} />
           <QuietLink title="Streamers" onPress={() => router.push('/showcase/streamers' as Href)} />
         </>
