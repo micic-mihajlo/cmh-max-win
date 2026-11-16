@@ -46,15 +46,19 @@ export function names(list: string[]) {
 
 // One line of prize maths for players and the host preview: "$3 · first team · $1.00 each player".
 export function BountyLine({ bounty, squadSize }: { bounty: BountyView; squadSize: number }) {
-  const teams = bounty.winnerSlots === 1 ? 'first team' : `first ${bounty.winnerSlots} teams`;
   return (
     <View style={styles.bounty}>
       <Txt variant="title" color={Palette.paper}>
         {money(bounty.totalCents)}
       </Txt>
-      <Txt variant="small" color={Palette.paperMuted} style={styles.flex}>
-        {`${teams} · ${money2(Math.floor(bounty.perSquadCents / squadSize))} each player`}
-      </Txt>
+      <View style={styles.flex}>
+        <Txt variant="small" color={Palette.paperMuted} numberOfLines={1}>
+          {bounty.winnerSlots === 1 ? 'First team' : `First ${bounty.winnerSlots} teams`}
+        </Txt>
+        <Txt variant="small" color={Palette.paperMuted} numberOfLines={1}>
+          {`${money2(Math.floor(bounty.perSquadCents / squadSize))} each player`}
+        </Txt>
+      </View>
     </View>
   );
 }
@@ -100,7 +104,7 @@ export function Stat({ label, value, accent }: { label: string; value: string; a
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  bounty: { flexDirection: 'row', alignItems: 'baseline', gap: Space.s },
+  bounty: { flexDirection: 'row', alignItems: 'center', gap: Space.m },
   card: {
     gap: Space.m,
     padding: Space.l,
