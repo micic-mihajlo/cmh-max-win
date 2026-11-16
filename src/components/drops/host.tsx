@@ -184,7 +184,7 @@ function PhoneBoard({ view, controls }: { view: HostView; controls?: ReactNode }
     <Screen>
       <View style={styles.boardHead}>
         <Txt variant="title" style={styles.flex}>
-          {done ? 'Winners' : view.solves.length ? 'Race' : 'Squads'}
+          {done ? (winners.length ? 'Winners' : 'Ended') : view.solves.length ? 'Race' : 'Squads'}
         </Txt>
         <Txt variant="bodyStrong" color={Palette.paperMuted}>{`${filled} of ${view.bounty.winnerSlots} slots`}</Txt>
       </View>
@@ -241,7 +241,7 @@ function PhoneBoard({ view, controls }: { view: HostView; controls?: ReactNode }
                 </>
               ) : (
                 <Txt variant="small" color={Palette.paperMuted}>
-                  solving
+                  {view.status === 'ended' ? 'no solve' : 'solving'}
                 </Txt>
               )}
             </View>
