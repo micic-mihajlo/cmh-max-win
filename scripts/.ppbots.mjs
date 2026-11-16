@@ -2,7 +2,7 @@ import { ConvexHttpClient } from "convex/browser";
 import { makeFunctionReference as F } from "convex/server";
 const c = new ConvexHttpClient("https://compassionate-puffin-914.convex.cloud");
 const [cmd, a, b] = process.argv.slice(2);
-const bots = ["Lou", "Ana", "Max", "Uma", "Leo"].map((name, i) => ({ name, token: "ppbot-" + process.env.RUN + "-" + i }));
+const bots = ["Sarah", "Jen", "Tyler", "Kevin", "Brandon"].map((name, i) => ({ name, token: "ppbot-" + process.env.RUN + "-" + i }));
 if (cmd === "enter") {
   for (const bt of bots) console.log(bt.name, JSON.stringify(await c.mutation(F("drops:enterDropByCode"), { deviceToken: bt.token, code: a, name: bt.name })));
 }

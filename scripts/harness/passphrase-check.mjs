@@ -13,7 +13,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const err = (e) => e?.data?.code ? e.data.code + ': ' + e.data.message : String(e?.message ?? e).split('\n')[0];
 const checks = [];
 const check = (ok, what) => { checks.push({ ok: !!ok, what }); log((ok ? 'PASS ' : 'FAIL ') + what); };
-const NAMES = ['Theo', 'Megan', 'Ines', 'Mike', 'Emily', 'Omar', 'Rachel', 'Rui'];
+const NAMES = ['Mike', 'Sarah', 'Chris', 'Ashley', 'Emily', 'Ryan', 'Megan', 'Josh'];
 
 const host = { token: 'pp-host-' + randomUUID(), c: new ConvexClient(URL_, { unsavedChangesWarning: false }) };
 let dropId, joinCode;

@@ -1,19 +1,20 @@
-// Seeds Nova's creator studio on dev through public functions only, the way the app does:
-//   a published Quick Quiz, "Nova's Friday Trivia" (5 questions, live start mode), waiting for its host to start it;
-//   a finished Quick Quiz, "Nova's Trivia Warm-up", played by 8 bot players in 4 teams of 2, with placements and a recap;
+// Seeds Danny Ortiz's creator studio on dev through public functions only, the way the app does:
+//   a published Quick Quiz, "Danny's Friday Trivia" (5 questions, live start mode), waiting for its host to start it;
+//   a finished Quick Quiz, "Danny's Trivia Warm-up", played by 8 bot players in 4 teams of 2, with placements and a recap;
 //   a draft Mystery, "The Aurora Seed".
-// Nova's device token is derived from --key exactly as in seed-streamers.mjs, so the creator and the streamer are one Nova.
-// Idempotent: it looks at Nova's challenges by title and status and only adds what's missing.
+// Danny's device token is derived from --key exactly as in seed-streamers.mjs (from his original seed name, Nova), so
+// the creator and the streamer are one Danny.
+// Idempotent: it looks at Danny's challenges by title and status and only adds what's missing.
 //
 //   node scripts/demo/seed-challenges.mjs --key <secret> [--dry-run] [--url https://...convex.cloud]
 //
-// Keep the key private: anyone with it can act as Nova.
+// Keep the key private: anyone with it can act as Danny.
 import { ConvexClient } from 'convex/browser';
 import { makeFunctionReference as F } from 'convex/server';
 import { createHash, randomUUID } from 'node:crypto';
 
 const DEV_URL = 'https://compassionate-puffin-914.convex.cloud';
-const NOVA = { displayName: 'Nova', handle: '@nova' };
+const DANNY = { displayName: 'Danny Ortiz', handle: '@danny', tokenName: 'Nova' };
 
 const q = (prompt, choices, correct) => ({ prompt, choices, correct, timeLimitMs: 20_000 });
 const FRIDAY_QUESTIONS = [
@@ -31,12 +32,12 @@ const WARMUP_QUESTIONS = [
   q('Which element has atomic number 1?', ['Helium', 'Hydrogen', 'Lithium', 'Carbon'], 1),
 ];
 // Bots, 4 teams of 2. Each team gets a question right when its skill pattern says so, so placements differ.
-const BOTS = ['Lou', 'Ana', 'Kit', 'Mara', 'Dev', 'Jo', 'Rae', 'Omar'];
+const BOTS = ['Sarah', 'Jen', 'Chris', 'Nicole', 'Matt', 'Josh', 'Rachel', 'Mike'];
 const SKILL = [[1, 1, 1, 1, 1], [1, 1, 0, 1, 1], [1, 0, 1, 0, 1], [0, 1, 0, 0, 1]];
 
 const CHALLENGES = {
-  friday: { title: "Nova's Friday Trivia", blurb: 'Five quick questions, live on stream. Fastest right answers score most.' },
-  warmup: { title: "Nova's Trivia Warm-up", blurb: 'The warm-up round before Friday.' },
+  friday: { title: "Danny's Friday Trivia", blurb: 'Five quick questions, live on stream. Fastest right answers score most.' },
+  warmup: { title: "Danny's Trivia Warm-up", blurb: 'The warm-up round before Friday.' },
   mystery: { title: 'The Aurora Seed', blurb: 'Split the clues, find who did it, lock it in together.' },
 };
 
@@ -59,7 +60,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const t0 = Date.now();
 const log = (msg) => console.log('[' + ((Date.now() - t0) / 1000).toFixed(1).padStart(6) + 's] ' + msg);
 const errText = (e) => (e?.data?.code ? e.data.code + ': ' + e.data.message : (e?.message ?? String(e)));
-const HOST = 'seed-host-' + createHash('sha256').update(KEY + ':' + NOVA.displayName).digest('hex').slice(0, 32);
+const HOST = 'seed-host-' + createHash('sha256').update(KEY + ':' + DANNY.tokenName).digest('hex').slice(0, 32);
 
 const client = new ConvexClient(URL_, { unsavedChangesWarning: false });
 const m = (token, fn, args) => client.mutation(F(fn), { deviceToken: token, ...args });
@@ -115,9 +116,9 @@ async function playWarmup(challengeId, joinCode) {
 }
 
 async function main() {
-  log('Seeding Nova\'s challenges on ' + URL_ + (DRY ? ' (dry run)' : '') + '.');
+  log('Seeding Danny\'s challenges on ' + URL_ + (DRY ? ' (dry run)' : '') + '.');
   const profile = await qy(HOST, 'challenges:creatorProfile', {});
-  if (!profile && !DRY) await m(HOST, 'challenges:saveCreatorProfile', NOVA);
+  if ((!profile || profile.displayName !== DANNY.displayName) && !DRY) await m(HOST, 'challenges:saveCreatorProfile', { displayName: DANNY.displayName, handle: DANNY.handle });
   const mine = profile || !DRY ? await qy(HOST, 'challenges:myChallenges', {}) : [];
   const find = (title, statuses) => mine.find((c) => c.config.title === title && statuses.includes(c.status));
 

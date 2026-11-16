@@ -9,6 +9,7 @@ import { DEFAULT_CONFIG, computePreview, leftoverSizes, validateConfig } from '.
 import { dealPieces } from './drops';
 import schema from './schema';
 import { mixerTemplate } from './templates/engine';
+import type { Id } from './_generated/dataModel';
 import type { ChallengeConfigPatch } from '../src/lib/contract';
 
 const modules = import.meta.glob('./**/*.ts');
@@ -456,5 +457,18 @@ describe('dealt standings', () => {
       [3, 'Team 1', 'briefing', null],
     ]);
     expect(s.rows.find((r) => r.isMine)?.label).toBe('Team 1');
+  });
+});
+
+describe('retitleChallenge', () => {
+  test('retitles a challenge whatever its status, and is idempotent', async () => {
+    const t = newTest();
+    const { challengeId } = await t.mutation(internal.challenges.createServerChallenge, { creatorToken: HOST, patch: { title: "Nova's Friday Trivia", blurb: 'Old' } });
+    const id = challengeId as Id<'challenges'>;
+    await t.run((ctx) => ctx.db.patch(id, { status: 'ended' }));
+    for (let i = 0; i < 2; i++) {
+      expect(await t.mutation(internal.challenges.retitleChallenge, { challengeId: id, title: " Danny's Friday Trivia ", blurb: 'New' })).toEqual({ challengeId, title: "Danny's Friday Trivia" });
+    }
+    expect((await t.run((ctx) => ctx.db.get(id)))!.config).toMatchObject({ title: "Danny's Friday Trivia", blurb: 'New' });
   });
 });
