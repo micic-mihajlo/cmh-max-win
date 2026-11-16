@@ -1,13 +1,12 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 
-import { CHALLENGES, CreatorSetupScreen, POTS, potFits } from '@/components/drops/creator-setup';
+import { CHALLENGES, CreatorSetupScreen, POTS, potFits, winnerSlotsFor } from '@/components/drops/creator-setup';
 import { NameEntryScreen } from '@/components/screens/name-entry';
 import { useHostDrop, useRealPayoutStatus } from '@/hooks/use-drops';
 import { usePlayerName } from '@/hooks/use-player-name';
 import { toSignalError } from '@/lib/signal-error';
 
-const WINNER_SLOTS = 3;
 
 // Open a hosted drop from this device; it becomes the big shared screen. The server owns the bounty from here on.
 export default function HostNewRoute() {
@@ -23,7 +22,7 @@ export default function HostNewRoute() {
   if (name === null) return <NameEntryScreen name={draft} onChangeName={setDraft} onContinue={() => save(draft.trim())} />;
   return (
     <CreatorSetupScreen
-      drop={{ title: challenge.title, totalCents: pot.totalCents, winnerSlots: WINNER_SLOTS }}
+      drop={{ title: challenge.title, totalCents: pot.totalCents, winnerSlots: winnerSlotsFor(pot) }}
       challenge={challenge}
       onChallenge={setChallenge}
       pot={pot}
@@ -34,13 +33,13 @@ export default function HostNewRoute() {
       }}
       error={error}
       onOpen={
-        opening || !potFits(pot, real, WINNER_SLOTS)
+        opening || !potFits(pot, real)
           ? undefined
           : async () => {
               setOpening(true);
               setError(null);
               try {
-                const { dropId } = await hostDrop({ title: challenge.title, totalCents: pot.totalCents, winnerSlots: WINNER_SLOTS, creatorName: name, template: challenge.template, payoutMode: pot.concept ? 'concept' : 'real' });
+                const { dropId } = await hostDrop({ title: challenge.title, totalCents: pot.totalCents, winnerSlots: winnerSlotsFor(pot), creatorName: name, template: challenge.template, payoutMode: pot.concept ? 'concept' : 'real' });
                 router.replace({ pathname: '/drop/[id]/host', params: { id: dropId } });
               } catch (e) {
                 setError(toSignalError(e)?.message ?? 'That didn’t go through. Try again.');

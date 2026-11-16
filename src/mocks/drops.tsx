@@ -187,15 +187,15 @@ export const DropStates: MockState[] = [
     id: '10-creator-real',
     ref: 'beat 2',
     section: 'Drops',
-    title: 'Creator · real $3, $7 left ($9 greyed)',
+    title: 'Creator · real $3, first squad wins, $7 left ($9 greyed)',
     render: () => (
       <CreatorSetupScreen
-        drop={{ ...nova, title: 'Split Passphrase', totalCents: 300 }}
+        drop={{ ...danny, title: 'Split Passphrase', totalCents: 300, winnerSlots: 1 }}
         challenge={CHALLENGES[0]}
         onChallenge={() => {}}
         pot={POTS[1]}
         onPot={() => {}}
-        real={{ enabled: true, remainingCents: 700, capPerSquadCents: 300 }}
+        real={{ enabled: true, remainingCents: 700, capPerSquadCents: 600 }}
       />
     ),
   },
@@ -206,12 +206,12 @@ export const DropStates: MockState[] = [
     title: 'Creator · REAL_BUDGET_EXCEEDED',
     render: () => (
       <CreatorSetupScreen
-        drop={{ ...nova, title: 'Split Passphrase', totalCents: 600 }}
+        drop={{ ...danny, title: 'Split Passphrase', totalCents: 600, winnerSlots: 1 }}
         challenge={CHALLENGES[0]}
         onChallenge={() => {}}
         pot={POTS[2]}
         onPot={() => {}}
-        real={{ enabled: true, remainingCents: 300, capPerSquadCents: 300 }}
+        real={{ enabled: true, remainingCents: 300, capPerSquadCents: 600 }}
         error="Real payouts have $3 left. Pick a pot up to $3, or concept."
       />
     ),
@@ -223,7 +223,7 @@ export const DropStates: MockState[] = [
     title: 'Creator · real payouts off',
     render: () => (
       <CreatorSetupScreen
-        drop={{ ...nova, title: 'Split Passphrase' }}
+        drop={{ ...danny, title: 'Split Passphrase' }}
         challenge={CHALLENGES[0]}
         onChallenge={() => {}}
         pot={POTS[0]}

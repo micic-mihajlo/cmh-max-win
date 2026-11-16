@@ -12,9 +12,17 @@ import { Brass, money, Tagline } from './ui';
 export type CreatorDrop = { title: string; totalCents: number; winnerSlots: number };
 export type Pot = { key: string; label: string; totalCents: number; concept?: boolean };
 
-// A real pot fits while real payouts are on, the pot is within the remaining budget, and one squad's share is within the cap.
-export const potFits = (pot: Pot, real: RealPayoutStatusView | undefined, winnerSlots: number) =>
-  !!pot.concept || (!!real?.enabled && pot.totalCents <= real.remainingCents && pot.totalCents / winnerSlots <= real.capPerSquadCents);
+// Real pots go to the first squad alone, so a trio on $3 gets $1 each: Whop's minimum transfer is $1.00.
+export const winnerSlotsFor = (pot: Pot) => (pot.concept ? 3 : 1);
+const WHOP_MIN_TRANSFER_CENTS = 100;
+
+// A real pot fits while real payouts are on, the pot is within the remaining budget, one squad's share is within the cap,
+// and each of a trio's shares reaches Whop's minimum transfer.
+export const potFits = (pot: Pot, real: RealPayoutStatusView | undefined) => {
+  if (pot.concept) return true;
+  const perSquad = pot.totalCents / winnerSlotsFor(pot);
+  return !!real?.enabled && pot.totalCents <= real.remainingCents && perSquad <= real.capPerSquadCents && perSquad / 3 >= WHOP_MIN_TRANSFER_CENTS;
+};
 
 export type Challenge = { key: string; label: string; title: string; template?: DropTemplateId };
 
@@ -77,7 +85,7 @@ export function CreatorSetupScreen({
           <View style={styles.flex}>
             <Txt variant="name">{drop.title}</Txt>
             <Txt variant="small" color={Palette.paperMuted}>
-              {`${money(drop.totalCents)} · first ${drop.winnerSlots} squads win`}
+              {`${money(drop.totalCents)} · ${drop.winnerSlots === 1 ? 'first squad wins' : `first ${drop.winnerSlots} squads win`}`}
             </Txt>
             {pot ? (
               <Txt variant="label" color={Brass}>
@@ -111,7 +119,7 @@ export function CreatorSetupScreen({
         ) : null}
         {!live && pot && onPot ? (
           <>
-            <Picker label="Bounty" options={POTS} selected={pot.key} onPick={onPot} disabled={(o) => !potFits(o, real, drop.winnerSlots)} />
+            <Picker label="Bounty" options={POTS} selected={pot.key} onPick={onPot} disabled={(o) => !potFits(o, real)} />
             <Txt variant="small" color={Palette.paperMuted}>
               {real?.enabled ? `Real · paid via Whop · ${money(real.remainingCents)} left` : 'Real payouts are off right now.'}
             </Txt>
