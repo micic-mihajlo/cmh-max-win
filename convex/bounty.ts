@@ -167,6 +167,8 @@ export const recordAward = internalMutation({
 export const TRANSFER_LABEL = 'Paid by Whop transfer';
 const FAILED_TRANSFER_STATUSES = new Set(['failed', 'canceled', 'cancelled', 'reversed', 'rejected']);
 const MAX_TRANSFER_ATTEMPTS = 4;
+export const MIN_TRANSFER_CENTS = 100; // Whop refuses a transfer under $1 ("minimum amount you can pay is $1.00")
+export const SIGN_IN_RELEASE_MS = 30 * 60 * 1000; // an unclaimed share goes back to the real budget after this
 
 // Real transfers are capped per award (SIGNAL_REAL_PAYOUT_CAP_CENTS, default $10): anyone can host a drop
 // with any pool, so an award above the cap stays concept.
@@ -203,11 +205,18 @@ export async function realBudgetRemainingCents(ctx: Pick<QueryCtx, 'db'>) {
   return Math.max(0, realPayoutBudgetCents() - (await realBudgetCommittedCents(ctx)));
 }
 
-// A drop hosted with payoutMode 'concept' never moves real money, even with real payouts on.
-export async function awardModeWithBudget(ctx: Pick<QueryCtx, 'db'>, drop: Pick<Doc<'drops'>, 'conceptOnly' | 'payoutMode'>, awardCents: number) {
+// A drop hosted with payoutMode 'concept' never moves real money, even with real payouts on, and neither does an
+// award whose per-player share is under Whop's $1 minimum.
+export async function awardModeWithBudget(
+  ctx: Pick<QueryCtx, 'db'>,
+  drop: Pick<Doc<'drops'>, 'conceptOnly' | 'payoutMode'>,
+  awardCents: number,
+  perPlayerCents: number,
+) {
   if (drop.payoutMode === 'concept') return 'concept';
   const mode = awardMode(drop, awardCents);
   if (mode !== 'transfer') return mode;
+  if (perPlayerCents < MIN_TRANSFER_CENTS) return 'concept';
   return (await realBudgetCommittedCents(ctx)) + awardCents <= realPayoutBudgetCents() ? 'transfer' : 'concept';
 }
 
@@ -235,6 +244,10 @@ export async function createTransferRows(ctx: MutationCtx, awardId: Id<'bountyAw
     .query('members')
     .withIndex('by_room', (q) => q.eq('roomId', award.roomId))
     .collect();
+  const hosted = await ctx.db
+    .query('streamerDrops')
+    .withIndex('by_drop', (q) => q.eq('dropId', award.dropId))
+    .unique();
   for (const m of members) {
     const payoutId = await ctx.db.insert('bountyPayouts', {
       awardId,
@@ -251,9 +264,41 @@ export async function createTransferRows(ctx: MutationCtx, awardId: Id<'bountyAw
       .withIndex('by_token', (q) => q.eq('deviceToken', m.deviceToken))
       .unique();
     if (identity) await queueTransfer(ctx, payoutId, identity.whopUserId);
+    else if (hosted?.rehearsal) await releaseRows(ctx, [(await ctx.db.get(payoutId))!]);
   }
   await ctx.db.patch(awardId, { status: 'ready', label: TRANSFER_LABEL });
 }
+
+// An unclaimed share stops holding real budget: the row fails as sign_in_expired, which the budget doesn't count, and
+// a later Whop sign-in no longer pays it.
+async function releaseRows(ctx: MutationCtx, rows: Doc<'bountyPayouts'>[]) {
+  let cents = 0;
+  for (const row of rows) {
+    if (row.status !== 'sign_in_required') continue;
+    await ctx.db.patch(row._id, { status: 'failed', failureCode: 'sign_in_expired', error: 'Nobody signed in with Whop in time.', updatedAt: Date.now() });
+    cents += row.cents;
+  }
+  return cents;
+}
+
+// Cron (no dropId): releases shares still waiting on a Whop sign-in SIGN_IN_RELEASE_MS after they were awarded.
+// By hand (dropId): releases every waiting share of that drop now. Idempotent.
+export const releaseUnclaimed = internalMutation({
+  args: { dropId: v.optional(v.string()) },
+  handler: async (ctx, { dropId }) => {
+    let rows: Doc<'bountyPayouts'>[];
+    if (dropId) {
+      const awards = (await ctx.db.query('bountyAwards').collect()).filter((a) => a.dropId === dropId);
+      rows = [];
+      for (const award of awards) rows.push(...(await ctx.db.query('bountyPayouts').withIndex('by_award', (q) => q.eq('awardId', award._id)).collect()));
+    } else {
+      const cutoff = Date.now() - SIGN_IN_RELEASE_MS;
+      rows = (await ctx.db.query('bountyPayouts').collect()).filter((r) => r.status === 'sign_in_required' && r.updatedAt <= cutoff);
+    }
+    const waiting = rows.filter((r) => r.status === 'sign_in_required');
+    return { released: waiting.length, cents: await releaseRows(ctx, waiting) };
+  },
+});
 
 // Called when a device links Whop: its waiting transfers go out to the account it just linked.
 export async function releaseTransfersFor(ctx: MutationCtx, deviceToken: string, whopUserId: string) {
@@ -306,6 +351,10 @@ export const sendTransfer = internalAction({
   handler: async (ctx, { payoutId }) => {
     const job = await ctx.runMutation(internal.bounty.transferForSend, { payoutId });
     if (!job) return;
+    if (job.cents < MIN_TRANSFER_CENTS) {
+      await ctx.runMutation(internal.bounty.recordTransfer, { payoutId, status: 'failed', failureCode: 'below_minimum' });
+      return;
+    }
     const retry = async () => {
       if (job.attempt >= MAX_TRANSFER_ATTEMPTS) {
         await ctx.runMutation(internal.bounty.recordTransfer, { payoutId, status: 'failed', failureCode: 'retries_exhausted' });

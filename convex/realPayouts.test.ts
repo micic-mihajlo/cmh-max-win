@@ -43,7 +43,7 @@ async function link(t: ReturnType<typeof convexTest>, deviceToken: string, whopU
   await t.mutation(internal.whopAuth.linkIdentity, { deviceToken, whopUserId, name: whopUserId, accessToken: 'at', expiresAt: Date.now() + 3_600_000 });
 }
 
-async function seedAward(t: ReturnType<typeof convexTest>, mode: 'concept' | 'transfer' = 'transfer') {
+async function seedAward(t: ReturnType<typeof convexTest>, mode: 'concept' | 'transfer' = 'transfer', perPlayerCents = 333) {
   return t.run(async (ctx) => {
     const roomId = await ctx.db.insert('rooms', {
       code: 'SQUAD1',
@@ -66,8 +66,8 @@ async function seedAward(t: ReturnType<typeof convexTest>, mode: 'concept' | 'tr
       dropId: 'drop1',
       roomId,
       place: 1,
-      amountCents: 999,
-      perPlayerCents: 333,
+      amountCents: perPlayerCents * 3,
+      perPlayerCents,
       redeemableCount: 3,
       mode,
       status: 'pending',
@@ -125,14 +125,14 @@ describe('real payouts (SIGNAL_REAL_PAYOUTS)', () => {
     vi.stubEnv('SIGNAL_REAL_PAYOUT_BUDGET_CENTS', '1000');
     const t = convexTest(schema, modules);
     const { awardId } = await seedAward(t);
-    expect(await t.run((ctx) => awardModeWithBudget(ctx, {}, 999))).toBe('transfer');
+    expect(await t.run((ctx) => awardModeWithBudget(ctx, {}, 999, 333))).toBe('transfer');
     await t.run((ctx) => createTransferRows(ctx, awardId));
-    expect(await t.run((ctx) => awardModeWithBudget(ctx, {}, 999))).toBe('concept');
-    expect(await t.run((ctx) => awardModeWithBudget(ctx, {}, 1))).toBe('transfer');
+    expect(await t.run((ctx) => awardModeWithBudget(ctx, {}, 999, 333))).toBe('concept');
+    expect(await t.run((ctx) => awardModeWithBudget(ctx, {}, 1, 333))).toBe('transfer');
     await t.run(async (ctx) => {
       for (const r of await ctx.db.query('bountyPayouts').collect()) await ctx.db.patch(r._id, { status: 'failed' });
     });
-    expect(await t.run((ctx) => awardModeWithBudget(ctx, {}, 999))).toBe('transfer');
+    expect(await t.run((ctx) => awardModeWithBudget(ctx, {}, 999, 333))).toBe('transfer');
   });
 
   test('retries_exhausted rows stay counted against the budget; definite refusals release theirs', async () => {
@@ -146,9 +146,9 @@ describe('real payouts (SIGNAL_REAL_PAYOUTS)', () => {
         for (const r of await ctx.db.query('bountyPayouts').collect()) await ctx.db.patch(r._id, { status: 'failed', failureCode });
       });
     await failAll('retries_exhausted');
-    expect(await t.run((ctx) => awardModeWithBudget(ctx, {}, 999))).toBe('concept');
+    expect(await t.run((ctx) => awardModeWithBudget(ctx, {}, 999, 333))).toBe('concept');
     await failAll('kyc_required');
-    expect(await t.run((ctx) => awardModeWithBudget(ctx, {}, 999))).toBe('transfer');
+    expect(await t.run((ctx) => awardModeWithBudget(ctx, {}, 999, 333))).toBe('transfer');
   });
 
   test('a zero-cent award creates no transfer rows', async () => {
@@ -302,10 +302,82 @@ describe('Whop transfer quirks and real pots', () => {
     const concept = await host('h4', 800, 'concept');
     expect((await view(concept.dropId))!.bounty.mode).toBe('concept');
     const drop = (await t.run((ctx) => ctx.db.query('drops').withIndex('by_dropId', (q) => q.eq('dropId', concept.dropId)).unique()))!;
-    expect(await t.run((ctx) => awardModeWithBudget(ctx, drop, 300))).toBe('concept');
+    expect(await t.run((ctx) => awardModeWithBudget(ctx, drop, 300, 100))).toBe('concept');
     vi.stubEnv('SIGNAL_REAL_PAYOUTS', '');
     expect((await errorCode(host('h5', 300, 'real')))!.code).toBe('REAL_PAYOUTS_OFF');
     expect(await t.query(api.drops.realPayoutStatus, {})).toMatchObject({ enabled: false, remainingCents: 0 });
+  });
+});
+
+describe('minimum share and unclaimed releases', () => {
+  const MIN = 60_000;
+
+  test('a real pot under $1 per winner is refused at host time, naming the smallest valid pot', async () => {
+    vi.stubEnv('SIGNAL_REAL_PAYOUTS', 'on');
+    vi.stubEnv('SIGNAL_REAL_PAYOUT_BUDGET_CENTS', '1000');
+    const t = convexTest(schema, modules);
+    rateLimiterTest.register(t);
+    presenceTest.register(t);
+    expect(await errorCode(t.mutation(api.drops.hostDrop, { deviceToken: 'h1', totalCents: 300, winnerSlots: 3, payoutMode: 'real' }))).toEqual({
+      code: 'REAL_SHARE_TOO_SMALL',
+      message: 'Each winner needs at least $1 in real money. With 3 winning squads of 3, pick a pot of at least $9, fewer winner slots, or concept.',
+    });
+    const ok = await t.mutation(api.drops.hostDrop, { deviceToken: 'h2', totalCents: 300, winnerSlots: 1, payoutMode: 'real' });
+    expect((await t.query(api.drops.drop, { deviceToken: 'x', dropId: ok.dropId }))!.bounty.mode).toBe('transfer');
+    const drop = (await t.run((ctx) => ctx.db.query('drops').withIndex('by_dropId', (q) => q.eq('dropId', ok.dropId)).unique()))!;
+    expect(await t.run((ctx) => awardModeWithBudget(ctx, drop, 99, 33))).toBe('concept');
+  });
+
+  test('a sub-$1 transfer is never attempted', async () => {
+    const t = convexTest(schema, modules);
+    const { awardId } = await seedAward(t, 'transfer', 33);
+    await link(t, 'dev-a', 'user_a');
+    await t.mutation(internal.bounty.startTransfers, { awardId });
+    await settle(t);
+    expect(transfers).toHaveLength(0);
+    expect((await rows(t)).find((r) => r.deviceToken === 'dev-a')).toMatchObject({ status: 'failed', failureCode: 'below_minimum' });
+  });
+
+  test('unclaimed shares go back to the budget after 30 minutes, or at once by hand, and a late sign-in is not paid', async () => {
+    vi.stubEnv('SIGNAL_REAL_PAYOUTS', 'on');
+    vi.stubEnv('SIGNAL_REAL_PAYOUT_BUDGET_CENTS', '1000');
+    const t = convexTest(schema, modules);
+    const { awardId } = await seedAward(t, 'transfer', 100);
+    await t.mutation(internal.bounty.startTransfers, { awardId });
+    expect(await t.query(api.drops.realPayoutStatus, {})).toMatchObject({ remainingCents: 700 });
+    expect(await t.mutation(internal.bounty.releaseUnclaimed, {})).toEqual({ released: 0, cents: 0 });
+    vi.advanceTimersByTime(31 * MIN);
+    expect(await t.mutation(internal.bounty.releaseUnclaimed, {})).toEqual({ released: 3, cents: 300 });
+    expect(await t.mutation(internal.bounty.releaseUnclaimed, {})).toEqual({ released: 0, cents: 0 });
+    expect(await t.query(api.drops.realPayoutStatus, {})).toMatchObject({ remainingCents: 1000 });
+    expect((await myAward(t, 'dev-a'))!.myPayout).toMatchObject({ status: 'failed', message: 'Nobody signed in with Whop in time, so this share went back.' });
+    await link(t, 'dev-a', 'user_a');
+    await settle(t);
+    expect(transfers).toHaveLength(0);
+
+    const second = await convexTest(schema, modules);
+    const again = await seedAward(second, 'transfer', 100);
+    await second.mutation(internal.bounty.startTransfers, { awardId: again.awardId });
+    expect(await second.mutation(internal.bounty.releaseUnclaimed, { dropId: 'other' })).toEqual({ released: 0, cents: 0 });
+    expect(await second.mutation(internal.bounty.releaseUnclaimed, { dropId: 'drop1' })).toEqual({ released: 3, cents: 300 });
+  });
+
+  test('a rehearsal drop never holds budget for an unsigned winner', async () => {
+    vi.stubEnv('SIGNAL_REAL_PAYOUTS', 'on');
+    vi.stubEnv('SIGNAL_REAL_PAYOUT_BUDGET_CENTS', '1000');
+    const t = convexTest(schema, modules);
+    const { awardId } = await seedAward(t, 'transfer', 100);
+    await t.run(async (ctx) => {
+      const streamerId = await ctx.db.insert('streamers', { hostToken: 'h', name: 'Danny Ortiz', updatedAt: 0 });
+      await ctx.db.insert('streamerDrops', { streamerId, dropId: 'drop1', createdAt: 0, scheduledFor: null, openedAt: 0, rehearsal: true });
+    });
+    await link(t, 'dev-a', 'user_a');
+    await t.mutation(internal.bounty.startTransfers, { awardId });
+    await settle(t);
+    const byToken = Object.fromEntries((await rows(t)).map((r) => [r.deviceToken, r]));
+    expect(byToken['dev-a']).toMatchObject({ status: 'sent' });
+    expect(byToken['dev-b']).toMatchObject({ status: 'failed', failureCode: 'sign_in_expired' });
+    expect(await t.query(api.drops.realPayoutStatus, {})).toMatchObject({ remainingCents: 900 });
   });
 });
 
