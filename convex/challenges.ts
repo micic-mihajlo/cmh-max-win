@@ -211,11 +211,17 @@ export async function getChallenge(ctx: Ctx, id: string) {
   return cid ? ctx.db.get(cid) : null;
 }
 
+// The creator of a challenge: the device that made it, or any device signed in to the same Whop account as it.
+export async function isChallengeOwner(ctx: Ctx, c: Challenge, deviceToken: string): Promise<boolean> {
+  if (c.creatorToken === deviceToken) return true;
+  if (!deviceToken) return false;
+  return (await linkedDeviceTokens(ctx, deviceToken)).includes(c.creatorToken);
+}
+
 export async function requireOwned(ctx: Ctx, deviceToken: string, id: string) {
   const c = await getChallenge(ctx, id);
   if (!c) fail('CHALLENGE_NOT_FOUND', 'No such challenge.');
-  const me = await resolveIdentity(ctx, deviceToken);
-  if (c.creatorToken !== me.deviceToken) fail('NOT_CREATOR', 'Only the creator can do that.');
+  if (!(await isChallengeOwner(ctx, c, deviceToken))) fail('NOT_CREATOR', 'Only the creator can do that.');
   return c;
 }
 
@@ -498,7 +504,7 @@ export const challengeDraft = query({
   args: { deviceToken: v.string(), challengeId: v.string() },
   handler: async (ctx, { deviceToken, challengeId }): Promise<ChallengeDraftView | null> => {
     const c = await getChallenge(ctx, challengeId);
-    if (!c || c.creatorToken !== (await resolveIdentity(ctx, deviceToken)).deviceToken) return null;
+    if (!c || !(await isChallengeOwner(ctx, c, deviceToken))) return null;
     return {
       ...(await summaryView(ctx, c)),
       issues: c.status === 'draft' ? validateConfig(c.config, c.serverCreated, Date.now()) : [],
@@ -696,7 +702,7 @@ export const hostConsole = query({
   args: { deviceToken: v.string(), challengeId: v.string() },
   handler: async (ctx, { deviceToken, challengeId }): Promise<HostConsoleView | null> => {
     const c = await getChallenge(ctx, challengeId);
-    if (!c || c.creatorToken !== (await resolveIdentity(ctx, deviceToken)).deviceToken) return null;
+    if (!c || !(await isChallengeOwner(ctx, c, deviceToken))) return null;
     const now = Date.now();
     const [summary, entries, teams, funding] = await Promise.all([
       summaryView(ctx, c),

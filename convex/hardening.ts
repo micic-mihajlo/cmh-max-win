@@ -5,7 +5,7 @@ import { internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
 import { internalMutation, mutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
 import { enforceRateLimit } from './rateLimits';
-import { resolveIdentity } from './creatorIdentity';
+import { isChallengeOwner } from './challenges';
 import { CHALLENGE_CAPACITY_MAX, type ChallengeCapacityView, type SignalErrorCode } from '../src/lib/contract';
 
 function fail(code: SignalErrorCode, message: string): never {
@@ -73,7 +73,7 @@ export const setChallengeCapacity = mutation({
     const id = ctx.db.normalizeId('challenges', challengeId);
     const c = id ? await ctx.db.get(id) : null;
     if (!c) fail('CHALLENGE_NOT_FOUND', 'No such challenge.');
-    if (c.creatorToken !== (await resolveIdentity(ctx, deviceToken)).deviceToken) fail('NOT_CREATOR', 'Only the creator can do that.');
+    if (!(await isChallengeOwner(ctx, c, deviceToken))) fail('NOT_CREATOR', 'Only the creator can do that.');
     await enforceRateLimit(ctx, 'hostAction', `${c._id}:${deviceToken}`);
     if (c.status !== 'draft') fail('CHALLENGE_CLOSED', 'A published challenge is frozen. Clone it to change the config.');
     if (!Number.isInteger(capacity) || capacity < 1 || capacity > CHALLENGE_CAPACITY_MAX) {
