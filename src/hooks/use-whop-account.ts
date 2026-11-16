@@ -1,12 +1,7 @@
 import { api } from '@convex/_generated/api';
-<<<<<<< HEAD
 import { useAction, useMutation } from 'convex/react';
 import { useQuery } from 'convex-helpers/react/cache/hooks';
-import { useCallback } from 'react';
-=======
-import { useAction, useMutation, useQuery } from 'convex/react';
 import { useCallback, useEffect } from 'react';
->>>>>>> origin/main
 
 import { useDeviceToken } from '@/hooks/use-device-token';
 import type { UseLinkForClaim, UseSignInToJoin, UseSignOutWhop, UseWhopAccount, WhopSignInResult } from '@/lib/contract';
