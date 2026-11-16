@@ -27,6 +27,7 @@ export type ChallengeCardView = {
   prizePool: PrizePoolView;
   joinCode: string | null;
   slug: string; // 'danny-friday-race-k7qm'; share as /c/<slug>, resolves with UseShareLink
+  creator: { displayName: string; handle: string }; // handle with the '@'
   entrantCount: number;
 };
 
