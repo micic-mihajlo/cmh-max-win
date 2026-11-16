@@ -1,7 +1,8 @@
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 
+import { QuietLink, YourChallenges } from '@/components/home/your-challenges';
 import { Screen } from '@/components/signal/backdrop';
 import { Button } from '@/components/signal/primitives';
 import { Txt } from '@/components/signal/txt';
@@ -18,13 +19,16 @@ export function WebHomeScreen() {
       footer={
         <>
           <Button title="Start a game" onPress={() => router.push('/host')} />
-          <Button title="Play on your phone" variant="secondary" onPress={() => window.location.assign('/expo')} />
+          <QuietLink title="Play on your phone" onPress={() => window.location.assign('/expo')} />
+          <QuietLink title="Create a challenge" onPress={() => router.push('/studio')} />
+          <QuietLink title="Streamers" onPress={() => router.push('/showcase/streamers' as Href)} />
         </>
       }>
       <View style={styles.top}>
         <Wordmark size={32} />
         <Txt variant="display">Everyone holds a piece. Nobody solves it alone.</Txt>
       </View>
+      <YourChallenges />
       {width >= 768 ? (
         <View style={styles.qr}>
           <View style={styles.code}>
