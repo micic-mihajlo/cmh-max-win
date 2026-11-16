@@ -10,11 +10,10 @@ const PENDING_TTL_MS = 10 * 60 * 1000;
 type Complete = (linkCode: string) => Promise<boolean>;
 type Pending = { purpose: string; returnPath: string; startedAt: number };
 
-// Phone browsers block the sign-in popup, so mobile web (a touch device or a narrow window) signs in by redirecting
-// the tab to Whop and back to this page instead. Desktop web keeps the popup.
+// Web signs in by redirecting the tab to Whop and back to this page: phone browsers block the popup, and on desktop
+// the popup never completes because nothing calls maybeCompleteAuthSession.
 function redirectsInTab(): boolean {
-  if (Platform.OS !== 'web' || typeof window === 'undefined') return false;
-  return (navigator.maxTouchPoints ?? 0) > 0 || window.innerWidth < 768;
+  return Platform.OS === 'web' && typeof window !== 'undefined';
 }
 
 function currentPage(): string {
