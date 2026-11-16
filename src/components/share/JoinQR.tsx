@@ -26,17 +26,21 @@ export function JoinQR({ code, shareUrl, variant = 'card', size }: JoinQRProps) 
 
   if (variant === 'card') {
     const side = size ?? 200;
+    const cardGap = Space.s;
+    const cardTile = (side - cardGap * 3) / 4;
     return (
       <View style={styles.card} accessible accessibilityRole="image" accessibilityLabel={label}>
         <QRCode value={url} size={side} color={Palette.paper} backgroundColor={Palette.card} ecl="M" quietZone={4} />
-        <View style={styles.cardCode}>
-          <Txt variant="small" color={Palette.paperMuted}>
-            Scan with your camera or enter
-          </Txt>
-          <Txt variant="code" style={styles.cardLetters} selectable>
-            {letters.join('')}
-          </Txt>
+        <View style={[styles.tilesRow, { width: side, gap: cardGap }]}>
+          {letters.map((ch, i) => (
+            <View key={i} style={[styles.tile, { width: cardTile, height: Math.round(cardTile * 1.18), borderRadius: Math.round(cardTile * 0.22) }]}>
+              <Txt style={{ fontFamily: FontFamily.uiBold, fontSize: cardTile * 0.56, lineHeight: cardTile * 0.72, color: Palette.paper }}>{ch}</Txt>
+            </View>
+          ))}
         </View>
+        <Txt variant="small" color={Palette.paperMuted} style={styles.stageLine}>
+          Scan with your camera, or enter the code
+        </Txt>
       </View>
     );
   }
@@ -85,8 +89,7 @@ const styles = StyleSheet.create({
     borderColor: Palette.hairline,
     backgroundColor: Palette.card,
   },
-  cardCode: { alignItems: 'center', gap: Space.xs },
-  cardLetters: { letterSpacing: 8, color: Palette.paper },
+  tilesRow: { flexDirection: 'row' },
   stage: {
     alignSelf: 'stretch',
     padding: stagePadding,

@@ -51,7 +51,7 @@ const worlds: Record<Setting, World> = {
       { name: 'Felix Rowe', job: 'Violinist', spot: 'the dining car' },
       { name: 'Dara Moss', job: 'Journalist', spot: 'compartment 4' },
       { name: 'Ivo Grant', job: 'Porter', spot: 'the luggage van' },
-      { name: 'Lena Sato', job: 'Doctor', spot: 'the observation deck' },
+      { name: 'Emily Sato', job: 'Doctor', spot: 'the observation deck' },
       { name: 'Max Ortiz', job: 'Engineer', spot: 'the engine cab' },
     ],
   },

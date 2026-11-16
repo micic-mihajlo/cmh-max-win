@@ -73,7 +73,7 @@ export function LeaderboardScreen({
   const missed = mine?.status === 'solved';
   const title = inMoney || missed ? `You ${(mine?.memberNames.length || drop.squadSize) === 2 ? 'two' : 'three'} got #${mine?.rank}.` : 'Race';
   const sub = missed
-    ? `The bounty went to the first ${board.winnerSlots} squads.`
+    ? board.winnerSlots === 1 ? 'The bounty went to the first squad.' : `The bounty went to the first ${board.winnerSlots} squads.`
     : taken >= board.winnerSlots
       ? `All ${board.winnerSlots} bounty spots taken`
       : `${taken} of ${board.winnerSlots} bounty spots taken`;

@@ -1,15 +1,15 @@
 import { Nudges } from './case01';
 import type { MemberView, Presence, Role, RoomView, SuspectId } from '@/lib/contract';
 
-export type Who = 'maya' | 'ravi' | 'lena';
+export type Who = 'ashley' | 'ryan' | 'emily';
 
 const people: Record<Who, { memberId: string; name: string; role: Role; isHost: boolean }> = {
-  maya: { memberId: 'm_maya', name: 'Maya', role: 'detective', isHost: true },
-  ravi: { memberId: 'm_ravi', name: 'Ravi', role: 'hacker', isHost: false },
-  lena: { memberId: 'm_lena', name: 'Lena', role: 'witness', isHost: false },
+  ashley: { memberId: 'm_ashley', name: 'Ashley', role: 'detective', isHost: true },
+  ryan: { memberId: 'm_ryan', name: 'Ryan', role: 'hacker', isHost: false },
+  emily: { memberId: 'm_emily', name: 'Emily', role: 'witness', isHost: false },
 };
 
-export const whoByRole: Record<Role, Who> = { detective: 'maya', hacker: 'ravi', witness: 'lena' };
+export const whoByRole: Record<Role, Who> = { detective: 'ashley', hacker: 'ryan', witness: 'emily' };
 
 type MemberSpec = { who: Who; role?: Role | null; roles?: Role[]; presence?: Presence };
 
@@ -29,8 +29,8 @@ export type RoomFixture = {
 };
 
 export function room({
-  me = 'maya',
-  members = [{ who: 'maya' }, { who: 'ravi' }, { who: 'lena' }],
+  me = 'ashley',
+  members = [{ who: 'ashley' }, { who: 'ryan' }, { who: 'emily' }],
   status = 'playing',
   culprit = null,
   revision = 1,

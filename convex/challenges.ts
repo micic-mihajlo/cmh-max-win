@@ -25,7 +25,7 @@ import { releaseChallengeSeat, takeChallengeSeat } from './hardening';
 import { enforceRateLimit } from './rateLimits';
 import { isSessionTemplate, placeTeamSessions, startTeamSessions } from './teamSessions';
 import { CODE_ALPHABET, generateCode } from './signal';
-import { whopEnvironment, whopRequest } from './whop';
+import { WHOP_TRANSFER_API_VERSION_DATE, whopEnvironment, whopRequest } from './whop';
 import type {
   ChallengeConfig,
   ChallengeDraftView,
@@ -933,9 +933,9 @@ export const sendWhopPayout = internalAction({
     const message = (e: unknown) => (e instanceof ConvexError ? (e.data as { message?: string }).message : e instanceof Error ? e.message : 'unknown error');
     try {
       if (whopEnvironment() !== 'sandbox') throw new Error('Whop payouts only run against the sandbox.');
-      await whopRequest('/transfers', {
+      const transfer = await whopRequest<{ id?: string; status?: string | null }>('/transfers', {
         method: 'POST',
-        headers: { 'Idempotency-Key': row.idempotencyKey },
+        headers: { 'Idempotency-Key': row.idempotencyKey, 'Api-Version-Date': WHOP_TRANSFER_API_VERSION_DATE },
         body: {
           amount: row.cents / 100,
           currency: 'usd',
@@ -944,6 +944,7 @@ export const sendWhopPayout = internalAction({
           idempotence_key: row.idempotencyKey,
         },
       });
+      if (transfer?.status && ['failed', 'canceled', 'cancelled', 'reversed', 'rejected'].includes(transfer.status)) throw new Error('Whop transfer ' + transfer.status);
       await ctx.runMutation(internal.challenges.recordSend, { payoutId, status: 'sent', method: 'transfer' });
     } catch (transferError) {
       try {

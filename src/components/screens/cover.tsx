@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Keyboard, Pressable, StyleSheet, TextInput, View } from 'react-native';
-import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { QuietLink } from '@/components/home/your-challenges';
 import { Screen } from '@/components/signal/backdrop';
 import { CodeCells } from '@/components/signal/code-cells';
 import { Button, Label } from '@/components/signal/primitives';
@@ -11,6 +12,7 @@ import { Txt } from '@/components/signal/txt';
 import { Wordmark } from '@/components/wordmark';
 import { Palette, Radius, RoleMeta, Space } from '@/constants/signal';
 import { Case01 } from '@/constants/case01';
+import { Sheet } from '@/motion';
 import type { ActiveRoomView, Role, SignalErrorCode } from '@/lib/contract';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -51,6 +53,7 @@ export type CoverActions = {
   onTakeSeat?: (role: Role) => void;
   onJoinDrop?: () => void;
   onHostDrop?: () => void;
+  onCreate?: () => void;
   onStreamers?: () => void;
 };
 
@@ -59,12 +62,14 @@ export function CoverScreen({
   passphrase,
   join,
   creating,
+  mine,
   on = {},
 }: {
   active: ActiveRoomView | undefined;
   passphrase?: boolean;
   join?: JoinState;
   creating?: boolean;
+  mine?: ReactNode;
   on?: CoverActions;
 }) {
   const banner =
@@ -104,8 +109,11 @@ export function CoverScreen({
       footer={
         <View style={styles.cta}>
           <Button title="Join a drop" disabled={creating} onPress={on.onJoinDrop} />
-          <Button title="Host a drop" variant="ghost" disabled={creating} onPress={on.onHostDrop} />
-          <Button title="Streamers" variant="ghost" disabled={creating} onPress={on.onStreamers} />
+          <View style={styles.links}>
+            <QuietLink title="Create a challenge" disabled={creating} onPress={on.onCreate} />
+            <QuietLink title="Host a drop" disabled={creating} onPress={on.onHostDrop} />
+            <QuietLink title="Streamers" disabled={creating} onPress={on.onStreamers} />
+          </View>
         </View>
       }>
       <Wordmark />
@@ -119,6 +127,7 @@ export function CoverScreen({
           {Case01.logline}
         </Txt>
       </View>
+      {mine}
     </Screen>
   );
 }
@@ -132,9 +141,10 @@ function JoinSheet({ join, on }: { join: JoinState; on: CoverActions }) {
   const ready = join.code.length === 4;
   return (
     <>
-      <AnimatedPressable accessibilityLabel="Close" onPress={on.onCloseJoin} entering={reduced ? undefined : FadeIn} style={styles.scrim} />
+      <AnimatedPressable accessibilityLabel="Close" onPress={on.onCloseJoin} entering={Sheet.scrimIn} exiting={Sheet.scrimOut} style={styles.scrim} />
       <Animated.View
-        entering={reduced ? undefined : SlideInDown.springify().damping(20)}
+        entering={Sheet.enter(reduced)}
+        exiting={Sheet.exit(reduced)}
         style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, keyboard) + Space.l }]}>
         <View style={styles.handle} />
         <Txt variant="title">Join a case</Txt>
@@ -263,6 +273,7 @@ const styles = StyleSheet.create({
   center: { textAlign: 'center' },
   hero: { gap: Space.m, marginTop: Space.xxl },
   cta: { gap: Space.xs, paddingBottom: Space.l },
+  links: { paddingTop: Space.xs },
   bannerLoading: { height: 128, borderColor: Palette.hairline, opacity: 0.6 },
   dot: { width: 7, height: 7, borderRadius: 4 },
   banner: {

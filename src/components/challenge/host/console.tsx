@@ -1,23 +1,21 @@
-import * as Clipboard from 'expo-clipboard';
 import { router, type Href } from 'expo-router';
 import { useEffect, useState, type ReactNode } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
-import QRCode from 'react-native-qrcode-svg';
 import Animated, { FadeIn, LinearTransition, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { money, ordinal } from '@/components/drops/ui';
+import { JoinQR } from '@/components/share/JoinQR';
 import { Screen } from '@/components/signal/backdrop';
 import { Txt } from '@/components/signal/txt';
 import { FontFamily, Palette, Radius, Space } from '@/constants/signal';
 import { useApprovePayouts, useEndChallenge, useHostConsole } from '@/hooks/use-challenges';
+import { useShareChallenge } from '@/hooks/use-share-challenge';
 import { useLiveView, useLockEntries, useRunHostAction, useStartLive } from '@/hooks/use-live';
 import type { HostConsoleView, LivePhase, LiveView } from '@/lib/contract';
 import { toSignalError } from '@/lib/signal-error';
 import { Ease, Enter, PressScale, Stagger, useReduced } from '@/motion';
 
 import { useServerNow } from './use-server-now';
-
-const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL ?? 'https://signal-app-wine.vercel.app';
 
 type RoundPhase = 'lobby' | 'question' | 'leaderboard' | 'finished';
 type Round = {
@@ -42,19 +40,36 @@ function readBoard(view: unknown): Board | null {
   return view as Board;
 }
 
+type QuizQuestion = { prompt: string; choices: string[]; correct: number; timeLimitMs: number };
+type Optimistic = { from: string; phase: LivePhase; round: Round | null };
+
+function lobbyRound(questionCount: number): Round {
+  return { phase: 'lobby', questionCount, index: null, prompt: null, opensAt: null, closesAt: null, correctText: null };
+}
+
+// The round the host's Next leads to, from the quiz content the creator wrote: open the next question, or close the open one.
+function advance(round: Round | null, questions: QuizQuestion[], questionCount: number): Round | null {
+  if (!round) return null;
+  if (round.phase === 'question' && round.index !== null) {
+    const q = questions[round.index];
+    return {
+      ...round,
+      phase: round.index + 1 >= questionCount ? 'finished' : 'leaderboard',
+      closesAt: null,
+      correctText: q ? q.choices[q.correct] : null,
+    };
+  }
+  const index = (round.index ?? -1) + 1;
+  const q = questions[index];
+  if (!q) return round;
+  const now = Date.now();
+  return { phase: 'question', questionCount, index, prompt: q.prompt, opensAt: now, closesAt: now + q.timeLimitMs, correctText: null };
+}
+
 const TEMPLATE_NAME: Record<string, string> = {
   'quick-quiz': 'Quick quiz',
   'mystery-aurora': 'The Aurora Seed',
   'split-passphrase': 'Split passphrase',
-};
-
-const STATUS: Record<LivePhase, string> = {
-  draft: 'Draft',
-  open: 'Open',
-  locked: 'Entries locked',
-  live: 'Live',
-  ended: 'Ended',
-  cancelled: 'Cancelled',
 };
 
 export function HostConsole({ challengeId }: { challengeId: string | null }) {
@@ -90,42 +105,59 @@ function Console({ id, host, live }: { id: string; host: HostConsoleView; live: 
   const approve = useApprovePayouts(id);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [optimistic, setOptimistic] = useState<Optimistic | null>(null);
 
-  const phase: LivePhase = live?.phase ?? (host.status === 'published' ? 'open' : host.status);
-  const board = readBoard(live?.view);
-  const round = board?.round ?? null;
+  const serverPhase: LivePhase = live?.phase ?? (host.status === 'published' ? 'open' : host.status);
+  const serverBoard = readBoard(live?.view);
+  const serverRound = serverBoard?.round ?? null;
+  const serverKey = [serverPhase, serverRound?.phase, serverRound?.index].join('|');
   const quiz = host.config.templateId === 'quick-quiz';
-  const questionCount = round?.questionCount ?? (host.config.templateConfig as { questions?: unknown[] } | undefined)?.questions?.length ?? 0;
+  const questions = (host.config.templateConfig as { questions?: QuizQuestion[] } | undefined)?.questions ?? [];
+  const questionCount = serverRound?.questionCount ?? questions.length;
 
-  const act = async (name: string, fn: () => Promise<unknown>) => {
-    if (busy) return;
-    setBusy(name);
+  // The next state shows on release and stays until the server moves past the state it started from, or the call fails.
+  const opt = optimistic?.from === serverKey ? optimistic : null;
+  const phase = opt?.phase ?? serverPhase;
+  const round = opt?.round ?? serverRound;
+  const board = quiz && phase === 'live' ? { round, rows: serverBoard?.rows ?? [] } : serverBoard;
+
+  const commit = async (next: Omit<Optimistic, 'from'> | null, fn: () => Promise<unknown>) => {
     setError(null);
+    if (next) setOptimistic({ ...next, from: serverKey });
     try {
       await fn();
     } catch (e) {
+      setOptimistic(null);
       setError(toSignalError(e)?.message ?? 'That didn’t go through. Try again.');
-    } finally {
-      setBusy(null);
     }
   };
+  const once = async (name: string, fn: () => Promise<unknown>) => {
+    if (busy) return;
+    setBusy(name);
+    await commit(null, fn);
+    setBusy(null);
+  };
 
-  const next = () =>
-    act('next', () =>
-      run('next', {
-        expectedIndex: round?.index ?? null,
-        expectedPhase: round?.phase,
-      }),
-    );
-  const endNow = () => act('end', end);
+  const next = () => {
+    const seen = { expectedIndex: round?.index ?? null, expectedPhase: round?.phase };
+    commit({ phase: 'live', round: advance(round, questions, questionCount) }, () => run('next', seen));
+  };
+  const endNow = () => once('end', end);
 
   let primary: ReactNode = null;
   let secondary: ReactNode = null;
   if (phase === 'open' || phase === 'locked') {
-    primary = <Primary title="Start" accent busy={busy === 'start'} disabled={host.entrantCount === 0} onPress={() => act('start', start)} />;
+    primary = (
+      <Primary
+        title="Start"
+        accent
+        disabled={host.entrantCount === 0}
+        onPress={() => commit({ phase: 'live', round: quiz ? lobbyRound(questionCount) : null }, start)}
+      />
+    );
     secondary =
       phase === 'open' ? (
-        <Quiet title="Lock entries" busy={busy === 'lock'} onPress={() => act('lock', lock)} />
+        <Quiet title="Lock entries" onPress={() => commit({ phase: 'locked', round: null }, lock)} />
       ) : (
         <Txt variant="label" color={Palette.paperMuted}>
           Locked
@@ -143,13 +175,13 @@ function Console({ id, host, live }: { id: string; host: HostConsoleView; live: 
               ? 'Next question'
               : 'Finish';
     const onPress = !quiz || round?.phase === 'finished' ? endNow : next;
-    primary = <Primary title={label} busy={busy === 'next' || (label === 'End' && busy === 'end')} onPress={onPress} />;
+    primary = <Primary title={label} disabled={label === 'End' && busy === 'end'} onPress={onPress} />;
     secondary = quiz ? <EndControl busy={busy === 'end'} onEnd={endNow} /> : null;
   } else if (phase === 'ended') {
     const approved = host.payouts.length > 0;
     primary =
       host.can.approvePayouts && !approved && host.payoutPreview && host.payoutPreview.paidCents > 0 ? (
-        <Primary title="Approve payouts" busy={busy === 'approve'} onPress={() => act('approve', approve)} />
+        <Primary title="Approve payouts" disabled={busy === 'approve'} onPress={() => once('approve', approve)} />
       ) : (
         <Primary title="See recap" onPress={() => router.push(('/studio/recap/' + id) as Href)} />
       );
@@ -157,7 +189,7 @@ function Console({ id, host, live }: { id: string; host: HostConsoleView; live: 
 
   return (
     <Screen
-      header={<Header phase={phase} />}
+      header={<Header />}
       footer={
         primary ? (
           <View style={styles.footerStack}>
@@ -207,7 +239,7 @@ function Console({ id, host, live }: { id: string; host: HostConsoleView; live: 
   );
 }
 
-function Header({ phase }: { phase: LivePhase }) {
+function Header() {
   return (
     <View style={styles.header}>
       <PressScale
@@ -219,58 +251,26 @@ function Header({ phase }: { phase: LivePhase }) {
           Back
         </Txt>
       </PressScale>
-      <View style={styles.status}>
-        <View
-          style={[
-            styles.dot,
-            {
-              backgroundColor: phase === 'live' ? Palette.ember : phase === 'cancelled' ? Palette.danger : Palette.paperMuted,
-            },
-          ]}
-        />
-        <Txt variant="label">{STATUS[phase]}</Txt>
-      </View>
     </View>
   );
 }
 
 function Lobby({ host }: { host: HostConsoleView }) {
   const code = host.joinCode ?? '';
-  const url = host.shareUrl ?? WEB_URL + '/c/' + code;
-  const [copied, setCopied] = useState(false);
-  useEffect(() => {
-    if (!copied) return;
-    const t = setTimeout(() => setCopied(false), 1600);
-    return () => clearTimeout(t);
-  }, [copied]);
+  const { share, label, copied } = useShareChallenge(code, host.shareUrl);
   const newest = [...host.entrants].reverse().slice(0, 12);
   return (
     <>
-      <View style={styles.codeBlock}>
-        <View style={styles.tiles}>
-          <Stagger from={8} stagger={40}>
-            {code.split('').map((ch, i) => (
-              <View key={i} style={styles.tile}>
-                <Txt style={styles.letter}>{ch}</Txt>
-              </View>
-            ))}
-          </Stagger>
+      <Enter from={8} delay={60}>
+        <View style={styles.codeBlock}>
+          <JoinQR code={code} shareUrl={host.shareUrl} variant="stage" />
+          <PressScale haptic="tap" accessibilityRole="button" onPress={share} style={styles.share}>
+            <Txt variant="label" color={copied ? Palette.ok : Palette.paper}>
+              {label}
+            </Txt>
+          </PressScale>
         </View>
-        <View style={styles.qr}>
-          <QRCode value={url} size={168} color={Palette.paper} backgroundColor={Palette.card} />
-        </View>
-        <PressScale
-          haptic="tap"
-          accessibilityRole="button"
-          onPress={async () => {
-            await Clipboard.setStringAsync(url);
-            setCopied(true);
-          }}>
-          <Txt variant="label" color={copied ? Palette.ok : Palette.paper}>
-            {copied ? 'Link copied' : url.replace(/^https?:\/\//, '')}
-          </Txt>
-        </PressScale>
-      </View>
+      </Enter>
       <View style={styles.entrants}>
         <View style={styles.countRow}>
           <Txt style={styles.count}>{host.entrantCount}</Txt>
@@ -306,7 +306,7 @@ function QuizBoard({ host, board, serverNow }: { host: HostConsoleView; board: B
   const scored = board.rows.some((r) => r.points > 0);
   const n = round?.questionCount ?? 0;
   const position = round?.index !== null && round?.index !== undefined ? 'Question ' + (round.index + 1) + ' of ' + n : '';
-  const left = open && round?.closesAt ? Math.max(0, round.closesAt - now) : 0;
+  const left = open && round?.closesAt ? Math.max(0, Math.min(round.closesAt - now, round.closesAt - (round.opensAt ?? now))) : 0;
   return (
     <>
       <View style={styles.round}>
@@ -323,7 +323,7 @@ function QuizBoard({ host, board, serverNow }: { host: HostConsoleView; board: B
           </Animated.View>
         ) : (
           <Txt variant="quote" color={Palette.paperMuted}>
-            {board.rows.length + (board.rows.length === 1 ? ' team' : ' teams') + ' ready'}
+            {board.rows.length ? board.rows.length + (board.rows.length === 1 ? ' team' : ' teams') + ' ready' : 'Dealing teams'}
           </Txt>
         )}
         {open ? (
@@ -465,32 +465,20 @@ function TeamCell({ label, members }: { label: string; members: string[] }) {
   );
 }
 
-function Primary({
-  title,
-  onPress,
-  disabled,
-  busy,
-  accent,
-}: {
-  title: string;
-  onPress: () => void;
-  disabled?: boolean;
-  busy?: boolean;
-  accent?: boolean;
-}) {
-  const off = disabled || busy;
+function Primary({ title, onPress, disabled, accent }: { title: string; onPress: () => void; disabled?: boolean; accent?: boolean }) {
   return (
     <PressScale
       accessibilityRole="button"
-      accessibilityState={{ disabled: off, busy }}
-      disabled={off}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
       haptic="tap"
       onPress={onPress}
       style={[styles.primary, accent ? styles.accent : styles.ink, disabled && styles.disabled]}>
-      <Txt variant="button" color={disabled ? Palette.disabledText : accent ? Palette.onAccent : Palette.ink} style={busy && styles.dim}>
-        {title}
-      </Txt>
-      {busy ? <ActivityIndicator size="small" color={accent ? Palette.onAccent : Palette.ink} style={styles.spinner} /> : null}
+      <Animated.View key={title} entering={FadeIn.duration(120)}>
+        <Txt variant="button" color={disabled ? Palette.disabledText : accent ? Palette.onAccent : Palette.ink}>
+          {title}
+        </Txt>
+      </Animated.View>
     </PressScale>
   );
 }
@@ -498,7 +486,7 @@ function Primary({
 function Quiet({ title, onPress, busy, color = Palette.paper }: { title: string; onPress: () => void; busy?: boolean; color?: string }) {
   return (
     <PressScale accessibilityRole="button" disabled={busy} haptic="tap" onPress={onPress} style={styles.quiet}>
-      <Txt variant="label" color={color} style={busy && styles.dim}>
+      <Txt variant="label" color={color}>
         {title}
       </Txt>
     </PressScale>
@@ -536,7 +524,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Space.s,
   },
-  dim: { opacity: 0.6 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -545,32 +532,9 @@ const styles = StyleSheet.create({
     paddingTop: Space.s,
     minHeight: 40,
   },
-  status: { flexDirection: 'row', alignItems: 'center', gap: Space.s },
-  dot: { width: 8, height: 8, borderRadius: 4 },
   titleBlock: { gap: Space.xs },
+  share: { minHeight: 44, justifyContent: 'center', paddingHorizontal: Space.m },
   codeBlock: { alignItems: 'center', gap: Space.l, paddingTop: Space.s },
-  tiles: { flexDirection: 'row', gap: 10 },
-  tile: {
-    width: 72,
-    height: 88,
-    borderRadius: Radius.m,
-    backgroundColor: Palette.card,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Palette.hairline,
-  },
-  letter: {
-    fontFamily: FontFamily.uiBold,
-    fontSize: 48,
-    lineHeight: 58,
-    color: Palette.paper,
-  },
-  qr: {
-    padding: Space.m,
-    borderRadius: Radius.m,
-    backgroundColor: Palette.card,
-  },
   entrants: { gap: Space.m, paddingTop: Space.s },
   countRow: { flexDirection: 'row', alignItems: 'baseline', gap: Space.s },
   count: {
@@ -661,5 +625,4 @@ const styles = StyleSheet.create({
   accent: { backgroundColor: Palette.ember },
   ink: { backgroundColor: Palette.paper },
   disabled: { backgroundColor: Palette.paperShade },
-  spinner: { position: 'absolute', right: Space.l },
 });

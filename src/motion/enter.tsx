@@ -1,6 +1,6 @@
 import { Children, isValidElement, useEffect, type ReactNode } from 'react';
 import type { StyleProp, ViewStyle } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming } from 'react-native-reanimated';
 
 import { useReduced } from './reduced';
 import { Duration, Ease, Spring, type SpringToken } from './tokens';
@@ -28,7 +28,7 @@ export function Enter({ children, index = 0, play = true, from = 16, stagger = D
       return;
     }
     const wait = delay + index * stagger;
-    const to = reduced ? withTiming(1, { duration: Duration.fade, easing: Ease.out }) : withSpring(1, spring);
+    const to = reduced ? withTiming(1, { duration: Duration.fade, easing: Ease.out, reduceMotion: ReduceMotion.Never }) : withSpring(1, spring);
     progress.set(0);
     progress.set(withDelay(wait, to));
   }, [play, reduced, delay, index, stagger, spring, progress]);
