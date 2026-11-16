@@ -5,12 +5,16 @@ import { Txt } from '@/components/signal/txt';
 import { Palette, Radius, Space } from '@/constants/signal';
 import { PressScale, Stagger } from '@/motion';
 
-import type { DropTemplateId } from '@/lib/contract';
+import type { DropTemplateId, RealPayoutStatusView } from '@/lib/contract';
 
 import { Brass, money, Tagline } from './ui';
 
 export type CreatorDrop = { title: string; totalCents: number; winnerSlots: number };
 export type Pot = { key: string; label: string; totalCents: number; concept?: boolean };
+
+// A real pot fits while real payouts are on, the pot is within the remaining budget, and one squad's share is within the cap.
+export const potFits = (pot: Pot, real: RealPayoutStatusView | undefined, winnerSlots: number) =>
+  !!pot.concept || (!!real?.enabled && pot.totalCents <= real.remainingCents && pot.totalCents / winnerSlots <= real.capPerSquadCents);
 
 export type Challenge = { key: string; label: string; title: string; template?: DropTemplateId };
 
@@ -33,6 +37,7 @@ export function CreatorSetupScreen({
   live,
   pot,
   onPot,
+  real,
   challenge,
   onChallenge,
   error,
@@ -42,6 +47,7 @@ export function CreatorSetupScreen({
   live?: { entrantCount: number; shareUrl: string };
   pot?: Pot;
   onPot?: (pot: Pot) => void;
+  real?: RealPayoutStatusView;
   challenge?: Challenge;
   onChallenge?: (challenge: Challenge) => void;
   error?: string | null;
@@ -73,9 +79,9 @@ export function CreatorSetupScreen({
             <Txt variant="small" color={Palette.paperMuted}>
               {`${money(drop.totalCents)} · first ${drop.winnerSlots} squads win`}
             </Txt>
-            {pot?.concept ? (
+            {pot ? (
               <Txt variant="label" color={Brass}>
-                Concept · no real money moves
+                {pot.concept ? 'Concept · no real money moves' : 'Real · paid via Whop'}
               </Txt>
             ) : null}
           </View>
@@ -103,7 +109,14 @@ export function CreatorSetupScreen({
         {!live && challenge && onChallenge ? (
           <Picker label="Challenge" options={CHALLENGES} selected={challenge.key} onPick={onChallenge} />
         ) : null}
-        {!live && pot && onPot ? <Picker label="Bounty" options={POTS} selected={pot.key} onPick={onPot} /> : null}
+        {!live && pot && onPot ? (
+          <>
+            <Picker label="Bounty" options={POTS} selected={pot.key} onPick={onPot} disabled={(o) => !potFits(o, real, drop.winnerSlots)} />
+            <Txt variant="small" color={Palette.paperMuted}>
+              {real?.enabled ? `Real · paid via Whop · ${money(real.remainingCents)} left` : 'Real payouts are off right now.'}
+            </Txt>
+          </>
+        ) : null}
       </View>
       {error ? (
         <Txt variant="body" color={Palette.danger}>
@@ -117,7 +130,19 @@ export function CreatorSetupScreen({
   );
 }
 
-function Picker<T extends { key: string; label: string }>({ label, options, selected, onPick }: { label: string; options: T[]; selected: string; onPick: (option: T) => void }) {
+function Picker<T extends { key: string; label: string }>({
+  label,
+  options,
+  selected,
+  onPick,
+  disabled,
+}: {
+  label: string;
+  options: T[];
+  selected: string;
+  onPick: (option: T) => void;
+  disabled?: (option: T) => boolean;
+}) {
   return (
     <View style={styles.picker}>
       <Txt variant="small" color={Palette.paperMuted}>
@@ -126,14 +151,15 @@ function Picker<T extends { key: string; label: string }>({ label, options, sele
       <View style={styles.pots}>
         {options.map((o) => {
           const on = o.key === selected;
+          const off = !on && !!disabled?.(o);
           return (
             <PressScale
               key={o.key}
               accessibilityRole="button"
-              accessibilityState={{ selected: on }}
-              onPress={() => onPick(o)}
+              accessibilityState={{ selected: on, disabled: off }}
+              onPress={off ? undefined : () => onPick(o)}
               haptic="tap"
-              style={[styles.pot, on && styles.potOn]}>
+              style={[styles.pot, on && styles.potOn, off && styles.potOff]}>
               <Txt variant="smallStrong" color={on ? Palette.ink : Palette.paper}>
                 {o.label}
               </Txt>
@@ -168,5 +194,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   potOn: { backgroundColor: Palette.paper, borderColor: Palette.paper },
+  potOff: { opacity: 0.4 },
   cta: { height: 54, borderRadius: 16, backgroundColor: Palette.paper, alignItems: 'center', justifyContent: 'center' },
 });

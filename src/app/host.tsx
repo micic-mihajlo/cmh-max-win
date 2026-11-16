@@ -1,9 +1,9 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 
-import { CHALLENGES, CreatorSetupScreen, POTS } from '@/components/drops/creator-setup';
+import { CHALLENGES, CreatorSetupScreen, POTS, potFits } from '@/components/drops/creator-setup';
 import { NameEntryScreen } from '@/components/screens/name-entry';
-import { useHostDrop } from '@/hooks/use-drops';
+import { useHostDrop, useRealPayoutStatus } from '@/hooks/use-drops';
 import { usePlayerName } from '@/hooks/use-player-name';
 import { toSignalError } from '@/lib/signal-error';
 
@@ -12,6 +12,7 @@ const WINNER_SLOTS = 3;
 // Open a hosted drop from this device; it becomes the big shared screen. The server owns the bounty from here on.
 export default function HostNewRoute() {
   const hostDrop = useHostDrop();
+  const real = useRealPayoutStatus();
   const { name, save } = usePlayerName();
   const [draft, setDraft] = useState('');
   const [pot, setPot] = useState(POTS[0]);
@@ -26,19 +27,20 @@ export default function HostNewRoute() {
       challenge={challenge}
       onChallenge={setChallenge}
       pot={pot}
+      real={real}
       onPot={(p) => {
         setPot(p);
         setError(null);
       }}
       error={error}
       onOpen={
-        opening
+        opening || !potFits(pot, real, WINNER_SLOTS)
           ? undefined
           : async () => {
               setOpening(true);
               setError(null);
               try {
-                const { dropId } = await hostDrop({ title: challenge.title, totalCents: pot.totalCents, winnerSlots: WINNER_SLOTS, creatorName: name, template: challenge.template });
+                const { dropId } = await hostDrop({ title: challenge.title, totalCents: pot.totalCents, winnerSlots: WINNER_SLOTS, creatorName: name, template: challenge.template, payoutMode: pot.concept ? 'concept' : 'real' });
                 router.replace({ pathname: '/drop/[id]/host', params: { id: dropId } });
               } catch (e) {
                 setError(toSignalError(e)?.message ?? 'That didn’t go through. Try again.');
