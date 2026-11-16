@@ -69,6 +69,9 @@ export function Stage({ pulse, round, controls }: { pulse: RoomPulse; round: Rou
   const hovered = pulse.teams.findIndex((t) => t.id === hover);
   // Past 24 teams the field reads as a crowd; names stay one hover or hold away.
   const labelled = pulse.teams.length <= 24;
+  // Without labels, the newest lock names its cluster for two seconds, so "Team Moss locked" can be found on stream.
+  const newest = locked[locked.length - 1];
+  const callout = !labelled && open && newest && now - newest.lockedAt! < 2000 ? pulse.teams.indexOf(newest) : -1;
 
   return (
     <View style={[fill, styles.root]}>
@@ -154,6 +157,20 @@ export function Stage({ pulse, round, controls }: { pulse: RoomPulse; round: Rou
             </Pressable>
           );
         })}
+        {callout >= 0 ? (
+          <Animated.View
+            key={newest.id}
+            entering={FadeIn.duration(200)}
+            exiting={FadeOut.duration(200)}
+            pointerEvents="none"
+            style={[styles.abs, { left: (at(callout).x - pitch / 2) * u, top: (at(callout).y + 0.75 * d) * u, width: pitch * u }]}>
+            <Txt
+              numberOfLines={1}
+              style={[styles.muted, styles.center, { fontSize: Math.min(22, d * 0.45) * u, lineHeight: Math.min(28, d * 0.6) * u }]}>
+              {nameOf(newest).replace(/^Team /, '')}
+            </Txt>
+          </Animated.View>
+        ) : null}
         {hovered >= 0 ? (
           <Animated.View
             entering={FadeIn.duration(120)}
@@ -269,6 +286,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   strip: { flexDirection: 'row', alignItems: 'center', gap: 24, paddingHorizontal: 24, borderTopWidth: 1, borderColor: Palette.hairline },
   label: { position: 'absolute', left: 0, right: 0, textAlign: 'center' },
+  center: { textAlign: 'center' },
   abs: { position: 'absolute' },
   right: { alignItems: 'flex-end' },
   baseline: { flexDirection: 'row', alignItems: 'baseline' },
