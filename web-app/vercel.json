@@ -4,7 +4,7 @@
   "installCommand": "",
   "outputDirectory": ".",
   "cleanUrls": true,
-  "redirects": [{ "source": "/video", "destination": "https://signal-app-wine.vercel.app/", "permanent": false }],
+  "redirects": [{ "source": "/video", "destination": "https://api.capy.ai/pr-assets/v_K3vl8gZ5ynr-JMr4a4o-W46vOVNyLqDVNpJZwheXz20.mp4", "permanent": false }],
   "rewrites": [
     { "source": "/assets/node_modules/:path*", "destination": "/assets/nm/:path*" },
     { "source": "/:path*", "destination": "/" }
