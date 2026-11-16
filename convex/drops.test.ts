@@ -561,22 +561,25 @@ describe('host screen', () => {
     expect(await t.query(api.drops.dropByCode, { deviceToken: 'p1', code: joinCode })).toMatchObject({ hosted: true });
   });
 
-  test('only the host reads hostView and deals; dealing needs 4 players', async () => {
-    const { t, dropId, joinCode } = await hosted(3);
+  test('only the host reads hostView and deals; dealing needs one full squad', async () => {
+    const { t, dropId, joinCode } = await hosted(2);
     expect(await t.query(api.drops.hostView, { deviceToken: 'p1', dropId })).toBeNull();
     expect(await t.query(api.drops.hostView, { deviceToken: 'stranger', dropId })).toBeNull();
     const view = await t.query(api.drops.hostView, { deviceToken: 'host', dropId });
     expect(view).toMatchObject({
       joinCode,
       status: 'scheduled',
-      entrantCount: 3,
+      entrantCount: 2,
+      minToDeal: 3,
+      needMore: 1,
       bounty: { totalCents: 30_000, winnerSlots: 1, mode: 'concept' },
       squads: [],
       solves: [],
     });
-    expect(view?.entrants.map((e) => e.name)).toEqual(['p1', 'p2', 'p3']);
+    expect(view?.entrants.map((e) => e.name)).toEqual(['p1', 'p2']);
     expect(await errorCode(t.mutation(api.drops.dealSquads, { deviceToken: 'host', dropId }))).toBe('NOT_ENOUGH_PLAYERS');
-    await t.mutation(api.drops.enterDropByCode, { deviceToken: 'p4', code: joinCode, name: 'p4' });
+    for (const p of ['p3', 'p4']) await t.mutation(api.drops.enterDropByCode, { deviceToken: p, code: joinCode, name: p });
+    expect(await t.query(api.drops.hostView, { deviceToken: 'host', dropId })).toMatchObject({ entrantCount: 4, minToDeal: 3, needMore: 0 });
     for (const deviceToken of ['p1', 'stranger']) {
       expect(await errorCode(t.mutation(api.drops.dealSquads, { deviceToken, dropId }))).toBe('NOT_HOST');
     }
@@ -588,6 +591,51 @@ describe('host screen', () => {
       ['p3', 'p4'],
     ]);
     expect(await errorCode(t.mutation(api.drops.dealSquads, { deviceToken: 'host', dropId }))).toBe('WRONG_STATUS');
+  });
+
+  test('three players in a squadSize 3 drop deal into one squad that races, places 1st and gets the award', async () => {
+    const { t, dropId } = await hosted(3);
+    expect(await t.query(api.drops.hostView, { deviceToken: 'host', dropId })).toMatchObject({ minToDeal: 3, needMore: 0 });
+    await t.mutation(api.drops.dealSquads, { deviceToken: 'host', dropId });
+    const view = await t.query(api.drops.hostView, { deviceToken: 'host', dropId });
+    expect(view?.squads.map((s) => s.memberNames)).toEqual([['p1', 'p2', 'p3']]);
+    const code = (await t.query(api.drops.drop, { deviceToken: 'p1', dropId }))?.me.squad?.code;
+    await toPlaying(t, code!, ['p1', 'p2', 'p3']);
+    const revision = await lockAllBut(t, code!, ['p1', 'p2', 'p3'], 'jun');
+    expect(await t.mutation(api.signal.lockIn, { deviceToken: 'p3', code: code!, revision })).toMatchObject({ outcome: 'resolved' });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    const board = await t.query(api.drops.leaderboard, { deviceToken: 'p1', dropId });
+    expect(board?.rows).toMatchObject([{ rank: 1, status: 'winner', memberNames: ['p1', 'p2', 'p3'] }]);
+    const award = await t.query(api.drops.myAward, { deviceToken: 'p2', code: code! });
+    expect(award).toMatchObject({ place: 1, amountCents: 30_000, perPlayerCents: 10_000, redeemableCount: 3 });
+  });
+
+  test('two players in a squadSize 3 drop are refused with needMore 1', async () => {
+    const { t, dropId } = await hosted(2);
+    expect(await t.query(api.drops.hostView, { deviceToken: 'host', dropId })).toMatchObject({ minToDeal: 3, needMore: 1 });
+    const refusal = await t.mutation(api.drops.dealSquads, { deviceToken: 'host', dropId }).catch((e) => (e as { data: unknown }).data);
+    expect(refusal).toMatchObject({ code: 'NOT_ENOUGH_PLAYERS', needMore: 1 });
+  });
+
+  test('hostDrop minPlayers is clamped to squadSize..150, stored, and enforced by dealSquads', async () => {
+    const t = newTest();
+    const stored = async (deviceToken: string, minPlayers?: number) => {
+      const { dropId, joinCode } = await t.mutation(api.drops.hostDrop, { deviceToken, winnerSlots: 1, ...(minPlayers === undefined ? {} : { minPlayers }) });
+      return { dropId, joinCode, minPlayers: await t.run(async (ctx) => (await ctx.db.query('drops').withIndex('by_dropId', (q) => q.eq('dropId', dropId)).unique())?.minPlayers ?? null) };
+    };
+    expect((await stored('h1', 1)).minPlayers).toBe(3);
+    expect((await stored('h2', 1000)).minPlayers).toBe(150);
+    expect((await stored('h3', 5.7)).minPlayers).toBe(5);
+    expect((await stored('h4')).minPlayers).toBeNull();
+    const { dropId, joinCode } = await stored('h5', 5);
+    for (const p of ['p1', 'p2', 'p3', 'p4']) await t.mutation(api.drops.enterDropByCode, { deviceToken: p, code: joinCode, name: p });
+    expect(await t.query(api.drops.hostView, { deviceToken: 'h5', dropId })).toMatchObject({ minToDeal: 5, needMore: 1 });
+    const refusal = await t.mutation(api.drops.dealSquads, { deviceToken: 'h5', dropId }).catch((e) => (e as { data: unknown }).data);
+    expect(refusal).toMatchObject({ code: 'NOT_ENOUGH_PLAYERS', needMore: 1 });
+    await t.mutation(api.drops.enterDropByCode, { deviceToken: 'p5', code: joinCode, name: 'p5' });
+    expect(await t.query(api.drops.hostView, { deviceToken: 'h5', dropId })).toMatchObject({ minToDeal: 5, needMore: 0 });
+    await t.mutation(api.drops.dealSquads, { deviceToken: 'h5', dropId });
+    expect((await t.query(api.drops.hostView, { deviceToken: 'h5', dropId }))?.status).toBe('live');
   });
 
   test('a hosted drop never takes the sandbox payout path, even with BOUNTY_MODE=sandbox', async () => {
