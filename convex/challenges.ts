@@ -9,6 +9,7 @@ import {
   internalQuery,
   mutation,
   query,
+  type ActionCtx,
   type MutationCtx,
   type QueryCtx,
 } from './_generated/server';
@@ -642,20 +643,32 @@ export const myChallenge = query({
 
 // Joining is an action so whop_members eligibility can ask Whop (checkWhopAccess) before the entry is written.
 // Until Whop OAuth is configured on the deployment, membership is recorded but not checked.
+// A crowd joining at once can still exhaust Convex's OCC retries on a limiter shard or a seat. That failure is not a
+// ConvexError, so the whole join runs once more after a short jitter before the error reaches the player.
 export const joinChallenge = action({
   args: { deviceToken: v.string(), code: v.string(), name: v.string() },
   handler: async (ctx, args): Promise<{ challengeId: string }> => {
-    await enforceRateLimit(ctx, 'challengeJoinDevice', args.deviceToken);
-    await enforceRateLimit(ctx, 'challengeJoin', args.code.trim().toUpperCase());
-    const gate = await ctx.runQuery(internal.challenges.joinGate, { deviceToken: args.deviceToken, code: args.code });
-    if (gate && whopOAuthConfigured()) {
-      if (!gate.whopUserId) fail('WHOP_SIGN_IN_REQUIRED', 'Sign in with Whop to join this challenge.');
-      const { hasAccess } = await checkWhopAccess(gate.whopUserId, gate.productId);
-      if (!hasAccess) fail('NOT_ELIGIBLE', 'This challenge is for members of the creator’s Whop.');
+    try {
+      return await joinOnce(ctx, args);
+    } catch (e) {
+      if (e instanceof ConvexError) throw e;
+      await new Promise((resolve) => setTimeout(resolve, 50 + Math.random() * 150));
+      return joinOnce(ctx, args);
     }
-    return ctx.runMutation(internal.challenges.enterChallenge, args);
   },
 });
+
+async function joinOnce(ctx: ActionCtx, args: { deviceToken: string; code: string; name: string }): Promise<{ challengeId: string }> {
+  await enforceRateLimit(ctx, 'challengeJoinDevice', args.deviceToken);
+  await enforceRateLimit(ctx, 'challengeJoin', args.code.trim().toUpperCase());
+  const gate = await ctx.runQuery(internal.challenges.joinGate, { deviceToken: args.deviceToken, code: args.code });
+  if (gate && whopOAuthConfigured()) {
+    if (!gate.whopUserId) fail('WHOP_SIGN_IN_REQUIRED', 'Sign in with Whop to join this challenge.');
+    const { hasAccess } = await checkWhopAccess(gate.whopUserId, gate.productId);
+    if (!hasAccess) fail('NOT_ELIGIBLE', 'This challenge is for members of the creator’s Whop.');
+  }
+  return ctx.runMutation(internal.challenges.enterChallenge, args);
+}
 
 export const joinGate = internalQuery({
   args: { deviceToken: v.string(), code: v.string() },
