@@ -10,9 +10,6 @@ import { PressScale } from '@/motion';
 
 const SHOWN = 3;
 
-// creator arrives with CMHM-76; until then the line falls back to the count or time alone.
-type Card = ChallengeCardView & { creator?: { displayName: string } };
-
 // What's on now and next, followed creators first. Both lists come from one discovery query. Home shows three of
 // each; `all` (the See all page) shows every row. A game needs two players to count as on.
 export function OnNow({ all }: { all?: boolean }) {
@@ -21,7 +18,7 @@ export function OnNow({ all }: { all?: boolean }) {
   if (!on.length) return null;
   return (
     <Section title="On now" more={!all && on.length > SHOWN}>
-      {(all ? on : on.slice(0, SHOWN)).map((c: Card) => (
+      {(all ? on : on.slice(0, SHOWN)).map((c) => (
         <Row
           key={c.challengeId}
           title={c.title}
@@ -67,7 +64,7 @@ function Section({ title, more, children }: { title: string; more: boolean; chil
   );
 }
 
-function NextRow({ challenge, reminded }: { challenge: Card; reminded: boolean }) {
+function NextRow({ challenge, reminded }: { challenge: ChallengeCardView; reminded: boolean }) {
   const { remind, cancel } = useRemindChallenge(challenge.challengeId);
   const [local, setLocal] = useState<boolean | null>(null);
   const on = local ?? reminded;
@@ -113,8 +110,8 @@ function Row({ title, line, action, quiet, onPress }: { title: string; line: str
   );
 }
 
-function byline(c: Card, detail: string) {
-  return c.creator ? c.creator.displayName + ' · ' + detail : detail;
+function byline(c: ChallengeCardView, detail: string) {
+  return c.creator.displayName + ' · ' + detail;
 }
 
 // 'Fri 9 pm', or 'Fri 9:30 pm' off the hour.
