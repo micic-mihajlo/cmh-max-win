@@ -168,7 +168,16 @@ export function TheorySheet({
             <View style={styles.seals}>
               {seals(room).map(({ role, member }) => (
                 <View key={member.memberId} style={styles.sealCol}>
-                  <Seal role={role} filled={locked.has(member.memberId)} haptic={member.isMe} size={46} initial={member.name.charAt(0).toUpperCase()} />
+                  <View style={styles.seal}>
+                    <Seal role={role} filled={locked.has(member.memberId)} haptic={member.isMe} size={46} initial={member.name.charAt(0).toUpperCase()} />
+                    {locked.has(member.memberId) ? null : (
+                      <View pointerEvents="none" style={styles.sealPending}>
+                        <Txt variant="bodyStrong" color={Palette.paperMuted}>
+                          {member.name.charAt(0).toUpperCase()}
+                        </Txt>
+                      </View>
+                    )}
+                  </View>
                   <Txt variant="small" color={Palette.paperMuted} numberOfLines={1}>
                     {member.isMe ? 'You' : member.name}
                   </Txt>
@@ -221,4 +230,16 @@ const styles = StyleSheet.create({
   expanded: { gap: Space.m, paddingTop: Space.s, paddingBottom: Space.xs },
   seals: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', rowGap: Space.s },
   sealCol: { alignItems: 'center', gap: 6, width: 80 },
+  seal: { width: 46, height: 46 },
+  sealPending: {
+    position: 'absolute',
+    top: -1,
+    left: -1,
+    right: -1,
+    bottom: -1,
+    borderRadius: 24,
+    backgroundColor: Palette.paperShade,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

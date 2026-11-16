@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
   avatar: { alignItems: 'center', justifyContent: 'center', backgroundColor: Palette.card, borderWidth: 1, borderColor: Palette.hairline },
   flex: { flex: 1 },
   button: {
-    minHeight: 56,
+    minHeight: 52,
     borderRadius: Radius.m,
     paddingHorizontal: Space.xl,
     flexDirection: 'row',

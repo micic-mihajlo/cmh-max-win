@@ -104,5 +104,5 @@ const styles = StyleSheet.create({
   concept: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: Brass, backgroundColor: 'transparent' },
   status: { flexDirection: 'row', alignItems: 'center', gap: Space.s },
   split: { paddingHorizontal: Space.xl },
-  row: { flexDirection: 'row', alignItems: 'center', gap: Space.m, height: 44 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: Space.m, height: 64 },
 });

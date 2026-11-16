@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
   cells: { paddingVertical: Space.m },
   hiddenInput: { ...StyleSheet.absoluteFill, opacity: 0.02, color: 'transparent' },
   joining: {
-    minHeight: 54,
+    minHeight: 52,
     borderRadius: Radius.pill,
     backgroundColor: Palette.paper,
     flexDirection: 'row',

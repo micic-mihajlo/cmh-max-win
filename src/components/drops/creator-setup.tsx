@@ -203,5 +203,5 @@ const styles = StyleSheet.create({
   },
   potOn: { backgroundColor: Palette.paper, borderColor: Palette.paper },
   potOff: { opacity: 0.4 },
-  cta: { height: 54, borderRadius: 16, backgroundColor: Palette.paper, alignItems: 'center', justifyContent: 'center' },
+  cta: { height: 52, borderRadius: 16, backgroundColor: Palette.paper, alignItems: 'center', justifyContent: 'center' },
 });
