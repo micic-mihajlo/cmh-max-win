@@ -4,6 +4,7 @@
   "installCommand": "",
   "outputDirectory": ".",
   "cleanUrls": true,
+  "redirects": [{ "source": "/video", "destination": "https://signal-app-wine.vercel.app/", "permanent": false }],
   "rewrites": [
     { "source": "/assets/node_modules/:path*", "destination": "/assets/nm/:path*" },
     { "source": "/:path*", "destination": "/" }
