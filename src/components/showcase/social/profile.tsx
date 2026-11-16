@@ -6,6 +6,7 @@ import { Palette, Space } from '@/constants/signal';
 import { me } from '@/mocks/showcase/social';
 import { Enter } from '@/motion';
 
+import { Account } from './account';
 import { nameList } from './copy';
 import { Screen, Section, showcase } from './kit';
 
@@ -54,6 +55,8 @@ export function ProfileScreen() {
           ))}
         </View>
       </Section>
+
+      <Account />
     </Screen>
   );
 }

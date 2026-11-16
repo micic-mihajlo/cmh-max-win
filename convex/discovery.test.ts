@@ -215,3 +215,87 @@ describe('follow and remind', () => {
     expect((await t.query(api.discovery.upcomingReminders, { deviceToken: 'p1' }))[0].squadmates).toEqual(['Name-p2', 'Name-p3', 'Name-p4']);
   });
 });
+
+describe('home screen', () => {
+  async function publishAs(t: T, host: string, patch: ChallengeConfigPatch) {
+    const { challengeId } = await t.mutation(api.challenges.createChallenge, { deviceToken: host, patch: { poolCents: 10_000, ...patch } });
+    const { joinCode } = await t.mutation(api.challenges.publishChallenge, { deviceToken: host, challengeId });
+    return { challengeId, joinCode };
+  }
+  const hostAs = (t: T, deviceToken: string, displayName: string, handle: string) => t.mutation(api.challenges.saveCreatorProfile, { deviceToken, displayName, handle });
+
+  test('resolveCode: a challenge code in any case or its slug, a drop code, and null for anything not open', async () => {
+    const t = await creator();
+    const { joinCode } = await publish(t, { title: 'Friday Race' });
+    const challenge = { kind: 'challenge', code: joinCode, path: '/c/' + joinCode };
+    for (const code of [joinCode, joinCode.toLowerCase(), ' ' + joinCode + ' ', slugOf('nova', 'Friday Race', joinCode), 'nova/' + joinCode]) {
+      expect(await t.query(api.discovery.resolveCode, { code })).toEqual(challenge);
+    }
+    expect(await t.query(api.discovery.resolveCode, { code: 'someone-else-' + joinCode.toLowerCase() })).toBeNull();
+
+    const drop = await t.mutation(api.drops.hostDrop, { deviceToken: 'danny', creatorName: 'Danny' });
+    expect(await t.query(api.discovery.resolveCode, { code: drop.joinCode.toLowerCase() })).toEqual({ kind: 'drop', code: drop.joinCode, path: '/join/' + drop.joinCode });
+
+    const past = await ended(t, 'Last week');
+    for (const code of ['ZZ11', 'nope', '', past.joinCode]) expect(await t.query(api.discovery.resolveCode, { code })).toBeNull();
+  });
+
+  test('home: on now newest first, coming up soonest first then live mode, drafts never', async () => {
+    const t = await creator();
+    const firstOpen = await publish(t, { title: 'Open early', startMode: 'window', endsAt: Date.now() + 60 * MIN });
+    vi.advanceTimersByTime(MIN);
+    const secondOpen = await publish(t, { title: 'Open later', startMode: 'window', endsAt: Date.now() + 60 * MIN });
+    const later = await publish(t, { title: 'Later', startMode: 'scheduled', startsAt: Date.now() + 90 * MIN });
+    const onStream = await publish(t, { title: 'On stream' });
+    const sooner = await publish(t, { title: 'Sooner', startMode: 'scheduled', startsAt: Date.now() + 30 * MIN });
+    await t.mutation(api.challenges.createChallenge, { deviceToken: HOST, patch: { title: 'Draft' } });
+    await ended(t, 'Done');
+
+    const home = await t.query(api.discovery.home, { deviceToken: 'fan' });
+    expect(home.onNow.map((c) => c.challengeId)).toEqual([secondOpen.challengeId, firstOpen.challengeId]);
+    expect(home.onNow[0]).toMatchObject({ phase: 'open', slug: 'nova-open-later-' + secondOpen.joinCode.toLowerCase() });
+    expect(home.comingUp.map((c) => c.challengeId)).toEqual([sooner.challengeId, later.challengeId, onStream.challengeId]);
+    expect(JSON.stringify(home)).not.toMatch(/Draft|Done/);
+    expect(JSON.stringify(home)).not.toContain(HOST);
+    expect(home.serverNow).toBeGreaterThanOrEqual(Date.now());
+  });
+
+  test('home: followed creators come first, and each row holds at most 10', async () => {
+    const t = await creator();
+    await hostAs(t, 'kayla', 'Kayla', 'kayla');
+    for (let i = 0; i < 12; i++) await publish(t, { title: 'Nova ' + i, startMode: 'scheduled', startsAt: Date.now() + (i + 1) * MIN });
+    const kayla = await publishAs(t, 'kayla', { title: 'Kayla night', startMode: 'scheduled', startsAt: Date.now() + 300 * MIN });
+
+    const before = await t.query(api.discovery.home, { deviceToken: 'fan' });
+    expect(before.comingUp).toHaveLength(10);
+    expect(before.comingUp.map((c) => c.challengeId)).not.toContain(kayla.challengeId);
+
+    await t.mutation(api.discovery.followCreator, { deviceToken: 'fan', handle: 'kayla' });
+    const after = await t.query(api.discovery.home, { deviceToken: 'fan' });
+    expect(after.comingUp).toHaveLength(10);
+    expect(after.comingUp[0].challengeId).toBe(kayla.challengeId);
+    expect(after.comingUp[1].title).toBe('Nova 0');
+    expect((await t.query(api.discovery.home, { deviceToken: 'someone' })).comingUp[0].title).toBe('Nova 0');
+  });
+
+  test('home: test, QA, rehearsal and flagged hosts and test titles stay out', async () => {
+    const t = await creator();
+    const real = await publish(t, { title: 'Real one', startMode: 'window', endsAt: Date.now() + 60 * MIN });
+    await publish(t, { title: 'Race (ignore)', startMode: 'window', endsAt: Date.now() + 60 * MIN });
+    await hostAs(t, 'qa', 'QA bot', 'qabot');
+    await publishAs(t, 'qa', { title: 'QA race', startMode: 'window', endsAt: Date.now() + 60 * MIN });
+    await hostAs(t, 'rehearsal', 'Capy Rehearsal', 'rehearse');
+    await publishAs(t, 'rehearsal', { title: 'Practice', startMode: 'scheduled', startsAt: Date.now() + 30 * MIN });
+    await hostAs(t, 'flagged', 'Marcus', 'marcus');
+    await publishAs(t, 'flagged', { title: 'Marcus race' });
+    await t.mutation(api.discovery.followCreator, { deviceToken: 'fan', handle: 'marcus' });
+    await t.run(async (ctx) => {
+      const s = (await ctx.db.query('streamers').withIndex('by_host', (q) => q.eq('hostToken', 'flagged')).first())!;
+      await ctx.db.patch(s._id, { hidden: true });
+    });
+
+    const home = await t.query(api.discovery.home, { deviceToken: 'fan' });
+    expect(home.onNow.map((c) => c.challengeId)).toEqual([real.challengeId]);
+    expect(home.comingUp).toEqual([]);
+  });
+});

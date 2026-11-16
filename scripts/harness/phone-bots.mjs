@@ -8,7 +8,7 @@ const URL_ = flag('target') === 'dev' ? 'https://compassionate-puffin-914.convex
 const CODE = flag('code');
 const N = Number(flag('n', 5));
 const SOLO_SOLVE_MS = Number(flag('solo-solve', 60000));
-const NAMES = ['Theo', 'Priya', 'Ines', 'Mike', 'Lena', 'Omar', 'Zoe', 'Rui'];
+const NAMES = ['Theo', 'Megan', 'Ines', 'Mike', 'Emily', 'Omar', 'Rachel', 'Rui'];
 const t0 = Date.now();
 const log = (m) => console.log('[' + ((Date.now() - t0) / 1000).toFixed(1) + 's] ' + m);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

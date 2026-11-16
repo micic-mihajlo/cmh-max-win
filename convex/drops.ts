@@ -118,15 +118,26 @@ async function findEntry(ctx: QueryCtx, dropId: string, deviceToken: string) {
     .unique();
 }
 
-// mode is what an award would get right now, so it respects the remaining real-payout budget.
+// mode is the mode the drop's first award got once it commits, so a real drop stays real through the payout even
+// after that award uses up the budget. Before then it's what an award would get right now, within the budget.
 export async function bountyView(ctx: Pick<QueryCtx, 'db'>, drop: Doc<'drops'>): Promise<BountyView> {
   const perSquadCents = Math.floor(drop.bounty.totalCents / drop.bounty.winnerSlots);
+  const first = await ctx.db
+    .query('solves')
+    .withIndex('by_drop', (q) => q.eq('dropId', drop.dropId))
+    .first();
+  const award = first
+    ? await ctx.db
+        .query('bountyAwards')
+        .withIndex('by_room', (q) => q.eq('roomId', first.roomId))
+        .first()
+    : null;
   return {
     totalCents: drop.bounty.totalCents,
     currency: 'usd',
     winnerSlots: drop.bounty.winnerSlots,
     perSquadCents,
-    mode: await awardModeWithBudget(ctx, drop, perSquadCents),
+    mode: award?.mode ?? (await awardModeWithBudget(ctx, drop, perSquadCents)),
   };
 }
 
