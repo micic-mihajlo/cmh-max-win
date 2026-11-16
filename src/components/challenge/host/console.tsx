@@ -1,6 +1,6 @@
 import { router, type Href } from 'expo-router';
 import { useEffect, useState, type ReactNode } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeIn, LinearTransition, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { money, ordinal } from '@/components/drops/ui';
@@ -11,10 +11,12 @@ import { FontFamily, Palette, Radius, Space } from '@/constants/signal';
 import { useApprovePayouts, useEndChallenge, useHostConsole } from '@/hooks/use-challenges';
 import { useShareChallenge } from '@/hooks/use-share-challenge';
 import { useLiveView, useLockEntries, useRunHostAction, useStartLive } from '@/hooks/use-live';
+import { useRoomPulse } from '@/hooks/use-room-pulse';
 import type { HostConsoleView, LivePhase, LiveView } from '@/lib/contract';
 import { toSignalError } from '@/lib/signal-error';
 import { Ease, Enter, PressScale, Stagger, useReduced } from '@/motion';
 
+import { Stage } from './stage';
 import { useServerNow } from './use-server-now';
 
 type RoundPhase = 'lobby' | 'question' | 'leaderboard' | 'finished';
@@ -120,6 +122,9 @@ function Console({ id, host, live }: { id: string; host: HostConsoleView; live: 
   const phase = opt?.phase ?? serverPhase;
   const round = opt?.round ?? serverRound;
   const board = quiz && phase === 'live' ? { round, rows: serverBoard?.rows ?? [] } : serverBoard;
+  const { width } = useWindowDimensions();
+  const wide = Platform.OS === 'web' && width >= 1280 && quiz && phase === 'live';
+  const pulse = useRoomPulse(wide ? host.joinCode : null);
 
   const commit = async (next: Omit<Optimistic, 'from'> | null, fn: () => Promise<unknown>) => {
     setError(null);
@@ -189,6 +194,29 @@ function Console({ id, host, live }: { id: string; host: HostConsoleView; live: 
       ) : (
         <Primary title="See recap" onPress={() => router.push(('/studio/recap/' + id) as Href)} />
       );
+  }
+
+  if (
+    wide &&
+    pulse &&
+    round &&
+    (round.phase === 'question' || round.phase === 'leaderboard') &&
+    (pulse.phase === 'question' || pulse.phase === 'reveal')
+  ) {
+    const q = round.phase === 'question' && round.index !== null ? questions[round.index] : undefined;
+    return (
+      <Stage
+        pulse={pulse}
+        round={{ ...round, questionCount }}
+        controls={
+          <>
+            {q ? <Peek key={round.index} answer={q.choices[q.correct]} /> : null}
+            {secondary}
+            <View style={styles.flex}>{primary}</View>
+          </>
+        }
+      />
+    );
   }
 
   return (
